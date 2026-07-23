@@ -299,7 +299,7 @@
   .stamp.drawn { border-color:#d99400; }
   .stamp canvas { width:50px; height:42px; }
   .stamp div { font-size:9px; color:var(--mut); line-height:1.1; padding-bottom:3px; }
-  #libcard { overflow:auto; height:430px; max-height:none; min-width:166px; min-height:120px; }   /* always open, like WP info + Tulip */
+  #libcard { overflow:auto; height:430px; max-height:82%; min-width:166px; min-height:120px; }   /* caps to the screen like the other panels — on a short window it shrinks and scrolls (fewer tulips shown), never runs off the edge */
   .vm-scale { position:absolute; z-index:1200; cursor:grab; touch-action:none; transform-origin:left center; }   /* draggable + tiltable; still Leaflet's bare scale, no card */
   .vm-scale:active { cursor:grabbing; }
   .vm-scale-rot { position:absolute; right:-9px; top:50%; width:13px; height:13px; margin-top:-6px; border-radius:50%;
