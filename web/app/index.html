@@ -394,6 +394,29 @@
   #expmodal .exprow { display:flex; justify-content:flex-end; margin-top:6px; }
   #expmodal .expcancel { background:#f0f2f0; border:1px solid var(--hair); border-radius:8px; padding:7px 15px;
     font-size:12.5px; font-weight:700; color:var(--char); cursor:pointer; }
+  /* My routes — kept in this browser, listed here */
+  #mrmodal { display:none; position:fixed; inset:0; z-index:3200; background:rgba(12,18,14,.55);
+    align-items:center; justify-content:center; }
+  #mrmodal.on { display:flex; }
+  #mrmodal .mrcard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
+    width:520px; max-width:94vw; max-height:82vh; display:flex; flex-direction:column; padding:18px 20px 16px; }
+  #mrmodal h3 { margin:0 0 3px; font-size:18px; color:var(--green); }
+  #mrmodal .mrsub { font-size:12.5px; color:var(--mut); margin-bottom:13px; line-height:1.45; }
+  #mrmodal .mrlist { overflow-y:auto; flex:1; margin:0 -4px; padding:0 4px; }
+  #mrmodal .mrrow { display:flex; align-items:center; gap:10px; background:#f7f9f7; border:1px solid var(--hair);
+    border-radius:10px; padding:9px 11px; margin-bottom:8px; }
+  #mrmodal .mrname { flex:1; min-width:0; }
+  #mrmodal .mrname b { display:block; font-size:13.5px; color:var(--char); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  #mrmodal .mrname span { font-size:11px; color:var(--mut); }
+  #mrmodal .mrbtn { background:#fff; border:1px solid var(--hair); border-radius:7px; padding:5px 10px;
+    font-size:11.5px; font-weight:700; color:var(--char); cursor:pointer; }
+  #mrmodal .mrbtn:hover { background:#eef3ee; border-color:#c6cdc6; }
+  #mrmodal .mrbtn.go { background:var(--green); color:#fff; border-color:var(--green); }
+  #mrmodal .mrempty { color:var(--mut); font-size:13px; text-align:center; padding:26px 10px; }
+  #mrmodal .mrrow2 { display:flex; justify-content:flex-end; margin-top:10px; }
+  #mrmodal .mrclose { background:#f0f2f0; border:1px solid var(--hair); border-radius:8px; padding:7px 15px;
+    font-size:12.5px; font-weight:700; color:var(--char); cursor:pointer; }
   #signmodal { display:none; position:fixed; inset:0; z-index:3200; background:rgba(12,18,14,.55);
     align-items:center; justify-content:center; }
   #signmodal .signcard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
@@ -539,7 +562,7 @@
     <button id="pdfbtn"></button>
     <button id="savevm"></button>
     <button id="exportbtn"></button>
-    <input type="file" id="fin" accept=".vmr,.vmroute,.tvrx,.gpx,.csv,.tvr" multiple>
+    <input type="file" id="fin" accept=".vmr,.vmroute,.tvrx,.gpx,.kml,.kmz,.csv,.tvr" multiple>
   </div>
 </header>
 <div id="wrap">
@@ -677,6 +700,15 @@
         <button class="btn" id="rb_close" style="background:#f0f2f0">Close</button></div>
     </div>
     <iframe id="rbprev"></iframe>
+  </div>
+</div>
+<div id="mrmodal">
+  <div class="mrcard">
+    <h3>My routes</h3>
+    <div class="mrsub">Kept in this browser, on this computer. Handy, but <b>not a backup</b> —
+      clearing your browsing data would take them with it. Export a .vmr for anything you'd hate to lose.</div>
+    <div class="mrlist" id="mrlist"></div>
+    <div class="mrrow2"><button class="mrclose" id="mrclose">Close</button></div>
   </div>
 </div>
 <div id="expmodal">
@@ -3508,6 +3540,94 @@ $("rallybtn").onclick=ev=>{
     ["💾 Save rally…"+(rallyName?" ("+rallyName+")":""),saveRally],
     ["📂 Open a rally…",()=>$("rin").click()]]);
 };
+/* ---------- KML / KMZ ----------
+   Google Earth and Google My Maps hand out KML, and KMZ, which is just a zipped
+   KML. Rather than teach the whole tool a second format, we turn it into GPX and
+   feed it through the normal loader — so tulips, checking and export all work
+   afterwards exactly as they do for a GPX. */
+function kmlEls(root,localName){
+  /* KML files vary in how they declare namespaces, so match both ways and dedupe. */
+  const out=[], seen=new Set();
+  const lists=[];
+  try{ lists.push(root.getElementsByTagNameNS("*",localName)); }catch(e){}
+  try{ lists.push(root.getElementsByTagName(localName)); }catch(e){}
+  for(const list of lists) for(const el of list) if(!seen.has(el)){ seen.add(el); out.push(el); }
+  return out;
+}
+function kmlToGpx(text,name){
+  const k=new DOMParser().parseFromString(text,"application/xml");
+  if(k.querySelector("parsererror")) return null;
+  const esc=s=>String(s==null?"":s).replace(/[<>&]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+  const txt=(el,n)=>{ const x=kmlEls(el,n)[0]; return x?x.textContent.trim():""; };
+  /* KML writes coordinates lon,lat[,alt] — the opposite order to GPX. */
+  const coords=s=>String(s||"").trim().split(/\s+/).map(c=>{
+    const p=c.split(","), lon=+p[0], lat=+p[1];
+    if(p.length<2||!isFinite(lat)||!isFinite(lon)) return null;
+    return {lat,lon,ele:(p.length>2&&isFinite(+p[2]))?+p[2]:null};
+  }).filter(Boolean);
+
+  let wpts="", trks="";
+  for(const pm of kmlEls(k,"Placemark")){
+    const nm=txt(pm,"name"), desc=txt(pm,"description");
+    for(const pt of kmlEls(pm,"Point")){
+      const c=coords(txt(pt,"coordinates"))[0];
+      if(!c) continue;
+      wpts+=`<wpt lat="${c.lat}" lon="${c.lon}">`+
+        (c.ele!=null?`<ele>${c.ele}</ele>`:"")+`<name>${esc(nm||"WP")}</name>`+
+        (desc?`<cmt>${esc(desc)}</cmt><desc>${esc(desc)}</desc>`:"")+`</wpt>\n`;
+    }
+    let seg="";
+    for(const ls of kmlEls(pm,"LineString"))
+      for(const c of coords(txt(ls,"coordinates")))
+        seg+=`<trkpt lat="${c.lat}" lon="${c.lon}">`+(c.ele!=null?`<ele>${c.ele}</ele>`:"")+`</trkpt>\n`;
+    /* gx:Track — Google's timed track: <when> times paired with <gx:coord> "lon lat ele" */
+    const whens=kmlEls(pm,"when"), gcs=kmlEls(pm,"coord");
+    for(let i=0;i<gcs.length;i++){
+      const p=gcs[i].textContent.trim().split(/\s+/), lon=+p[0], lat=+p[1], ele=+p[2];
+      if(!isFinite(lat)||!isFinite(lon)) continue;
+      seg+=`<trkpt lat="${lat}" lon="${lon}">`+(isFinite(ele)?`<ele>${ele}</ele>`:"")+
+        (whens[i]?`<time>${esc(whens[i].textContent.trim())}</time>`:"")+`</trkpt>\n`;
+    }
+    if(seg) trks+=`<trk><name>${esc(nm||name||"route")}</name><trkseg>\n${seg}</trkseg></trk>\n`;
+  }
+  if(!wpts&&!trks) return null;
+  return '<?xml version="1.0" encoding="UTF-8"?>\n'+
+    '<gpx version="1.1" creator="Tulip Maps" xmlns="http://www.topografix.com/GPX/1/1">\n'+
+    wpts+trks+'</gpx>\n';
+}
+function loadKML(text,name){
+  const gpx=kmlToGpx(text,name);
+  if(!gpx){ toast("That KML had no route or points we could read.",6000); return; }
+  loadTVRX(gpx,name.replace(/\.(kml|kmz)$/i,".gpx"));
+}
+/* A KMZ is a zip with a .kml inside. Read the zip directory ourselves and let the
+   browser do the decompressing, rather than carrying a zip library for one job. */
+async function kmzToKml(file){
+  const buf=new Uint8Array(await file.arrayBuffer()), dv=new DataView(buf.buffer);
+  let eocd=-1;
+  for(let i=buf.length-22;i>=0 && i>buf.length-66000;i--)
+    if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; }
+  if(eocd<0) throw new Error("it isn't a zip file");
+  const count=dv.getUint16(eocd+10,true);
+  let p=dv.getUint32(eocd+16,true), pick=null;
+  for(let i=0;i<count;i++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true), compSize=dv.getUint32(p+20,true),
+          nameLen=dv.getUint16(p+28,true), extraLen=dv.getUint16(p+30,true),
+          cmtLen=dv.getUint16(p+32,true), lho=dv.getUint32(p+42,true);
+    const nm=new TextDecoder().decode(buf.subarray(p+46,p+46+nameLen));
+    if(/\.kml$/i.test(nm) && (!pick || /(^|\/)doc\.kml$/i.test(nm))) pick={method,compSize,lho};
+    p+=46+nameLen+extraLen+cmtLen;
+  }
+  if(!pick) throw new Error("there's no .kml inside it");
+  const nl=dv.getUint16(pick.lho+26,true), el=dv.getUint16(pick.lho+28,true);
+  const start=pick.lho+30+nl+el, data=buf.subarray(start,start+pick.compSize);
+  if(pick.method===0) return new TextDecoder().decode(data);
+  if(typeof DecompressionStream==="undefined") throw new Error("this browser can't unzip it");
+  const stream=new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new TextDecoder().decode(await new Response(stream).arrayBuffer());
+}
+
 function route(f){
   // .tvr is Tripy's own device file — binary, not the XML we can read. Let it be
   // picked anyway and say so, rather than greying it out with no explanation.
@@ -3518,6 +3638,9 @@ function route(f){
   }
   if(f.name.endsWith(".vmrally")) f.text().then(openRally);
   else if(f.name.endsWith(".csv")) f.text().then(t=>loadCSVtext(t,f.name));
+  else if(/\.kml$/i.test(f.name)) f.text().then(t=>loadKML(t,f.name));
+  else if(/\.kmz$/i.test(f.name)) kmzToKml(f).then(t=>loadKML(t,f.name))
+    .catch(e=>toast("Couldn't open that KMZ — "+e.message,6000));
   else f.text().then(t=>loadTVRX(t,f.name));
 }
 ["dragover","dragenter"].forEach(ev=>document.body.addEventListener(ev,e=>e.preventDefault()));
@@ -3619,6 +3742,97 @@ function currentVmrString(){
 $("savevm").onclick=()=>{
   download(currentVmrString(),(baseName||"route")+".vmr","application/xml");
 };
+
+/* ---------- My routes ----------
+   Saving used to mean "download a file". Now Save keeps the route in this browser
+   and lists it here, with the file download living under Export instead.
+   Stored in IndexedDB, not localStorage, because a .vmr carrying recce photos and
+   voice notes runs to tens of megabytes and would blow localStorage's limit.
+   Metadata and the route body are separate stores so listing stays quick. */
+function tmOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open("tulipmaps",1);
+    r.onupgradeneeded=()=>{ const db=r.result;
+      if(!db.objectStoreNames.contains("meta")) db.createObjectStore("meta",{keyPath:"id"});
+      if(!db.objectStoreNames.contains("data")) db.createObjectStore("data"); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error||new Error("storage unavailable"));
+  });
+}
+function tmList(){
+  return tmOpen().then(db=>new Promise((res,rej)=>{
+    const q=db.transaction("meta").objectStore("meta").getAll();
+    q.onsuccess=()=>res((q.result||[]).sort((a,b)=>b.id.localeCompare(a.id)));
+    q.onerror=()=>rej(q.error);
+  }));
+}
+function tmPut(id,name,vmr){
+  return tmOpen().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(["meta","data"],"readwrite");
+    tx.objectStore("meta").put({id,name,saved:new Date().toISOString(),size:vmr.length});
+    tx.objectStore("data").put(vmr,id);
+    tx.oncomplete=()=>res(id); tx.onerror=()=>rej(tx.error);
+  }));
+}
+function tmGet(id){
+  return tmOpen().then(db=>new Promise((res,rej)=>{
+    const q=db.transaction("data").objectStore("data").get(id);
+    q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error);
+  }));
+}
+function tmDel(id){
+  return tmOpen().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(["meta","data"],"readwrite");
+    tx.objectStore("meta").delete(id); tx.objectStore("data").delete(id);
+    tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
+  }));
+}
+/* Saving the same route again overwrites it rather than piling up copies. */
+function saveToMyRoutes(){
+  if(!xmlDoc){ toast("Open or draw a route first.",4000); return; }
+  const nm=baseName||"route", body=currentVmrString();
+  tmList().then(list=>{
+    const hit=list.find(r=>r.name===nm);
+    return tmPut(hit?hit.id:String(Date.now()),nm,body).then(()=>hit);
+  }).then(hit=>toast((hit?"Updated":"Saved")+" “"+nm+"” in My routes.",3500))
+    .catch(e=>toast("Couldn't save: "+(e&&e.message||e),6000));
+}
+function fmtSize(n){ return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB"; }
+function openMyRoutes(){
+  const box=$("mrmodal"), list=$("mrlist");
+  list.textContent="Loading…";
+  box.classList.add("on");
+  tmList().then(rows=>{
+    list.innerHTML="";
+    if(!rows.length){ list.innerHTML='<div class="mrempty">Nothing saved yet.<br>'+
+      'Open a route, then choose <b>Save Route</b> from the menu.</div>'; return; }
+    for(const r of rows){
+      const when=new Date(r.saved);
+      const el=document.createElement("div"); el.className="mrrow";
+      el.innerHTML='<div class="mrname"><b></b><span></span></div>'+
+        '<button class="mrbtn go">Open</button><button class="mrbtn rn">Rename</button>'+
+        '<button class="mrbtn del">Delete</button>';
+      el.querySelector("b").textContent=r.name;
+      el.querySelector("span").textContent=when.toLocaleDateString()+" "+
+        when.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})+" · "+fmtSize(r.size||0);
+      el.querySelector(".go").onclick=()=>tmGet(r.id).then(v=>{
+        if(!v){ toast("That route's data is missing.",5000); return; }
+        loadTVRX(v,r.name+".vmr"); box.classList.remove("on"); toast("Opened “"+r.name+"”.",2500);
+      });
+      el.querySelector(".rn").onclick=()=>{
+        const nn=prompt("Rename this route:",r.name); if(!nn||nn===r.name) return;
+        tmGet(r.id).then(v=>tmPut(r.id,nn.trim(),v)).then(openMyRoutes);
+      };
+      el.querySelector(".del").onclick=()=>{
+        if(!confirm("Delete “"+r.name+"” from My routes?\n\nThis only removes the copy kept in this browser.")) return;
+        tmDel(r.id).then(openMyRoutes);
+      };
+      list.appendChild(el);
+    }
+  }).catch(e=>{ list.innerHTML='<div class="mrempty">Couldn\'t read saved routes.<br>'+
+    (e&&e.message||e)+'</div>'; });
+}
+$("mrclose").onclick=()=>$("mrmodal").classList.remove("on");
+$("mrmodal").onclick=ev=>{ if(ev.target.id==="mrmodal") $("mrmodal").classList.remove("on"); };
 /* ---------- rally: many day-routes saved together as one .vmrally ---------- */
 function buildRallyBundle(){
   const keep=activeRoute, days=[];
@@ -3938,6 +4152,7 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
       '<button class="rs-menu-item" data-act="new">＋ New Route</button>'+
       '<button class="rs-menu-item" data-act="open">📂 Open Route</button>'+
       '<button class="rs-menu-item" data-act="save">💾 Save Route</button>'+
+      '<button class="rs-menu-item" data-act="myroutes">🗂 My Routes…</button>'+
       '<button class="rs-menu-item" data-act="export">⤓ Export Route</button>'+
       '<div class="rs-menu-div"></div>'+
       '<button class="rs-menu-item" data-act="roadbook">📖 Roadbook Maker</button>'+
@@ -3965,6 +4180,8 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
       var a=b.dataset.act;
       menu.style.display="none";
       if(a==="new") newRoute();
+      else if(a==="save") saveToMyRoutes();          /* Save keeps it here; Export writes a file */
+      else if(a==="myroutes") openMyRoutes();
       else if(a==="renumber") renumberWaypoints();
       else if(a==="names") fillAllNames(false);
       else if(HITBTN[a]) document.getElementById(HITBTN[a]).click();
