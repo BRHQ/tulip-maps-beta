@@ -398,9 +398,12 @@
   #reconmodal h3 { margin:0 0 8px; font-size:18px; color:var(--green); }
   #reconsum { font-size:14px; font-weight:800; }
   #reconlist { overflow-y:auto; padding:6px 14px; }
-  .reconrow { display:block; width:100%; text-align:left; border:none; background:#f7f8f7; border-radius:9px;
-    padding:9px 12px; margin:5px 0; cursor:pointer; }
+  .reconrow { position:relative; display:block; width:100%; text-align:left; border:none; background:#f7f8f7; border-radius:9px;
+    padding:9px 30px 9px 12px; margin:5px 0; cursor:pointer; }
   .reconrow:hover { background:#eef2ee; }
+  .rresolve { position:absolute; top:7px; right:7px; width:22px; height:22px; border:none; border-radius:6px;
+    background:#e7efe9; color:#1a8a3a; font-size:13px; font-weight:800; line-height:1; cursor:pointer; }
+  .rresolve:hover { background:#1a8a3a; color:#fff; }
   .reconrow.conflict { border-left:4px solid #c0392b; }
   .reconrow.check { border-left:4px solid #e9940c; }
   .reconrow .rwp { display:inline-block; min-width:34px; background:var(--green); color:#fff;
@@ -650,18 +653,10 @@
     </div>
   </div>
 </div>
-<div id="reconmodal">
-  <div class="rcard">
-    <div class="rhead">
-      <h3>Tulip check</h3>
-      <div id="reconsum"></div>
-    </div>
-    <div id="reconlist"></div>
-    <div class="rfoot">
-      <p class="autonote">Each waypoint's tulip is compared with the turn read from the GPS track. Tap a flagged one to jump to it. Word‑level checks (voice vs written notes) arrive with transcription.</p>
-      <button class="btn ghost2" id="reconclose" style="width:100%">Close</button>
-    </div>
-  </div>
+<div class="card rs-off" id="reconcard">
+  <div id="reconsum"></div>
+  <div id="reconlist"></div>
+  <p class="autonote">Each waypoint's tulip is compared with the turn read from the GPS track. Click a flagged one to jump to it on the map; ✓ marks it dealt-with; ↻ recheck re-scans.</p>
 </div>
 <div id="signmodal">
   <div class="signcard">
@@ -1488,31 +1483,44 @@ function reconcile(){
   }
   return out;
 }
+const reconResolved=new Set();   // waypoint names the user has marked dealt-with (this session; survives rechecks)
+function jumpToWp(w){             // select the waypoint AND move the map so you can see it
+  const i=wps.indexOf(w); if(i<0) return;
+  selectWp(i);
+  if(!w.deleted) map.setView([w.lat,w.lon], Math.max(map.getZoom(),16), {animate:true});
+}
 function showRecon(){
   const res=reconcile();
-  $("reconsum").innerHTML=
-    `<span style="color:#1a8a3a">✓ ${res.agree.length} agree</span> &nbsp; `+
-    `<span style="color:#c0392b">▲ ${res.conflict.length} conflict</span> &nbsp; `+
-    `<span style="color:#b9770a">? ${res.check.length} to check</span>`;
   const box=$("reconlist"); box.innerHTML="";
-  const row=(it,cls,label)=>{
-    const b=document.createElement("button"); b.className="reconrow "+cls;
+  const all=[...res.conflict.map(it=>[it,"conflict","CONFLICT"]), ...res.check.map(it=>[it,"check","CHECK"])];
+  let shown=0, dealt=0;
+  all.forEach(([it,cls,label])=>{
+    if(reconResolved.has(it.w.name)){ dealt++; return; }
+    shown++;
+    const b=document.createElement("div"); b.className="reconrow "+cls;
     b.innerHTML=`<span class="rwp">${it.w.name}</span><span class="rlab">${label}</span>`+
       `<span class="rdet">track says <b>${fmtTurn(it.g)}</b> · tulip says <b>${fmtTurn(it.specTurn)}</b> · ${it.d}° apart</span>`;
-    b.onclick=()=>{ $("reconmodal").style.display="none"; const i=wps.indexOf(it.w); if(i>=0)selectWp(i); };
-    box.append(b);
-  };
-  res.conflict.forEach(it=>row(it,"conflict","CONFLICT"));
-  res.check.forEach(it=>row(it,"check","CHECK"));
-  if(!res.conflict.length&&!res.check.length){
-    box.innerHTML=`<div class="reconok">✓ No conflicts — the track and the tulips agree`+
-      `${res.nocheck.length?` (${res.nocheck.length} couldn't be checked automatically)`:""}.</div>`;
+    b.onclick=e=>{ if(e.target.closest(".rresolve")) return; jumpToWp(it.w); };   // click the row → jump to it on the map
+    const rb=document.createElement("button"); rb.className="rresolve"; rb.textContent="✓"; rb.title="mark dealt-with";
+    rb.onclick=e=>{ e.stopPropagation(); reconResolved.add(it.w.name); showRecon(); };
+    b.append(rb); box.append(b);
+  });
+  $("reconsum").innerHTML=
+    `<span style="color:#1a8a3a">✓ ${res.agree.length} agree</span> &nbsp; `+
+    `<span style="color:#c0392b">▲ ${res.conflict.length}</span> &nbsp; `+
+    `<span style="color:#b9770a">? ${res.check.length}</span>`+
+    (dealt?` &nbsp; <span style="color:#8a8a82">· ${dealt} dealt-with</span>`:"");
+  if(!shown){
+    box.innerHTML = dealt
+      ? `<div class="reconok">✓ All flagged waypoints marked dealt-with. Press ↻ recheck for a fresh scan.</div>`
+      : `<div class="reconok">✓ No conflicts — the track and the tulips agree`+
+        `${res.nocheck.length?` (${res.nocheck.length} couldn't be checked automatically)`:""}.</div>`;
   } else if(res.nocheck.length){
     const n=document.createElement("div"); n.className="reconnote";
     n.textContent=`${res.nocheck.length} waypoint${res.nocheck.length>1?"s":""} couldn't be checked (no track nearby, or a hand-drawn tulip).`;
     box.append(n);
   }
-  $("reconmodal").style.display="flex";
+  if(typeof setPanelVisible==="function") setPanelVisible("reconcard",true);   // reveal the panel like the others
 }
 function redraw(){
   if(casing) casing.remove();
@@ -3437,8 +3445,6 @@ $("autogo").onclick=()=>{ $("automodal").style.display="none"; const n=autoTulip
 $("autoskip").onclick=()=>{ $("automodal").style.display="none"; };
 $("automodal").onclick=e=>{ if(e.target.id==="automodal") $("automodal").style.display="none"; };
 $("reconbtn").onclick=showRecon;
-$("reconclose").onclick=()=>{ $("reconmodal").style.display="none"; };
-$("reconmodal").onclick=e=>{ if(e.target.id==="reconmodal") $("reconmodal").style.display="none"; };
 $("openbtn").onclick=()=>$("fin").click();
 $("newbtn").onclick=newRoute;
 // #drop is now just a drag-over hint — show it while a file is dragged in, hide after
@@ -3805,7 +3811,8 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
   var CARDS=[{id:"wpcard",  title:"WP info", x:332, y:70},
              {id:"tulipcard",title:"Tulip",  x:332, y:300},
              {id:"listcard", title:"WP list",x:676, y:70},
-             {id:"libcard",  title:"Tulip Library",x:504, y:150}];
+             {id:"libcard",  title:"Tulip Library",x:504, y:150},
+             {id:"reconcard",title:"Check tulips",x:360, y:120}];
   CARDS.forEach(function(r,i){
     var card=document.getElementById(r.id); if(!card) return;
     var head=document.createElement("div"); head.className="rs-head";
@@ -3818,6 +3825,8 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
                            +'<button class="rs-hbtn" id="modeswap" type="button" onclick="swapMode()">✎ detailed</button>' :
       r.id==="libcard"   ? '<span class="t">Tulip Library</span>'
                            +'<button class="rs-hbtn" id="addtulip" type="button" title="add the tulip you\'re working on to My tulips" onclick="saveTulipToLib()">＋ add tulip</button>' :
+      r.id==="reconcard" ? '<span class="t">Check tulips</span>'
+                           +'<button class="rs-hbtn" id="recheckbtn" type="button" title="re-scan every tulip against the GPS track" onclick="showRecon()">↻ recheck</button>' :
                            '<span class="t">'+r.title+'</span>';
     var h3=card.querySelector(":scope > h3"); if(h3) h3.remove();     // the drag header replaces the card's own title
     card.insertBefore(head, card.firstChild);
@@ -3828,6 +3837,7 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
                snapH:null, snapV:null, freeX:r.x, freeY:r.y};
     MP.list.push(panel); mpDrag(panel);
     if(r.id==="libcard") mpEdgeResize(panel,["l","t","lt","b"]);   // Tulip Library: wider by the left edge, taller by the top or bottom
+    if(r.id==="reconcard") mpEdgeResize(panel,["l","t","r","b","lt","rt"]);   // Check tulips: resize any edge
   });
   var side=document.getElementById("side"); if(side) side.remove();   // no sidebar — everything lives on the map
   map.invalidateSize();                        // map is full-width now — recompute, or Leaflet leaves a ~400px dead strip
@@ -3844,7 +3854,7 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
   var VIEW={ panels:{} };
   try{ var sv=JSON.parse(localStorage.getItem("vmstudio_view")); if(sv&&sv.panels) VIEW.panels=sv.panels; }catch(_){}
   if(!localStorage.getItem("vmstudio_view")){                                  // default: only WP info, Tulip, Tulip Library (+ the Tools box) show
-    ["listcard","statsbox","elevpanel","p-sv","trackcolor"].forEach(function(id){ VIEW.panels[id]=false; });
+    ["listcard","statsbox","elevpanel","p-sv","trackcolor","reconcard"].forEach(function(id){ VIEW.panels[id]=false; });
   }
   function applyView(){
     for(var id in VIEW.panels){ var c=document.getElementById(id); if(c) c.classList.toggle("rs-off", VIEW.panels[id]===false); }
@@ -3852,9 +3862,11 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
     if(typeof mpRelayout==="function") setTimeout(mpRelayout,20);
     if(typeof drawElevation==="function") setTimeout(drawElevation,30);
   }
+  window.setPanelVisible=function(id,on){ VIEW.panels[id]=(on!==false); applyView(); if(typeof syncMenu==="function") syncMenu(); };
   var PANELS=[["p-tools","Tools"],["p-sv","Street view"],
               ["trackcolor","Track Filters"],["elevpanel","Elevation"],["statsbox","Stats"],
-              ["wpcard","WP info"],["tulipcard","Tulip"],["listcard","WP list"],["libcard","Tulip Library"]];
+              ["wpcard","WP info"],["tulipcard","Tulip"],["listcard","WP list"],["libcard","Tulip Library"],
+              ["reconcard","Check tulips"]];
   var menu=document.createElement("div"); menu.id="rs-menu";
   menu.innerHTML=
     '<div class="rs-menu-tab">Tulip Maps</div>'+
