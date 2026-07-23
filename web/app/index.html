@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <title>Tulip Maps — rally roadbooks, drawn</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<!-- carry the colour theme picked on the Tulip Maps site across to the tool (same site = shared storage) -->
+<script>
+(function(){ try{
+  var t=localStorage.getItem('tulipmaps-theme');
+  var M={coral:['#E1694F','#BC3B2C'],rose:['#E87BA6','#B0416F'],butter:['#F3C13C','#7C5410'],plum:['#8E5BB0','#5E3183']};
+  var c=M[t]||M.coral, r=document.documentElement.style;
+  r.setProperty('--am',c[0]); r.setProperty('--ad',c[1]);
+}catch(e){} })();
+</script>
 <style>
   :root { --green:#143D2E; --sage:#8EB792; --amber:#f5a623; --purple:#7b2ff2;
           --char:#1c1c21; --mut:#73767c; --hair:#dfe2df; --card:#fff; }
@@ -12,8 +21,12 @@
   header { background:var(--green); color:#fff; padding:9px 16px; display:flex; align-items:center; gap:9px; z-index:1001; overflow-x:auto; }
   header::-webkit-scrollbar { height:0; }
   header h1 { font-size:16px; margin:0; letter-spacing:.3px; }
-  header h1 b { color:var(--sage); }
+  header h1 b { color:var(--am,#E1694F); }
   header .sub { color:var(--sage); font-weight:700; font-size:10.5px; letter-spacing:.4px; }
+  /* the bloom mark — themed to match the site; lightest petal white so it reads on the green bar */
+  .tm-brand { display:flex; align-items:center; gap:8px; }
+  .tm-bloom { width:21px; height:25px; flex:none; filter:drop-shadow(0 1px 2px rgba(0,0,0,.28)); }
+  .tm-bloom .p1 { fill:#fff; } .tm-bloom .p2 { fill:var(--am,#E1694F); } .tm-bloom .p3 { fill:var(--ad,#BC3B2C); }
   .grow { flex:1; }
   button { font:inherit; cursor:pointer; }
   .btn { background:var(--amber); border:none; color:var(--char); font-weight:700; padding:7px 12px; border-radius:7px; font-size:13px; }
@@ -484,7 +497,10 @@
 <body>
 <header>
   <button class="btn ghost" id="menubtn" title="Menu">☰ Menu</button>
-  <div><h1>TULIP <b>MAPS</b></h1></div>
+  <div class="tm-brand">
+    <svg class="tm-bloom" viewBox="30 40 60 100" aria-hidden="true"><path class="p1" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)"/><path class="p3" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)"/><path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/></svg>
+    <h1>Tulip <b>Maps</b></h1>
+  </div>
   <div id="tabsin"></div>
   <div class="grow"></div>
   <span class="sub" id="fname"></span>
