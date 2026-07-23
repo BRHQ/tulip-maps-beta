@@ -1658,16 +1658,19 @@ function makeMarker(w){
       ["👁 Street view here",()=>{ selectWp(wi); toggleSV(true); }]);
     showCtx(ev,items);
   });
-  m.on("dragstart",()=>{ snapshot(); w._pn=neighbours(w); });
+  m.on("dragstart",()=>{ snapshot(); w._pn=neighbours(w);
+    selectVertex(nearestVertexInRange(m.getLatLng(),w._pn[0],w._pn[1])); });   // light up the connected point from the off
   m.on("drag",()=>{        // a waypoint is pinned to a track point — snap to the nearest one
     const idx=nearestVertexInRange(m.getLatLng(),w._pn[0],w._pn[1]);
     m.setLatLng([pts[idx].lat,pts[idx].lon]);
+    if(vertexHandle && vertexIdx!==idx){ vertexIdx=idx; vertexHandle.setLatLng([pts[idx].lat,pts[idx].lon]); }   // red dot follows the waypoint
   });
   m.on("dragend",()=>{
     const idx=nearestVertexInRange(m.getLatLng(),w._pn[0],w._pn[1]);
     w.lat=pts[idx].lat; w.lon=pts[idx].lon; w.moved=true;
     m.setLatLng([w.lat,w.lon]);
     m.setIcon(icon(w)); recompute(); renderList(); if(wps[selWp]===w) fillInfo(w);
+    selectVertex(idx);                          // leave the connected point highlighted where it landed
   });
   w.marker=m;
 }
