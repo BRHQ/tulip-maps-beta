@@ -18,6 +18,9 @@
 <meta name="twitter:description" content="Free, browser-based map studio. Draw or record a route, tidy every turn, share a clear roadbook. No sign-up.">
 <!-- favicon: the BLOOM-ONLY mark (the stem vanishes at 16px, so the tulip head reads better) -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='30 40 60 100'%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(-22 60 132)' fill='%23F4B0A0'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(22 60 132)' fill='%23BC3B2C'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' fill='%23E1694F'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Tulip Maps">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -184,9 +187,18 @@
   footer .wrap{display:flex;flex-wrap:wrap;gap:18px;justify-content:space-between;align-items:center}
   footer .fbrand{display:flex;align-items:center;gap:9px;font-family:var(--disp);font-weight:600;font-size:1.1rem;color:var(--ink)}
   footer .fbrand .tulip{width:19px;height:23px}
-  footer a{color:var(--ink-soft);text-decoration:none;margin-right:18px}
+  footer a{color:var(--ink-soft);text-decoration:none}
   footer a:hover{color:var(--ad)}
+  footer .flinks{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
   footer .fnote{width:100%;color:var(--ink-soft);opacity:.8;font-size:.86rem}
+  /* install-the-app option */
+  .finstall{font-family:var(--sans);font-weight:600;font-size:.88rem;color:var(--ad);background:var(--atint);
+    border:1px solid color-mix(in srgb,var(--am) 32%,transparent);border-radius:999px;padding:.42em 1em;cursor:pointer;
+    display:inline-flex;align-items:center;gap:.45em;transition:border-color .15s,transform .12s}
+  .finstall:hover{transform:translateY(-1px);border-color:var(--am)}
+  .finstall svg{width:14px;height:14px}
+  .fhint{width:100%;margin:.1em 0 0;font-size:.88rem;color:var(--ink-soft);line-height:1.6}
+  .fhint b{color:var(--ink);font-weight:600}
 
   @media(max-width:860px){
     .hero .wrap,.app{grid-template-columns:1fr;gap:40px}
@@ -362,11 +374,16 @@
     <svg class="tulip" viewBox="30 40 60 100" aria-hidden="true"><path class="p1" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)"/><path class="p3" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)"/><path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/></svg>
     Tulip Maps
   </div>
-  <div>
+  <div class="flinks">
     <a href="/app/">Open the tool</a>
     <a href="/guides/what-is-a-tulip-diagram/">Guides</a>
     <a href="https://thevirtualmarshal.com">Virtual Marshal</a>
+    <button type="button" class="finstall" id="installbtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11"/><path d="m7.5 10 4.5 4 4.5-4"/><path d="M4 20h16"/></svg>
+      Install the app
+    </button>
   </div>
+  <p class="fhint" id="installhint" hidden></p>
   <div class="fnote">© 2026 Tulip Maps, by Virtual Marshal · draw the road, get a roadbook.</div>
 </div></footer>
 
@@ -379,6 +396,27 @@
     try{ var saved=localStorage.getItem(KEY); if(saved) set(saved,false); }catch(e){}
     document.querySelectorAll(".sw").forEach(function(el){ el.addEventListener("click",function(){ set(el.dataset.t,true); }); });
   })();
+
+  /* Install the app. Chrome and Edge hand us a prompt we can fire; Safari has
+     no such thing, so there we just tell people where the menu item is. */
+  (function(){
+    var btn=document.getElementById("installbtn"), hint=document.getElementById("installhint"), deferred=null;
+    function show(html){ hint.innerHTML=html; hint.hidden=false; }
+    if(matchMedia("(display-mode: standalone)").matches || navigator.standalone===true){ btn.hidden=true; }
+    addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); deferred=e; });
+    addEventListener("appinstalled", function(){ btn.hidden=true; show("Installed — look for the tulip in your Dock."); });
+    btn.addEventListener("click", function(){
+      if(deferred){
+        deferred.prompt();
+        deferred.userChoice.then(function(r){ deferred=null;
+          if(r.outcome==="accepted"){ show("Installing — look for the tulip in your Dock."); } });
+      } else {
+        show("<b>Safari on Mac:</b> File → Add to Dock. &nbsp; <b>iPhone or iPad:</b> Share → Add to Home Screen. &nbsp; <b>Chrome or Edge:</b> the install icon at the right-hand end of the address bar.");
+      }
+    });
+  })();
+
+  if("serviceWorker" in navigator){ addEventListener("load", function(){ navigator.serviceWorker.register("/sw.js").catch(function(){}); }); }
 </script>
 </body>
 </html>

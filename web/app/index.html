@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8">
 <title>Tulip Maps — rally roadbooks, drawn</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Tulip Maps">
+<meta name="theme-color" content="#143D2E">
+<script>if('serviceWorker' in navigator){addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}</script>
 <!-- carry the colour theme picked on the Tulip Maps site across to the tool (same site = shared storage) -->
 <script>
 (function(){ try{
@@ -690,13 +695,13 @@
 <div id="drop"><div><b>Drop your route file to open it</b><br>
 <span style="opacity:.72;font-size:13px">takes <b>.vmr</b> · <b>.gpx</b> · a <b>.tvrx</b>+<b>.csv</b> pair · or <b>.csv</b></span></div></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
-<script src="https://unpkg.com/pmtiles@3.2.1/dist/pmtiles.js"></script>
-<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="vendor/leaflet.js"></script>
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/leaflet-maplibre-gl.js"></script>
+<script src="vendor/pmtiles.js"></script>
+<script src="vendor/leaflet-rotate-src.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
 <script src="tulip_core.js"></script>
 <script>
 const $=id=>document.getElementById(id);
