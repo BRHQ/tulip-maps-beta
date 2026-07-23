@@ -377,6 +377,23 @@
   #automodal .autorow { display:flex; gap:10px; margin-top:16px; }
   #automodal .autorow .btn { flex:1; padding:11px; }
   .btn.ghost2 { background:#f0f2f0; color:var(--char); }
+  /* one Export box — pick the format in here, instead of a menu that vanishes behind a popup */
+  #expmodal { display:none; position:fixed; inset:0; z-index:3200; background:rgba(12,18,14,.55);
+    align-items:center; justify-content:center; }
+  #expmodal.on { display:flex; }
+  #expmodal .expcard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
+    width:430px; max-width:92vw; padding:18px 20px 16px; }
+  #expmodal h3 { margin:0 0 3px; font-size:18px; color:var(--green); }
+  #expmodal .expsub { font-size:12.5px; color:var(--mut); margin-bottom:13px; }
+  #expmodal .expopt { display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:#f7f9f7;
+    border:1px solid var(--hair); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer;
+    transition:background .12s, border-color .12s; }
+  #expmodal .expopt:hover { background:#eef3ee; border-color:#c6cdc6; }
+  #expmodal .expopt .ext { font-weight:800; font-size:13.5px; color:var(--green); min-width:46px; }
+  #expmodal .expopt .lbl { font-size:12.5px; color:var(--mut); line-height:1.35; }
+  #expmodal .exprow { display:flex; justify-content:flex-end; margin-top:6px; }
+  #expmodal .expcancel { background:#f0f2f0; border:1px solid var(--hair); border-radius:8px; padding:7px 15px;
+    font-size:12.5px; font-weight:700; color:var(--char); cursor:pointer; }
   #signmodal { display:none; position:fixed; inset:0; z-index:3200; background:rgba(12,18,14,.55);
     align-items:center; justify-content:center; }
   #signmodal .signcard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
@@ -660,6 +677,14 @@
         <button class="btn" id="rb_close" style="background:#f0f2f0">Close</button></div>
     </div>
     <iframe id="rbprev"></iframe>
+  </div>
+</div>
+<div id="expmodal">
+  <div class="expcard">
+    <h3>Export</h3>
+    <div class="expsub">Pick a format. Your route stays open either way.</div>
+    <div id="expopts"></div>
+    <div class="exprow"><button class="expcancel" id="expcancel">Cancel</button></div>
   </div>
 </div>
 <div id="automodal">
@@ -3560,8 +3585,26 @@ function exportItems(){
   if(rows.length) items.push(["⬇ .csv — notes & tulip specs (spreadsheet)",saveCSVf]);
   return items;
 }
-function showExportMenu(x,y){ showCtx({originalEvent:{pageX:x,pageY:y}}, exportItems()); }   // save as… menu at a real position
-$("exportbtn").onclick=ev=>{ ev.stopPropagation(); const r=ev.target.getBoundingClientRect(); showExportMenu(Math.max(8,r.right-230), r.bottom+6); };
+/* One Export box. Every format lives in here, so pressing Export never leaves you
+   watching the menu vanish behind a second popup. */
+function showExportBox(){
+  const list=$("expopts"); list.innerHTML="";
+  for(const [label,fn] of exportItems()){
+    const parts=label.replace(/^⬇\s*/,"").split(" — ");
+    const b=document.createElement("button"); b.className="expopt";
+    b.innerHTML='<span class="ext"></span><span class="lbl"></span>';
+    b.querySelector(".ext").textContent=parts[0];
+    b.querySelector(".lbl").textContent=parts.slice(1).join(" — ");
+    b.onclick=()=>{ hideExportBox(); fn(); };
+    list.appendChild(b);
+  }
+  $("expmodal").classList.add("on");
+}
+function hideExportBox(){ $("expmodal").classList.remove("on"); }
+$("exportbtn").onclick=ev=>{ ev.stopPropagation(); showExportBox(); };
+$("expcancel").onclick=hideExportBox;
+$("expmodal").onclick=ev=>{ if(ev.target.id==="expmodal") hideExportBox(); };
+document.addEventListener("keydown",ev=>{ if(ev.key==="Escape") hideExportBox(); });
 function currentVmrString(){
   maybeApply(); applyEditsToDoc();
   let notes=[...xmlDoc.getElementsByTagName("*")].find(el=>el.localName==="notes");
@@ -3920,7 +3963,6 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
     b.onclick=function(){
       if(b.classList.contains("dim")) return;
       var a=b.dataset.act;
-      if(a==="export"){ var r=b.getBoundingClientRect(); menu.style.display="none"; showExportMenu(r.right+4, r.top); return; }
       menu.style.display="none";
       if(a==="new") newRoute();
       else if(a==="renumber") renumberWaypoints();
