@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is a tulip diagram? A plain guide to rally roadbook notation</title>
+<meta name="description" content="A tulip diagram is the little junction picture in a rally roadbook. Here's what the ball, the arrow and the stem mean, how to read one at speed, where the name comes from, and how to draw your own — free.">
+<link rel="canonical" href="https://tulipmaps.com/guides/what-is-a-tulip-diagram/">
+<meta name="theme-color" content="#14251c">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Tulip Maps">
+<meta property="og:title" content="What is a tulip diagram?">
+<meta property="og:description" content="What the ball, arrow and stem mean, how to read a rally tulip at speed, and where the name comes from.">
+<meta property="og:url" content="https://tulipmaps.com/guides/what-is-a-tulip-diagram/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 88 L50 46' stroke='%2314251c' stroke-width='7' fill='none' stroke-linecap='round'/%3E%3Cpath d='M50 52 C50 30 32 22 30 20 C34 40 42 46 50 52 Z' fill='%23e0674c'/%3E%3Cpath d='M50 52 C50 30 68 22 70 20 C66 40 58 46 50 52 Z' fill='%23e88a4c'/%3E%3Cpath d='M50 50 C46 32 50 18 50 14 C54 18 54 34 50 50 Z' fill='%237fa981'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Article","headline":"What is a tulip diagram?","about":"Rally roadbook tulip notation","author":{"@type":"Organization","name":"Tulip Maps"},"publisher":{"@type":"Organization","name":"Virtual Marshal"},"mainEntityOfPage":"https://tulipmaps.com/guides/what-is-a-tulip-diagram/","description":"A plain-English guide to the tulip diagram used in rally roadbooks."}
+</script>
+<style>
+  :root{--paper:#faf6ec;--paper-2:#f2ecdd;--ink:#181a15;--ink-soft:#4c5147;--coral:#e0674c;--coral-ink:#b8452c;--sage:#6f9a72;--green:#14251c;--line:#e2dcc9;
+    --disp:'Bricolage Grotesque',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:18px;line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:0 24px}
+  h1,h2,h3{font-family:var(--disp);line-height:1.1;letter-spacing:-.02em;margin:1.6em 0 .4em}
+  h1{font-size:clamp(2.1rem,5vw,3rem);font-weight:800;margin-top:.2em}
+  h2{font-size:1.6rem;font-weight:700}
+  a{color:var(--coral-ink)}
+  p{margin:.9em 0}
+  .btn{display:inline-flex;align-items:center;gap:.5em;font-family:var(--disp);font-weight:700;text-decoration:none;border-radius:999px;padding:.7em 1.25em;background:var(--coral);color:#fff}
+  nav{border-bottom:1px solid var(--line);background:rgba(250,246,236,.9);position:sticky;top:0;backdrop-filter:blur(8px)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px;max-width:1080px}
+  .brand{display:flex;align-items:center;gap:9px;font-family:var(--disp);font-weight:800;font-size:1.1rem;text-decoration:none;color:var(--ink)}
+  .brand svg{width:24px;height:24px}.brand b{color:var(--coral)}
+  .navcta{font-size:.92rem;padding:.5em 1em}
+  .eyebrow{font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;color:var(--sage);margin-top:2rem}
+  .lede{font-size:1.24rem;color:var(--ink-soft)}
+  figure{margin:2em 0;text-align:center}
+  figure svg{width:180px;height:auto;background:var(--paper-2);border:1px solid var(--line);border-radius:16px;padding:22px}
+  figcaption{font-size:.9rem;color:var(--ink-soft);margin-top:.7em}
+  .callout{background:#fff;border:1px solid var(--line);border-left:4px solid var(--coral);border-radius:12px;padding:18px 22px;margin:1.6em 0}
+  .cta-band{background:var(--green);color:var(--paper);border-radius:20px;padding:34px;text-align:center;margin:3em 0}
+  .cta-band h2{margin:0 0 .2em;color:#fff}.cta-band p{color:#c9d8cc;margin:.3em auto 1.3em;max-width:44ch}
+  footer{border-top:1px solid var(--line);padding:32px 0;color:var(--ink-soft);font-size:.9rem;margin-top:2em}
+  footer a{color:var(--ink-soft);text-decoration:none;margin-right:16px}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="brand" href="/"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 90 L50 48" stroke="#181a15" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M50 54 C50 30 30 22 28 19 C33 41 42 48 50 54 Z" fill="#e0674c"/><path d="M50 54 C50 30 70 22 72 19 C67 41 58 48 50 54 Z" fill="#e88a4c"/><path d="M50 52 C45 32 50 16 50 12 C55 16 55 34 50 52 Z" fill="#7fa981"/></svg>Tulip <b>Maps</b></a>
+  <a class="btn navcta" href="/app/">Open the tool →</a>
+</div></nav>
+
+<main class="wrap">
+  <div class="eyebrow">Guide</div>
+  <h1>What is a tulip diagram?</h1>
+  <p class="lede">It's the little picture in a rally roadbook that shows a crew what a junction looks like and which way to go. Rally people just call them <em>tulips</em>.</p>
+
+  <p>Open any rally roadbook and you'll see a column of small line drawings — a stalk with a shape blooming off the top, an arrow, a dot or two. Each one stands for a single junction on the route. Read together, top to bottom, they tell a navigator exactly how to get from the start to the finish without a full map. That's a <strong>tulip diagram</strong>, and it's the backbone of how rallies have been navigated for over seventy years.</p>
+
+  <h2>How to read one</h2>
+  <p>Every tulip is drawn as if you're looking down on the junction from above. There are only three things to learn:</p>
+  <figure>
+    <svg viewBox="0 0 160 200"><g fill="none" stroke="#181a15" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M80 180 L80 100"/><path d="M80 100 C80 58 118 50 130 40"/><path d="M80 100 L46 62"/></g><circle cx="80" cy="180" r="9" fill="#181a15"/><path d="M120 30 L138 40 L124 54 Z" fill="#e0674c"/></svg>
+    <figcaption>A ball at the bottom (where you came from), roads meeting at the junction, and an arrow on the road you take.</figcaption>
+  </figure>
+  <ul>
+    <li><strong>The ball</strong> — the solid dot — is where you <em>enter</em> the junction: the road you've just driven up.</li>
+    <li><strong>The arrow</strong> is the road you <em>leave</em> by. Follow it and you're back on route.</li>
+    <li><strong>The other lines</strong> are the roads you ignore — they're drawn so the junction looks the way it really does through the windscreen, so you can be sure you've got the right one.</li>
+  </ul>
+  <p>So the whole instruction is: <em>"you'll arrive here, the junction looks like this, take that road."</em> One glance, at speed, done. A good roadbook adds the distance to the next tulip and a note or two, but the tulip itself carries the shape.</p>
+
+  <div class="callout"><strong>Worked example:</strong> a stem with a ball at the bottom, a road going straight on, one road off to each side, and the arrow pointing right — that's <em>"cross-roads, turn right."</em> Add the words <em>3rd exit</em> beside a circle and you've got a roundabout.</div>
+
+  <h2>Where the name comes from</h2>
+  <p>The notation is generally credited to the Dutch <strong>Tulpenrallye</strong> — the Tulip Rally — which has run out of the Netherlands since 1949. The style of little roadbook diagram it popularised took the event's name, and "tulip" stuck. It helps that a drawn junction, with its stalk and the shape blooming off the top, genuinely does look a bit like a flower.</p>
+
+  <h2>Why rallies still use them</h2>
+  <p>Because nothing beats them for the job. A tulip is read in half a second, in a moving car, on a bumpy road, often in poor light — a full map would be far too much to take in. It's language-free, so an event can run across borders. And it's precise: the organiser controls exactly where the route goes, which is the whole point of a <strong>regularity rally</strong>, where the challenge is holding an average speed, not finding your own way.</p>
+
+  <h2>How to make your own</h2>
+  <p>You used to draw tulips by hand, or wrestle with software that wasn't built for it. <strong><a href="/">Tulip Maps</a></strong> is made for exactly this: lay your route on the map, drop the junctions, and it draws the tulips for you — sharp or curvy, with side roads, roundabouts and the official road signs — then exports a roadbook. It's free and runs in your browser.</p>
+
+  <div class="cta-band">
+    <h2>Draw a tulip in a minute</h2>
+    <p>Free, in your browser, no sign-up.</p>
+    <a class="btn" href="/app/">Open Tulip Maps →</a>
+  </div>
+</main>
+
+<footer><div class="wrap">
+  <a href="/">Home</a><a href="/app/">Open the tool</a><a href="https://thevirtualmarshal.com">Virtual Marshal</a>
+  <div style="margin-top:10px">© 2026 Tulip Maps, by Virtual Marshal</div>
+</div></footer>
+</body>
+</html>
