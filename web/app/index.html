@@ -778,7 +778,12 @@ const STUDIO_BUILD="Tulip Maps · build 22 Jul · 1";   // shown at the foot of 
 const GMAPS_KEY = "AIzaSyDf9t8g0XLmzx25D97qTTWo0Ff7SJR0ofI";
 // OpenRouteService key (free — ors.org). Empty = routing stays on OSRM (fastest-by-car,
 // no preferences). Paste a key here to switch routing to ORS and enable Routing Preferences.
-const ORS_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImI0YTY2ZmRmMWY5MjQ0YTVhMzYzOTI1ZGQ2MWNiYzFjIiwiaCI6Im11cm11cjY0In0=";
+/* Routing, place search and heights go through OUR OWN SERVER, which holds the
+   OpenRouteService key. Nothing secret is sent to the browser any more — the
+   value below is only a flag so the existing "is routing available" checks
+   still read true. To move this elsewhere later, change this one line. */
+const ORS_BASE = "https://thevirtualmarshal.com/api/ors/";
+const ORS_KEY = "via-proxy";
 // what3words key (free — developer.what3words.com). Empty = the waypoint box shows just GPS.
 const W3W_KEY = "";
 let routePrefs={ preference:"recommended", avoid:[] };
@@ -1305,8 +1310,8 @@ async function fetchElevation(){
   try{
     const step=Math.max(1,Math.ceil(pts.length/480)), idx=[];
     for(let i=0;i<pts.length;i+=step) idx.push(i); if(idx[idx.length-1]!==pts.length-1) idx.push(pts.length-1);
-    const r=await fetch("https://api.openrouteservice.org/elevation/line",{ method:"POST",
-      headers:{Authorization:ORS_KEY,"Content-Type":"application/json"},
+    const r=await fetch(ORS_BASE+"elevation/line",{ method:"POST",
+      headers:{"Content-Type":"application/json"},
       body:JSON.stringify({ format_in:"geojson", format_out:"geojson", geometry:{ type:"LineString", coordinates:idx.map(i=>[pts[i].lon,pts[i].lat]) } }) });
     const out=(await r.json()).geometry;
     if(out && out.coordinates){ idx.forEach((pi,k)=>{ if(out.coordinates[k]) pts[pi].ele=out.coordinates[k][2]; });
@@ -1373,7 +1378,7 @@ async function doSearch(q){
     let items;   // [label, lat, lon]
     if(ORS_KEY){
       const c=map.getCenter();     // bias toward what's on screen so local places rank first
-      const r=await fetch("https://api.openrouteservice.org/geocode/search?api_key="+ORS_KEY+"&size=6&focus.point.lon="+c.lng+"&focus.point.lat="+c.lat+"&text="+encodeURIComponent(q));
+      const r=await fetch(ORS_BASE+"geocode/search?size=6&focus.point.lon="+c.lng+"&focus.point.lat="+c.lat+"&text="+encodeURIComponent(q));
       items=((await r.json()).features||[]).map(f=>[f.properties.label||f.properties.name, f.geometry.coordinates[1], f.geometry.coordinates[0]]);
     } else {
       const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q="+encodeURIComponent(q));
@@ -2004,7 +2009,7 @@ $("wpauto").onclick=autoName;
 async function lookupPlace(w){                     // position → {place, road}; shared by the one-off button and the bulk fill
   let place="", road="";
   if(ORS_KEY){
-    const r=await fetch(`https://api.openrouteservice.org/geocode/reverse?api_key=${ORS_KEY}&point.lon=${w.lon}&point.lat=${w.lat}&size=1&layers=locality,localadmin,street,address`);
+    const r=await fetch(`${ORS_BASE}geocode/reverse?point.lon=${w.lon}&point.lat=${w.lat}&size=1&layers=locality,localadmin,street,address`);
     const p=(((await r.json()).features||[{}])[0]||{}).properties||{};
     place=p.locality||p.localadmin||p.county||p.name||"";
     road=p.street||"";
@@ -2260,8 +2265,8 @@ async function routeLeg(toLat,toLon){
     try{
       const body={ coordinates:[[fLon,fLat],[toLon,toLat]], preference:routePrefs.preference||"recommended" };
       if(routePrefs.avoid && routePrefs.avoid.length) body.options={ avoid_features:routePrefs.avoid };
-      const r=await fetch("https://api.openrouteservice.org/v2/directions/driving-car/geojson",
-        { method:"POST", headers:{ Authorization:ORS_KEY, "Content-Type":"application/json" }, body:JSON.stringify(body) });
+      const r=await fetch(ORS_BASE+"v2/directions/driving-car/geojson",
+        { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(body) });
       const d=await r.json();
       if(d.features && d.features[0]){
         const f=d.features[0], coords=f.geometry.coordinates;
