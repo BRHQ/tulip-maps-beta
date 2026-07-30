@@ -800,7 +800,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 22 Jul · 1";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 30 Jul · 1";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -3892,11 +3892,15 @@ function acctRefresh(){
 }
 function acctPaint(){
   const out=$("acctout"), inn=$("acctin");
-  if(!out) return;
-  out.style.display=acctUser?"none":"";
-  inn.style.display=acctUser?"flex":"none";
-  if(acctUser) $("acctwho").innerHTML="Signed in as <b>"+
-    (acctUser.email||"").replace(/</g,"&lt;")+"</b> — routes save to your account.";
+  if(out){
+    out.style.display=acctUser?"none":"";
+    inn.style.display=acctUser?"flex":"none";
+    if(acctUser) $("acctwho").innerHTML="Signed in as <b>"+
+      (acctUser.email||"").replace(/</g,"&lt;")+"</b> — routes save to your account.";
+  }
+  const mi=$("rs-acct");                      // the Account row in the menu
+  if(mi) mi.textContent=acctUser? "👤 "+(acctUser.email||"Account")
+                                : "👤 Account — sign in";
 }
 function acctMsg(t,err){ const m=$("acctmsg"); if(m){ m.textContent=t||""; m.className=err?"err":""; } }
 function cloudList(){ return acctUser? api("/routes").then(j=>j.routes) : Promise.resolve([]); }
@@ -4361,6 +4365,8 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
         '<div class="rs-flyout" id="rs-routeprefs"></div>'+
       '</div>'+
       '<div class="rs-menu-div"></div>'+
+      '<button class="rs-menu-item" data-act="account" id="rs-acct">👤 Account — sign in</button>'+
+      '<div class="rs-menu-div"></div>'+
       /* bump this on every deploy — it's how Chris can tell an update actually landed */
       '<div style="padding:5px 12px 3px;font-size:10px;opacity:.55;text-align:center;letter-spacing:.3px">'+STUDIO_BUILD+'</div>'+
     '</div>';
@@ -4375,6 +4381,11 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
       if(a==="new") newRoute();
       else if(a==="save") saveToMyRoutes();          /* Save keeps it here; Export writes a file */
       else if(a==="myroutes") openMyRoutes();
+      else if(a==="account"){
+        /* a new tab, deliberately — navigating away would lose an unsaved route */
+        if(acctUser) window.open("/account/","_blank");
+        else openMyRoutes();                         /* signed out → the sign-in box is right there */
+      }
       else if(a==="renumber") renumberWaypoints();
       else if(a==="names") fillAllNames(false);
       else if(HITBTN[a]) document.getElementById(HITBTN[a]).click();
