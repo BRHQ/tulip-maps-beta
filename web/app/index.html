@@ -3931,9 +3931,9 @@ function mrRow(list,{name,sub,tag,onOpen,onRename,onDel}){
     '<button class="mrbtn go">Open</button><button class="mrbtn rn">Rename</button>'+
     '<button class="mrbtn del">Delete</button>';
   el.querySelector("b").textContent=name;
+  el.querySelector(".mrname > span").textContent=sub;   // the date line (NOT the tag span)
   if(tag){ const t=document.createElement("span"); t.className="mrtag"+(tag==="account"?" cloud":"");
     t.textContent=tag; el.querySelector("b").appendChild(t); }
-  el.querySelector("span").textContent=sub;
   el.querySelector(".go").onclick=onOpen;
   el.querySelector(".rn").onclick=onRename;
   el.querySelector(".del").onclick=onDel;
