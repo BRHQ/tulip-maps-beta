@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your account — Tulip Maps</title>
+<meta name="description" content="Sign in to Tulip Maps to keep your routes safe in your account and use them on any device.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='30 40 60 100'%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(-22 60 132)' fill='%23F4B0A0'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(22 60 132)' fill='%23BC3B2C'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' fill='%23E1694F'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green:#143D2E; --paper:#FBF7EE; --paper-2:#F3ECDD; --ink:#20302A; --ink-soft:#5E6E64;
+    --line:rgba(20,61,46,.12); --radius:18px;
+    --am:#E1694F; --ad:#BC3B2C;   /* coral accents, same as the site default */
+    --disp:'Fraunces',Georgia,serif;
+    --sans:'Barlow',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);background:var(--paper);color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column}
+  nav{position:sticky;top:0;background:rgba(251,247,238,.86);backdrop-filter:blur(9px);
+    border-bottom:1px solid var(--line)}
+  nav .wrap{max-width:1120px;margin:0 auto;padding:0 20px;display:flex;align-items:center;
+    justify-content:space-between;height:66px}
+  .brand{display:flex;align-items:center;gap:8px;font-family:var(--disp);font-size:1.25rem;
+    color:var(--green);text-decoration:none}
+  .brand b{font-weight:600}
+  .brand svg{height:34px;width:auto}
+  .brand .st{stroke:#5C8A52}.brand .sd{fill:#5C8A52}
+  .brand .p1{fill:#F4B0A0}.brand .p2{fill:#E1694F}.brand .p3{fill:#BC3B2C}
+  .navcta{background:var(--green);color:#fff;text-decoration:none;border-radius:999px;
+    padding:.55em 1.1em;font-size:.94rem;font-weight:600}
+  main{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:48px 20px 80px}
+  .card{width:100%;max-width:460px;background:#fff;border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:0 10px 34px rgba(20,61,46,.08);padding:30px 28px}
+  h1{font-family:var(--disp);font-weight:600;font-size:1.7rem;color:var(--green);margin:0 0 6px}
+  .sub{color:var(--ink-soft);font-size:.95rem;line-height:1.5;margin:0 0 20px}
+  label{display:block;font-size:.85rem;font-weight:600;margin:0 0 5px;color:var(--ink)}
+  input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    font:inherit;font-size:.98rem;margin-bottom:14px;background:var(--paper)}
+  input:focus{outline:2px solid var(--am);outline-offset:0;border-color:transparent}
+  .btn{display:inline-block;border:0;border-radius:999px;padding:.7em 1.5em;font:inherit;
+    font-weight:600;font-size:.98rem;cursor:pointer;background:var(--green);color:#fff}
+  .btn.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn:hover{filter:brightness(1.08)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .row a{font-size:.86rem;color:var(--ink-soft);margin-left:auto}
+  .msg{font-size:.9rem;margin-top:14px;min-height:1.2em;color:var(--ink-soft)}
+  .msg.err{color:#B3402A}
+  .msg.good{color:#1F7A45}
+  .routes{margin:18px 0 0;padding:0;list-style:none}
+  .routes li{display:flex;align-items:center;gap:10px;border:1px solid var(--line);
+    background:var(--paper);border-radius:12px;padding:10px 13px;margin-bottom:9px}
+  .routes .nm{flex:1;min-width:0}
+  .routes .nm b{display:block;font-size:.96rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .routes .nm span{font-size:.78rem;color:var(--ink-soft)}
+  .rbtn{background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 11px;
+    font:inherit;font-size:.83rem;cursor:pointer}
+  .rbtn:hover{background:var(--paper-2)}
+  .who{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .who .em{font-weight:600;overflow:hidden;text-overflow:ellipsis}
+  .danger{margin-top:26px;padding-top:16px;border-top:1px solid var(--line)}
+  .danger summary{font-size:.85rem;color:var(--ink-soft);cursor:pointer}
+  .danger p{font-size:.85rem;color:var(--ink-soft);line-height:1.5}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="brand" href="/">
+    <svg viewBox="0 0 120 220" aria-hidden="true">
+      <path class="st" d="M60 128V196" stroke-width="11" stroke-linecap="round" fill="none"/>
+      <circle class="sd" cx="60" cy="200" r="7.5"/>
+      <path class="st" d="M60 166C75 164 88 155 95 141" stroke-width="11" stroke-linecap="round" fill="none"/>
+      <path class="p1" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)"/>
+      <path class="p3" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)"/>
+      <path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/>
+    </svg>
+    Tulip <b>Maps</b>
+  </a>
+  <a class="navcta" href="/app/">Open the tool →</a>
+</div></nav>
+
+<main>
+  <!-- signed OUT -->
+  <div class="card" id="cardOut" hidden>
+    <h1>Sign in</h1>
+    <p class="sub">Your routes, kept safe in your account and ready on any device —
+      the web tool and the phone app share the same sign-in.</p>
+    <form id="fSign">
+      <label for="em">Email</label>
+      <input id="em" type="email" autocomplete="email" required>
+      <label for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" required minlength="8">
+      <div class="row">
+        <button class="btn" type="submit">Sign in</button>
+        <button class="btn alt" type="button" id="bNew">Create account</button>
+        <a href="#" id="bForgot">Forgot password?</a>
+      </div>
+      <div class="msg" id="mOut"></div>
+    </form>
+  </div>
+
+  <!-- signed IN -->
+  <div class="card" id="cardIn" hidden>
+    <h1>Your routes</h1>
+    <div class="who"><span class="em" id="who"></span>
+      <button class="rbtn" id="bOut" style="margin-left:auto">Sign out</button></div>
+    <p class="sub" id="verifyNote" hidden>Your email isn't confirmed yet — the link is in
+      your inbox. Everything works meanwhile.</p>
+    <ul class="routes" id="list"></ul>
+    <p class="sub" id="empty" hidden>Nothing saved yet. Open the tool, draw a route and
+      choose <b>Save Route</b> — it lands here.</p>
+    <div class="row" style="margin-top:16px">
+      <a class="btn" href="/app/" style="text-decoration:none">Open the tool →</a>
+    </div>
+    <div class="msg" id="mIn"></div>
+    <details class="danger">
+      <summary>Delete my account</summary>
+      <p>This removes your account and <b>every route saved in it</b>, immediately and
+        for good. Routes kept in a browser's own storage stay on that computer.</p>
+      <input id="delpw" type="password" placeholder="your password" autocomplete="current-password">
+      <button class="btn" id="bDel" style="background:#B3402A">Delete everything</button>
+    </details>
+  </div>
+
+  <!-- reset password (arrived via email link) -->
+  <div class="card" id="cardReset" hidden>
+    <h1>Choose a new password</h1>
+    <p class="sub">Type a new password for your account. At least 8 characters.</p>
+    <form id="fReset">
+      <label for="npw">New password</label>
+      <input id="npw" type="password" autocomplete="new-password" required minlength="8">
+      <button class="btn" type="submit">Set password</button>
+      <div class="msg" id="mReset"></div>
+    </form>
+  </div>
+</main>
+
+<script>
+const API="https://api.tulipmaps.com/v1";
+const $=id=>document.getElementById(id);
+function api(path,opts){
+  return fetch(API+path,Object.assign({credentials:"include",
+    headers:{"Content-Type":"application/json"}},opts))
+    .then(async r=>{const j=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(j.error||("server said "+r.status)); return j;});
+}
+function show(card){ for(const c of ["cardOut","cardIn","cardReset"]) $(c).hidden=(c!==card); }
+function msg(el,t,cls){ $(el).textContent=t||""; $(el).className="msg"+(cls?" "+cls:""); }
+
+function paintRoutes(rs){
+  const ul=$("list"); ul.innerHTML="";
+  $("empty").hidden=rs.length>0;
+  for(const r of rs){
+    const li=document.createElement("li");
+    li.innerHTML='<div class="nm"><b></b><span></span></div>'+
+      '<button class="rbtn rn">Rename</button><button class="rbtn del">Delete</button>';
+    li.querySelector("b").textContent=r.name;
+    const d=new Date(r.updated);
+    li.querySelector(".nm span").textContent="updated "+d.toLocaleDateString()+" "+
+      d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    li.querySelector(".rn").onclick=()=>{
+      const nn=prompt("Rename this route:",r.name); if(!nn||nn.trim()===r.name) return;
+      api("/routes/"+r.id).then(j=>api("/routes",{method:"POST",
+        body:JSON.stringify({id:r.id,name:nn.trim(),data:j.route})}))
+        .then(refresh).catch(e=>msg("mIn",e.message,"err"));
+    };
+    li.querySelector(".del").onclick=()=>{
+      if(!confirm("Delete “"+r.name+"” from your account?")) return;
+      api("/routes/"+r.id,{method:"DELETE"}).then(refresh)
+        .catch(e=>msg("mIn",e.message,"err"));
+    };
+    ul.appendChild(li);
+  }
+}
+function refresh(){
+  return api("/me").then(j=>{
+    if(!j.user){ show("cardOut"); return; }
+    $("who").textContent=j.user.email;
+    $("verifyNote").hidden=!!j.user.verified;
+    show("cardIn");
+    return api("/routes").then(x=>paintRoutes(x.routes));
+  }).catch(()=>show("cardOut"));
+}
+
+$("fSign").onsubmit=ev=>{ev.preventDefault();
+  msg("mOut","Signing in…");
+  api("/signin",{method:"POST",body:JSON.stringify({email:$("em").value,password:$("pw").value})})
+    .then(()=>{msg("mOut","");refresh();})
+    .catch(e=>msg("mOut",e.message,"err"));
+};
+$("bNew").onclick=()=>{
+  if(!$("em").value||!$("pw").value){ msg("mOut","Type an email and a password first, then press Create account.","err"); return; }
+  msg("mOut","Creating your account…");
+  api("/signup",{method:"POST",body:JSON.stringify({email:$("em").value,password:$("pw").value})})
+    .then(()=>{msg("mOut","Account created — a confirmation email is on its way.","good");refresh();})
+    .catch(e=>msg("mOut",e.message,"err"));
+};
+$("bForgot").onclick=ev=>{ev.preventDefault();
+  if(!$("em").value){ msg("mOut","Type your email first, then press Forgot password.","err"); return; }
+  api("/forgot",{method:"POST",body:JSON.stringify({email:$("em").value})})
+    .then(j=>msg("mOut",j.note||"Check your email.","good"))
+    .catch(e=>msg("mOut",e.message,"err"));
+};
+$("bOut").onclick=()=>api("/signout",{method:"POST"}).catch(()=>{}).then(refresh);
+$("bDel").onclick=()=>{
+  if(!confirm("Really delete your account and every route in it? There is no undo.")) return;
+  api("/delete-account",{method:"POST",body:JSON.stringify({password:$("delpw").value})})
+    .then(()=>{alert("Your account is gone. Thanks for trying Tulip Maps.");refresh();})
+    .catch(e=>msg("mIn",e.message,"err"));
+};
+
+/* email links land here */
+const q=new URLSearchParams(location.search);
+if(q.get("reset")){
+  show("cardReset");
+  $("fReset").onsubmit=ev=>{ev.preventDefault();
+    api("/reset",{method:"POST",body:JSON.stringify({token:q.get("reset"),password:$("npw").value})})
+      .then(()=>{history.replaceState(null,"","/account/");
+        show("cardOut"); msg("mOut","Password changed — sign in with the new one.","good");})
+      .catch(e=>msg("mReset",e.message,"err"));
+  };
+}else if(q.get("verify")){
+  api("/verify",{method:"POST",body:JSON.stringify({token:q.get("verify")})})
+    .then(()=>{history.replaceState(null,"","/account/");
+      refresh().then(()=>msg($("cardIn").hidden?"mOut":"mIn","Email confirmed — you're all set.","good"));})
+    .catch(e=>{refresh().then(()=>msg($("cardIn").hidden?"mOut":"mIn",e.message,"err"));});
+}else{
+  refresh();
+}
+</script>
+</body>
+</html>
