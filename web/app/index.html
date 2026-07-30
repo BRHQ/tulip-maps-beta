@@ -3932,7 +3932,7 @@ function mrRow(list,{name,sub,tag,onOpen,onRename,onDel}){
     '<button class="mrbtn del">Delete</button>';
   el.querySelector("b").textContent=name;
   el.querySelector(".mrname > span").textContent=sub;   // the date line (NOT the tag span)
-  if(tag){ const t=document.createElement("span"); t.className="mrtag"+(tag==="account"?" cloud":"");
+  if(tag){ const t=document.createElement("span"); t.className="mrtag"+(tag==="in your account"?" cloud":"");
     t.textContent=tag; el.querySelector("b").appendChild(t); }
   el.querySelector(".go").onclick=onOpen;
   el.querySelector(".rn").onclick=onRename;
@@ -3953,7 +3953,7 @@ function openMyRoutes(){
        that aren't already shown as an account row. */
     for(const r of cloud){
       const when=new Date(r.updated);
-      mrRow(list,{name:r.name, tag:"account",
+      mrRow(list,{name:r.name, tag:"in your account",
         sub:when.toLocaleDateString()+" "+when.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),
         onOpen:()=>api("/routes/"+r.id).then(j=>{
           const v=j.route&&j.route.vmr;
@@ -3978,7 +3978,7 @@ function openMyRoutes(){
     for(const r of rows){
       if(cloudNames.has(r.name)) continue;          // same route, account copy already listed
       const when=new Date(r.saved);
-      mrRow(list,{name:r.name, tag:acctUser?"this browser only":null,
+      mrRow(list,{name:r.name, tag:acctUser?"this computer only":null,
         sub:when.toLocaleDateString()+" "+when.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+
             " · "+fmtSize(r.size||0),
         onOpen:()=>tmGet(r.id).then(v=>{
