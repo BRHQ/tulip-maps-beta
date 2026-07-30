@@ -832,11 +832,10 @@ map.on("contextmenu",ev=>{
     showCtx(ev,[["✓ Save "+nm,finishRouting],["✕ Cancel "+nm,cancelRouting]]); return; }
   showCtx(ev, ctxCore(null, ev.latlng));      // bare map — the three core actions
 });
-// NOTE: no .addTo(map) here any more. Our OWN vector map (below) is the default;
-// this is the emergency fallback if it can't load. OpenStreetMap's public tile
-// servers are donated infrastructure and their policy does not cover a paid
-// product, so we don't want to sit on them as the everyday background.
-const baseOSM=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+// Standard OSM is the default for now (Chris, 30 Jul) — our own vector map
+// stays one click away in the picker. Before the tool is ever CHARGED for,
+// the default must move off OSM's donated servers (see TODO: map licensing).
+const baseOSM=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 const baseTopo=L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenTopoMap (CC-BY-SA)'});
 const baseSat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'});
 // Google tiles via the public vt endpoint (no key, no cost) — not officially
@@ -965,7 +964,7 @@ const TOOLBAR_CORNERS={tl:{top:"12px",left:"12px",right:"",bottom:""},
                        br:{bottom:"24px",right:"12px",left:"",top:""},
                        bl:{bottom:"24px",left:"12px",right:"",top:""}};
 let toolbarEl=null, lyrFlyEl=null;
-let curBase="tulip", lastBase="sat";      // click the style button to flip between these
+let curBase="osm", lastBase="sat";      // click the style button to flip between these
 function setBase(which){
   if(which===curBase)return;
   lastBase=curBase; curBase=which;
