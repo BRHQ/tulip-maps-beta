@@ -412,6 +412,22 @@
   #mrmodal .mrbtn { background:#fff; border:1px solid var(--hair); border-radius:7px; padding:5px 10px;
     font-size:11.5px; font-weight:700; color:var(--char); cursor:pointer; }
   #mrmodal .mrbtn:hover { background:#eef3ee; border-color:#c6cdc6; }
+  /* account strip inside My routes */
+  #acctbar { border:1px solid var(--hair); border-radius:10px; padding:10px 12px; margin-bottom:12px; background:#f7f9f7; }
+  #acctform input { width:100%; box-sizing:border-box; border:1px solid var(--hair); border-radius:7px;
+    padding:7px 9px; font:inherit; font-size:13px; margin-bottom:7px; }
+  #acctform .acctrow { display:flex; gap:8px; align-items:center; }
+  #acctform .btn { padding:6px 13px; font-size:13px; border-radius:7px; border:0;
+    background:var(--green); color:#fff; cursor:pointer; }
+  #acctform .btn.alt { background:#fff; color:var(--char); border:1px solid var(--hair); }
+  #acctform a { font-size:12px; color:var(--mut); margin-left:auto; }
+  #acctmsg { font-size:12.5px; margin-top:7px; color:var(--mut); min-height:1em; }
+  #acctmsg.err { color:#b3402a; }
+  #acctin { display:flex; align-items:center; gap:10px; font-size:13px; }
+  #acctin #acctwho { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mrtag { font-size:10px; letter-spacing:.4px; border-radius:5px; padding:2px 6px; margin-left:7px;
+    vertical-align:1px; background:#e7efe7; color:var(--green); }
+  .mrtag.cloud { background:var(--green); color:#fff; }
   #mrmodal .mrbtn.go { background:var(--green); color:#fff; border-color:var(--green); }
   #mrmodal .mrempty { color:var(--mut); font-size:13px; text-align:center; padding:26px 10px; }
   #mrmodal .mrrow2 { display:flex; justify-content:flex-end; margin-top:10px; }
@@ -705,8 +721,27 @@
 <div id="mrmodal">
   <div class="mrcard">
     <h3>My routes</h3>
-    <div class="mrsub">Kept in this browser, on this computer. Handy, but <b>not a backup</b> —
-      clearing your browsing data would take them with it. Export a .vmr for anything you'd hate to lose.</div>
+    <div id="acctbar">
+      <div id="acctout">
+        <div class="mrsub" style="margin-bottom:8px">Routes here live in this browser only.
+          <b>Sign in and they're kept in your account too</b> — safe if this computer dies,
+          and ready for the phone app.</div>
+        <form id="acctform" autocomplete="on">
+          <input id="acctemail" type="email" placeholder="email" autocomplete="email">
+          <input id="acctpw" type="password" placeholder="password" autocomplete="current-password">
+          <div class="acctrow">
+            <button type="submit" class="btn" id="acctsignin">Sign in</button>
+            <button type="button" class="btn alt" id="acctsignup">Create account</button>
+            <a href="#" id="acctforgot">Forgot?</a>
+          </div>
+          <div id="acctmsg"></div>
+        </form>
+      </div>
+      <div id="acctin" style="display:none">
+        <span id="acctwho"></span>
+        <button class="mrbtn" id="acctsignout">Sign out</button>
+      </div>
+    </div>
     <div class="mrlist" id="mrlist"></div>
     <div class="mrrow2"><button class="mrclose" id="mrclose">Close</button></div>
   </div>
@@ -797,7 +832,11 @@ map.on("contextmenu",ev=>{
     showCtx(ev,[["✓ Save "+nm,finishRouting],["✕ Cancel "+nm,cancelRouting]]); return; }
   showCtx(ev, ctxCore(null, ev.latlng));      // bare map — the three core actions
 });
-const baseOSM=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+// NOTE: no .addTo(map) here any more. Our OWN vector map (below) is the default;
+// this is the emergency fallback if it can't load. OpenStreetMap's public tile
+// servers are donated infrastructure and their policy does not cover a paid
+// product, so we don't want to sit on them as the everyday background.
+const baseOSM=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
 const baseTopo=L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenTopoMap (CC-BY-SA)'});
 const baseSat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'});
 // Google tiles via the public vt endpoint (no key, no cost) — not officially
@@ -876,18 +915,62 @@ async function loadOfflinePacks(files){
     if(!inView) map.fitBounds([[h.minLat,h.minLon],[h.maxLat,h.maxLon]]);
   }catch(_){}
 }
+/* ── Tulip Maps' OWN map background ──────────────────────────────────────────
+   Our own vector map packs, built from open data with planetiler, served from
+   our own server. Nothing borrowed, nothing rate-limited, nothing that can be
+   switched off by somebody else — and it can be restyled into our own colours.
+   Streams straight out of the .pmtiles file a few kilobytes at a time, so the
+   browser never downloads the whole 1.5 GB. */
+const TULIP_PACK_BASE='https://api.tulipmaps.com/packs/v1';
+const TULIP_PACKS=['gb'];                 // add more as they go on the server
+let baseTulip=null;
+async function buildTulipBase(){
+  if(!window.maplibregl||!window.pmtiles||!L.maplibreGL) throw new Error('map libraries missing');
+  const style=JSON.parse(JSON.stringify(await positronStyleJSON()));
+  if(!packProtocol){ packProtocol=new pmtiles.Protocol(); maplibregl.addProtocol('pmtiles', packProtocol.tile); }
+  const sources={};
+  const vecLayers=style.layers.filter(l=>l.source==='openmaptiles');
+  const layers=style.layers.filter(l=>!l.source);      // keep the flat background
+  TULIP_PACKS.forEach((name,i)=>{
+    const url=TULIP_PACK_BASE+'/'+name+'.pmtiles';
+    packProtocol.add(new pmtiles.PMTiles(url));
+    const src='tulip_'+name;
+    sources[src]={type:'vector', url:'pmtiles://'+url};
+    for(const l of vecLayers){
+      const c=i===0? l : JSON.parse(JSON.stringify(l));
+      c.source=src; if(i>0) c.id=l.id+'__'+src;
+      layers.push(c);
+    }
+  });
+  style.sources=sources; style.layers=layers;
+  return L.maplibreGL({style, attribution:'© OpenStreetMap contributors — Tulip Maps'});
+}
+/* Build it, show it. If anything goes wrong — no internet, server down, an old
+   browser — fall back to the raster street map so the tool still works. */
+(async()=>{
+  try{
+    baseTulip=await buildTulipBase();
+    if(curBase==='tulip') baseTulip.addTo(map);
+  }catch(e){
+    console.warn('Tulip base map unavailable, falling back to OSM:', e && e.message);
+    baseTulip=null;
+    if(curBase==='tulip'){ curBase='osm'; baseOSM.addTo(map); }
+    (styleBtns||[]).forEach(b=>b.classList.toggle('on', b.dataset.k==='osm'));
+  }
+})();
+
 let zoomBtnEl=null, addWpMode=false, addWpBtnEl=null;
 const TOOLBAR_CORNERS={tl:{top:"12px",left:"12px",right:"",bottom:""},
                        tr:{top:"12px",right:"12px",left:"",bottom:""},
                        br:{bottom:"24px",right:"12px",left:"",top:""},
                        bl:{bottom:"24px",left:"12px",right:"",top:""}};
 let toolbarEl=null, lyrFlyEl=null;
-let curBase="osm", lastBase="sat";        // click the style button to flip between these
+let curBase="tulip", lastBase="sat";      // click the style button to flip between these
 function setBase(which){
   if(which===curBase)return;
   lastBase=curBase; curBase=which;
-  [baseOSM,baseTopo,baseSat,baseGoogle,baseGoogleHy,baseVector,basePack].forEach(l=>l&&map.removeLayer(l));
-  (({osm:baseOSM,topo:baseTopo,sat:baseSat,gmap:baseGoogle,ghyb:baseGoogleHy,vector:baseVector,pack:basePack})[which]||baseOSM).addTo(map);
+  [baseTulip,baseOSM,baseTopo,baseSat,baseGoogle,baseGoogleHy,baseVector,basePack].forEach(l=>l&&map.removeLayer(l));
+  (({tulip:baseTulip,osm:baseOSM,topo:baseTopo,sat:baseSat,gmap:baseGoogle,ghyb:baseGoogleHy,vector:baseVector,pack:basePack})[which]||baseOSM).addTo(map);
   (styleBtns||[]).forEach(b=>b.classList.toggle("on",b.dataset.k===which));
   setStyleCur();
 }
@@ -1182,7 +1265,8 @@ function buildToolbar(){
   styleBtnEl.innerHTML='<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M10 2.5 L17.5 6.5 L10 10.5 L2.5 6.5 Z"/><path d="M2.5 10.5 L10 14.5 L17.5 10.5"/></svg>Maps';
   styleBtnEl.onclick=e=>{ e.stopPropagation(); setBase(lastBase); };
   const fly=document.createElement("div"); fly.className="stylefly"; styleBtns=[];
-  const baseOpts=[["osm","Street (OSM)"],["topo","Topographic"],["sat","Satellite"],["gmap","Google"],["ghyb","Google Hybrid"]];
+  // Our own map first — it's the default and the one that's properly ours.
+  const baseOpts=[["tulip","Tulip Maps"],["osm","Street (OSM)"],["topo","Topographic"],["sat","Satellite"],["gmap","Google"],["ghyb","Google Hybrid"]];
   if(baseVector) baseOpts.push(["vector","VM Vector"]);
   for(const [k,label] of baseOpts){
     const o=document.createElement("button"); o.className="styleopt"; o.textContent=label; o.dataset.k=k; o.dataset.label=label;
@@ -3791,53 +3875,157 @@ function tmDel(id){
     tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
   }));
 }
-/* Saving the same route again overwrites it rather than piling up copies. */
+/* ---------- Tulip Maps account (cloud copies of My routes) ----------
+   Same account the phone app will use. The API holds each route as the same
+   .vmr text the local store keeps, so a route is identical wherever it lives. */
+const TULIP_API="https://api.tulipmaps.com/v1";
+let acctUser=null;                       // {email,name,...} or null = signed out
+function api(path,opts){
+  return fetch(TULIP_API+path, Object.assign({credentials:"include",
+    headers:{"Content-Type":"application/json"}}, opts))
+    .then(async r=>{ const j=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(j.error||("server said "+r.status)); return j; });
+}
+function acctRefresh(){
+  return api("/me").then(j=>{ acctUser=j.user; acctPaint(); })
+    .catch(()=>{ acctUser=null; acctPaint(); });   // offline → just signed out
+}
+function acctPaint(){
+  const out=$("acctout"), inn=$("acctin");
+  if(!out) return;
+  out.style.display=acctUser?"none":"";
+  inn.style.display=acctUser?"flex":"none";
+  if(acctUser) $("acctwho").innerHTML="Signed in as <b>"+
+    (acctUser.email||"").replace(/</g,"&lt;")+"</b> — routes save to your account.";
+}
+function acctMsg(t,err){ const m=$("acctmsg"); if(m){ m.textContent=t||""; m.className=err?"err":""; } }
+function cloudList(){ return acctUser? api("/routes").then(j=>j.routes) : Promise.resolve([]); }
+function cloudSave(name,vmr){
+  if(!acctUser) return Promise.resolve(null);
+  return cloudList().then(list=>{
+    const hit=list.find(r=>r.name===name);        // same rule as local: same name = update
+    return api("/routes",{method:"POST",body:JSON.stringify(
+      {id:hit&&hit.id, name, data:{vmr}})});
+  });
+}
+
+/* Saving the same route again overwrites it rather than piling up copies.
+   Signed in? The same save also goes to the account. */
 function saveToMyRoutes(){
   if(!xmlDoc){ toast("Open or draw a route first.",4000); return; }
   const nm=baseName||"route", body=currentVmrString();
   tmList().then(list=>{
     const hit=list.find(r=>r.name===nm);
     return tmPut(hit?hit.id:String(Date.now()),nm,body).then(()=>hit);
-  }).then(hit=>toast((hit?"Updated":"Saved")+" “"+nm+"” in My routes.",3500))
-    .catch(e=>toast("Couldn't save: "+(e&&e.message||e),6000));
+  }).then(hit=>{
+    if(!acctUser){ toast((hit?"Updated":"Saved")+" “"+nm+"” in My routes.",3500); return; }
+    cloudSave(nm,body)
+      .then(()=>toast((hit?"Updated":"Saved")+" “"+nm+"” — here and in your account.",3500))
+      .catch(e=>toast("Saved here, but the account copy failed: "+e.message,6000));
+  }).catch(e=>toast("Couldn't save: "+(e&&e.message||e),6000));
 }
 function fmtSize(n){ return n>=1048576?(n/1048576).toFixed(1)+" MB":Math.max(1,Math.round(n/1024))+" KB"; }
+function mrRow(list,{name,sub,tag,onOpen,onRename,onDel}){
+  const el=document.createElement("div"); el.className="mrrow";
+  el.innerHTML='<div class="mrname"><b></b><span></span></div>'+
+    '<button class="mrbtn go">Open</button><button class="mrbtn rn">Rename</button>'+
+    '<button class="mrbtn del">Delete</button>';
+  el.querySelector("b").textContent=name;
+  if(tag){ const t=document.createElement("span"); t.className="mrtag"+(tag==="account"?" cloud":"");
+    t.textContent=tag; el.querySelector("b").appendChild(t); }
+  el.querySelector("span").textContent=sub;
+  el.querySelector(".go").onclick=onOpen;
+  el.querySelector(".rn").onclick=onRename;
+  el.querySelector(".del").onclick=onDel;
+  list.appendChild(el);
+}
 function openMyRoutes(){
   const box=$("mrmodal"), list=$("mrlist");
   list.textContent="Loading…";
   box.classList.add("on");
-  tmList().then(rows=>{
+  acctRefresh().then(()=>Promise.all([tmList(), cloudList().catch(()=>[])]))
+  .then(([rows,cloud])=>{
     list.innerHTML="";
-    if(!rows.length){ list.innerHTML='<div class="mrempty">Nothing saved yet.<br>'+
-      'Open a route, then choose <b>Save Route</b> from the menu.</div>'; return; }
+    if(!rows.length && !cloud.length){
+      list.innerHTML='<div class="mrempty">Nothing saved yet.<br>'+
+        'Open a route, then choose <b>Save Route</b> from the menu.</div>'; return; }
+    /* Account copies first (they're the safe ones), then browser-only ones
+       that aren't already shown as an account row. */
+    for(const r of cloud){
+      const when=new Date(r.updated);
+      mrRow(list,{name:r.name, tag:"account",
+        sub:when.toLocaleDateString()+" "+when.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),
+        onOpen:()=>api("/routes/"+r.id).then(j=>{
+          const v=j.route&&j.route.vmr;
+          if(!v){ toast("That route's data is missing.",5000); return; }
+          loadTVRX(v,r.name+".vmr"); box.classList.remove("on"); toast("Opened “"+r.name+"”.",2500);
+          tmList().then(l=>{ const hit=l.find(x=>x.name===r.name);   // freshen the local copy too
+            tmPut(hit?hit.id:String(Date.now()),r.name,v); }).catch(()=>{});
+        }).catch(e=>toast("Couldn't open: "+e.message,5000)),
+        onRename:()=>{
+          const nn=prompt("Rename this route:",r.name); if(!nn||nn.trim()===r.name) return;
+          api("/routes/"+r.id).then(j=>api("/routes",{method:"POST",
+            body:JSON.stringify({id:r.id,name:nn.trim(),data:j.route})}))
+            .then(openMyRoutes).catch(e=>toast("Couldn't rename: "+e.message,5000));
+        },
+        onDel:()=>{
+          if(!confirm("Delete “"+r.name+"” from your ACCOUNT?\n\nAny copy kept in this browser stays.")) return;
+          api("/routes/"+r.id,{method:"DELETE"}).then(openMyRoutes)
+            .catch(e=>toast("Couldn't delete: "+e.message,5000));
+        }});
+    }
+    const cloudNames=new Set(cloud.map(r=>r.name));
     for(const r of rows){
+      if(cloudNames.has(r.name)) continue;          // same route, account copy already listed
       const when=new Date(r.saved);
-      const el=document.createElement("div"); el.className="mrrow";
-      el.innerHTML='<div class="mrname"><b></b><span></span></div>'+
-        '<button class="mrbtn go">Open</button><button class="mrbtn rn">Rename</button>'+
-        '<button class="mrbtn del">Delete</button>';
-      el.querySelector("b").textContent=r.name;
-      el.querySelector("span").textContent=when.toLocaleDateString()+" "+
-        when.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})+" · "+fmtSize(r.size||0);
-      el.querySelector(".go").onclick=()=>tmGet(r.id).then(v=>{
-        if(!v){ toast("That route's data is missing.",5000); return; }
-        loadTVRX(v,r.name+".vmr"); box.classList.remove("on"); toast("Opened “"+r.name+"”.",2500);
-      });
-      el.querySelector(".rn").onclick=()=>{
-        const nn=prompt("Rename this route:",r.name); if(!nn||nn===r.name) return;
-        tmGet(r.id).then(v=>tmPut(r.id,nn.trim(),v)).then(openMyRoutes);
-      };
-      el.querySelector(".del").onclick=()=>{
-        if(!confirm("Delete “"+r.name+"” from My routes?\n\nThis only removes the copy kept in this browser.")) return;
-        tmDel(r.id).then(openMyRoutes);
-      };
-      list.appendChild(el);
+      mrRow(list,{name:r.name, tag:acctUser?"this browser only":null,
+        sub:when.toLocaleDateString()+" "+when.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+
+            " · "+fmtSize(r.size||0),
+        onOpen:()=>tmGet(r.id).then(v=>{
+          if(!v){ toast("That route's data is missing.",5000); return; }
+          loadTVRX(v,r.name+".vmr"); box.classList.remove("on"); toast("Opened “"+r.name+"”.",2500);
+        }),
+        onRename:()=>{
+          const nn=prompt("Rename this route:",r.name); if(!nn||nn===r.name) return;
+          tmGet(r.id).then(v=>tmPut(r.id,nn.trim(),v)).then(openMyRoutes);
+        },
+        onDel:()=>{
+          if(!confirm("Delete “"+r.name+"” from My routes?\n\nThis only removes the copy kept in this browser.")) return;
+          tmDel(r.id).then(openMyRoutes);
+        }});
     }
   }).catch(e=>{ list.innerHTML='<div class="mrempty">Couldn\'t read saved routes.<br>'+
     (e&&e.message||e)+'</div>'; });
 }
 $("mrclose").onclick=()=>$("mrmodal").classList.remove("on");
 $("mrmodal").onclick=ev=>{ if(ev.target.id==="mrmodal") $("mrmodal").classList.remove("on"); };
+/* the sign-in / create-account strip */
+$("acctform").onsubmit=ev=>{ ev.preventDefault();
+  acctMsg("Signing in…");
+  api("/signin",{method:"POST",body:JSON.stringify(
+    {email:$("acctemail").value,password:$("acctpw").value})})
+    .then(()=>{ acctMsg(""); openMyRoutes(); })
+    .catch(e=>acctMsg(e.message,true));
+};
+$("acctsignup").onclick=()=>{
+  const em=$("acctemail").value, pw=$("acctpw").value;
+  if(!em||!pw){ acctMsg("Type an email and a password first, then press Create account.",true); return; }
+  acctMsg("Creating your account…");
+  api("/signup",{method:"POST",body:JSON.stringify({email:em,password:pw})})
+    .then(()=>{ acctMsg(""); openMyRoutes(); toast("Account created — check your email to confirm it.",6000); })
+    .catch(e=>acctMsg(e.message,true));
+};
+$("acctforgot").onclick=ev=>{ ev.preventDefault();
+  const em=$("acctemail").value;
+  if(!em){ acctMsg("Type your email first, then press Forgot.",true); return; }
+  api("/forgot",{method:"POST",body:JSON.stringify({email:em})})
+    .then(j=>acctMsg(j.note||"Check your email."))
+    .catch(e=>acctMsg(e.message,true));
+};
+$("acctsignout").onclick=()=>{
+  api("/signout",{method:"POST"}).catch(()=>{}).then(()=>{ acctUser=null; openMyRoutes(); });
+};
+acctRefresh();   // so Save knows about the account even before the panel is opened
 /* ---------- rally: many day-routes saved together as one .vmrally ---------- */
 function buildRallyBundle(){
   const keep=activeRoute, days=[];
