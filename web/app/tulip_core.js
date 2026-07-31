@@ -459,9 +459,9 @@ function drawElements(ctx,els){
   for(const e of els){
     ctx.strokeStyle=e.col||INKC; ctx.fillStyle=INKC;
     if(e.k==='l'){ const [x1,y1,x2,y2]=e.p; ctx.lineWidth=e.w;
-      if(e.ds) ctx.setLineDash([e.w*1.1,e.w*1.5]);
+      if(e.ds){ ctx.setLineDash([e.w*1.1,e.w*1.5]); if(e.dof) ctx.lineDashOffset=e.dof; }
       ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.setLineDash([]); ctx.lineDashOffset=0;
       const ang=Math.atan2(x2-x1,y1-y2)*180/Math.PI;
       endcap(ctx,x1,y1,ang+180,e.ss,e.w); endcap(ctx,x2,y2,ang,e.es,e.w);
     } else if(e.k==='q'){ const [x1,y1,cx,cy,x2,y2]=e.p; ctx.lineWidth=e.w;
@@ -630,8 +630,10 @@ function quickToElements(sp){
     const shift=exitShift(sp), [bx0,by0]=exitBase(sp), [endx,endy]=exitTipPt(sp), es=endStyle(sp);
     if(cs===0){                                    // sharp: hard corners — entry up, sideways jog, exit up
       els.push({k:'l',p:[EX,EY,CXX,CYY],w:9,ss:1,es:0,ds,col:rc});
-      if(shift) els.push({k:'l',p:[CXX,CYY,bx0,by0],w:9,ss:0,es:0,ds,col:rc});
-      els.push({k:'l',p:[bx0,by0,endx,endy],w:9,ss:0,es,ds,col:rc});
+      // dirt roads: the pieces after the corner begin with a GAP in the dash,
+      // so two dash-ends never fuse into a blob at the elbow
+      if(shift) els.push({k:'l',p:[CXX,CYY,bx0,by0],w:9,ss:0,es:0,ds,dof:ds?9.9:0,col:rc});
+      els.push({k:'l',p:[bx0,by0,endx,endy],w:9,ss:0,es,ds,dof:ds?9.9:0,col:rc});
     } else {                                       // curvy: ONE generous corner, split into a smooth S
       const [A,C1,M,C2,B]=curveS(sp,turn,cs);      // at zero jog this is the identical curve, so nothing jumps
       els.push({k:'l',p:[EX,EY,A[0],A[1]],w:9,ss:1,es:0,ds,col:rc});
@@ -640,7 +642,27 @@ function quickToElements(sp){
       els.push({k:'l',p:[B[0],B[1],endx,endy],w:9,ss:0,es,ds,col:rc});
     }
   }
-  if(sp.brg){
+  /* ── the shared little marks (one drawing each, reused everywhere) ────── */
+  const waveUnit=(x,y)=>{                          // two stacked waves — water, wherever it appears
+    for(const dy of [0,5.5])
+      els.push({k:'q',p:[x-6.5,y+dy,x-3.2,y+dy-3.6,x,y+dy],w:2.2,ss:0,es:0},
+               {k:'q',p:[x,y+dy,x+3.2,y+dy+3.6,x+6.5,y+dy],w:2.2,ss:0,es:0});
+  };
+  const railUnit=(x,y)=>{                          // a stub of railway — rails + sleepers
+    els.push({k:'l',p:[x-7,y-2,x+7,y-2],w:1.8,ss:0,es:0},
+             {k:'l',p:[x-7,y+2,x+7,y+2],w:1.8,ss:0,es:0});
+    for(const sx of [-4,0,4])
+      els.push({k:'l',p:[x+sx,y-4.5,x+sx,y+4.5],w:1.5,ss:0,es:0});
+  };
+  const roadUnit=(x,y)=>{                          // a stub of road — two parallel edges
+    els.push({k:'l',p:[x-7,y-2.6,x+7,y-2.6],w:1.9,ss:0,es:0},
+             {k:'l',p:[x-7,y+2.6,x+7,y+2.6],w:1.9,ss:0,es:0});
+  };
+  /* the junction centre belongs to ONE thing: roundabout > bridge > crossing > ford */
+  const brgOn = sp.brg && !sp.rb;
+  const lxOn  = sp.lx  && !sp.rb && !brgOn;
+  const fordOn= sp.ford&& !sp.rb && !brgOn && !lxOn;
+  if(brgOn){
     /* bridge: ]|[ across the junction centre — the middle of the main route.
        Small hugs the line; Large spans more of it. The jog handle is disabled
        and the exit angle capped at 135° while it's on, so nothing collides. */
@@ -651,26 +673,31 @@ function quickToElements(sp){
              {k:'l',p:[EX+dx+cap,yc-hh,EX+dx,yc-hh],w:bw,ss:0,es:0},
              {k:'l',p:[EX+dx,yc-hh,EX+dx,yc+hh],w:bw,ss:0,es:0},
              {k:'l',p:[EX+dx,yc+hh,EX+dx+cap,yc+hh],w:bw,ss:0,es:0});
-    /* what the bridge crosses — drawn through the gap, either side of the road */
+    /* what the bridge crosses — the mark sits OUTSIDE the bridge, both sides */
     if(sp.brgx){
-      const xo=dx+3, xi=6.5, cw=2.4;
+      const xs=dx+cap+9;
       for(const sgn of [-1,1]){
-        const a=EX+sgn*xo, b=EX+sgn*xi;                    // outer → inner
-        if(sp.brgx==="water"){
-          const m=(a+b)/2;
-          els.push({k:'q',p:[a,yc,(a+m)/2,yc-4,m,yc],w:cw,ss:0,es:0},
-                   {k:'q',p:[m,yc,(m+b)/2,yc+4,b,yc],w:cw,ss:0,es:0});
-        }else if(sp.brgx==="rail"){
-          els.push({k:'l',p:[a,yc,b,yc],w:cw,ss:0,es:0});
-          const m=(a+b)/2;
-          els.push({k:'l',p:[m-2,yc-3.5,m-2,yc+3.5],w:1.8,ss:0,es:0},
-                   {k:'l',p:[m+2.5,yc-3.5,m+2.5,yc+3.5],w:1.8,ss:0,es:0});
-        }else{                                             // road
-          els.push({k:'l',p:[a,yc-2.6,b,yc-2.6],w:1.9,ss:0,es:0},
-                   {k:'l',p:[a,yc+2.6,b,yc+2.6],w:1.9,ss:0,es:0});
-        }
+        const x=EX+sgn*xs;
+        if(sp.brgx==="water") waveUnit(x,yc-2.75);
+        else if(sp.brgx==="rail") railUnit(x,yc);
+        else roadUnit(x,yc);
       }
     }
+  }
+  if(fordOn){
+    /* ford: water either side of the route, and one across the route just
+       below — the same wave mark the bridge uses */
+    const y=CYY+1;
+    waveUnit(EX-19,y-2.75); waveUnit(EX+19,y-2.75); waveUnit(EX,y+7);
+  }
+  if(lxOn){
+    /* level crossing: the railway crossing the road at the junction — wide,
+       with plenty of track either side of the route */
+    const y=CYY+10, lxw=26;   // below the corner, on the always-vertical stem — so the rails CROSS the road at every exit angle
+    els.push({k:'l',p:[EX-lxw,y-2.5,EX+lxw,y-2.5],w:2,ss:0,es:0},
+             {k:'l',p:[EX-lxw,y+2.5,EX+lxw,y+2.5],w:2,ss:0,es:0});
+    for(let sx=-24;sx<=24;sx+=8)
+      els.push({k:'l',p:[EX+sx,y-5,EX+sx,y+5],w:1.6,ss:0,es:0});
   }
   if(sp.gate){
     /* gate: a bar across the road on the approach, a post at each end */
@@ -678,21 +705,6 @@ function quickToElements(sp){
     els.push({k:'l',p:[EX-gx,y,EX+gx,y],w:3,ss:0,es:0},
              {k:'c',p:[EX-gx,y,2.4],fill:1,w:1.6},
              {k:'c',p:[EX+gx,y,2.4],fill:1,w:1.6});
-  }
-  if(sp.ford){
-    /* ford: two water waves across the road on the approach */
-    for(const y of [118,126]){
-      els.push({k:'q',p:[EX-12,y,EX-6,y-4,EX,y],w:2.4,ss:0,es:0},
-               {k:'q',p:[EX,y,EX+6,y+4,EX+12,y],w:2.4,ss:0,es:0});
-    }
-  }
-  if(sp.lx){
-    /* level crossing: the railway itself crossing the road — rails + sleepers */
-    const y1=119.5, y2=124.5, lxw=15;
-    els.push({k:'l',p:[EX-lxw,y1,EX+lxw,y1],w:2,ss:0,es:0},
-             {k:'l',p:[EX-lxw,y2,EX+lxw,y2],w:2,ss:0,es:0});
-    for(const sx of [-10.5,-3.5,3.5,10.5])
-      els.push({k:'l',p:[EX+sx,y1-2.5,EX+sx,y2+2.5],w:1.6,ss:0,es:0});
   }
   if(sp.lc) els.push({k:'s',name:'lc',p:[CXX,CYY+40],sc:1});
   if(sp.br) els.push({k:'s',name:'br',p:[TW-25,28],sc:1});
