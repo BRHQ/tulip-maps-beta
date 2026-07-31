@@ -28,7 +28,7 @@ function parseSpec(s){
   if(!s||!s.trim()) return null;
   s=s.trim();
   if(s==="d"||s.startsWith("d ")) return {draw:parseDraw(s)};
-  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,tilt:0,col:"",gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
+  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,tilt:0,col:"",rbS:false,gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
   const addArm=(a,off,len,rail)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); if(rail) m.rail=true; sp.arms.push(m); } };
   for(const tok of s.toLowerCase().split(/\s+/)){
     if(tok.startsWith("a:")){ const v=parseFloat(tok.slice(2)); if(!isNaN(v)) sp.turn=Math.max(-160,Math.min(160,Math.round(v))); }
@@ -46,6 +46,7 @@ function parseSpec(s){
     else if(tok==="al") addArm(-90,0);
     else if(tok==="aa") addArm(0,0);
     else if(tok==="ar") addArm(90,0);
+    else if(tok==="rbs"){ sp.rb=true; sp.rbS=true; }
     else if(["rb","rbu","dirt","lc","br","brg","gate","ford","lx"].includes(tok)) sp[tok]=true;
     else if(tok==="brgl"){ sp.brg=true; sp.brgL=true; }
     else if(tok.startsWith("brgx:")){ const v=tok.slice(5); if(["water","rail","road"].includes(v)){ sp.brg=true; sp.brgx=v; } }
@@ -79,7 +80,7 @@ function specToString(sp){
     else if(!m.rail&&!m.off&&dl&&m.a===90) toks.push("ar");
     else { let t="arm:"+m.a; if(m.off||!dl) t+="@"+(m.off||0); if(!dl) t+="*"+Math.round(m.len); if(m.rail) t+="r"; toks.push(t); }
   }
-  if(sp.rb) toks.push(sp.rbu?"rbu":"rb");
+  if(sp.rb) toks.push(sp.rbS?"rbs":(sp.rbu?"rbu":"rb"));
   if(sp.dirt) toks.push("dirt");
   if(sp.col) toks.push("col:"+sp.col.slice(1).toLowerCase());
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
@@ -549,7 +550,7 @@ function exitShift(sp){ return (sp.rb||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min
 /* the exit base: where the exit stem starts — the junction centre, nudged sideways by the shift */
 function exitBase(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
-  if(sp.rb) return ray(turn,17);
+  if(sp.rb&&!sp.rbS) return ray(turn,17);
   /* the green dot is a two-way handle: sideways = the chicane jog (bend),
      up/down = sliding WHERE THE BEND STARTS along the route (lift). On a
      bridge the sideways half is off; the lift works everywhere. The exit
@@ -658,7 +659,7 @@ function quickToElements(sp){
   const rc = sp.col ? sp.col : (vm ? "#7b2ff2" : undefined);   // chosen colour wins; VM style keeps its purple
   const cs = vm ? (Math.abs(turn)>=90?0 : Math.abs(turn)<=45?2 : 1)
                 : (sp.cs===undefined?1:sp.cs);
-  if(sp.rb){
+  if(sp.rb&&!sp.rbS){
     const rr=17;
     for(const m of sp.arms){                              // side roads on the roundabout — attach along entry stem / ring / exit stem via `off`
       const [px,py]=armAttachRB(m.off,turn), [ax,ay]=ray(m.a,m.len||38,px,py);
@@ -678,7 +679,7 @@ function quickToElements(sp){
     const rem=360-arc, rsteps=Math.max(2,Math.round(rem/25));
     for(let i=0;i<rsteps;i++){
       const [ax,ay]=ray(180+sgn*(arc+rem*i/rsteps),rr), [bx,by]=ray(180+sgn*(arc+rem*(i+1)/rsteps),rr);
-      els.push({k:'l',p:[ax,ay,bx,by],w:4,ss:0,es:0,ds,col:rc});
+      els.push({k:'l',p:[ax,ay,bx,by],w:4,ss:0,es:0,ds});
     }
     const [rx,ry]=ray(turn,rr), [ox,oy]=ray(turn,sp.end?52:68);
     pushExit(els,rx,ry,ox,oy,sp,ds,rc);
@@ -771,6 +772,13 @@ function quickToElements(sp){
              {k:'l',p:[EX-lxw,y+2.5,EX+lxw,y+2.5],w:2,ss:0,es:0});
     for(let sx=-24;sx<=24;sx+=8)
       els.push({k:'l',p:[EX+sx,y-5,EX+sx,y+5],w:1.6,ss:0,es:0});
+  }
+  if(sp.rb&&sp.rbS){
+    /* small roundabout: the route runs through as a normal corner, with the
+       solid mini-roundabout blob ON the road — at the corner when sharp, on
+       the curve's midpoint when curvy */
+    const bp = cs===0 ? [CXX,CYY] : curveS(sp,turn,cs)[2];
+    els.push({k:'c',p:[bp[0],bp[1],8.5],fill:1,col:rc});
   }
   if(sp.gate){
     /* gate: a bar across the road on the approach, a post at each end */

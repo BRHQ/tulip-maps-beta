@@ -739,6 +739,7 @@
         </div>
         <div class="csrow">
           <button class="tog" id="t_rb" title="roundabout"><svg class="csi" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="3"/><path d="M6.5 1.1 V3.1 M1.1 6.5 H3.1 M6.5 9.9 V11.9 M9.9 6.5 H11.9"/></svg>Roundabout</button>
+          <span class="seg" id="rbsize" style="display:none" title="small = solid mini-roundabout, large = full ring"><button id="rbs_s">Sm</button><button id="rbs_l">Lg</button></span>
           <span class="seg" id="rbdir" style="display:none"><button id="rb_eu">EU ↺</button><button id="rb_uk">UK ↻</button></span>
           <button class="tog" id="t_gate" title="gate across the road"><svg class="csi" viewBox="0 0 13 13"><path d="M2.5 6.5 H10.5"/><circle cx="2.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="10.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>Gate</button>
         </div>
@@ -913,7 +914,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 31 Jul · 3";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 31 Jul · 4";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -3007,7 +3008,10 @@ function syncQuick(){
   $("t_rb").classList.toggle("on",!!cur.rb);
   // a roundabout has no sharp/curvy corner — swap that pair out for the EU/UK
   // direction picker so the row never wraps onto a second line
-  $("rbdir").style.display=cur.rb?"inline-flex":"none";
+  $("rbdir").style.display=(cur.rb&&!cur.rbS)?"inline-flex":"none";
+  $("rbsize").style.display=cur.rb?"inline-flex":"none";
+  $("rbs_s").classList.toggle("on",cur.rb&&!!cur.rbS);
+  $("rbs_l").classList.toggle("on",cur.rb&&!cur.rbS);
   $("brgsize").style.display=cur.brg?"inline-flex":"none";
   $("t_brgx").style.display=cur.brg?"inline-flex":"none";
   $("brg_s").classList.toggle("on",cur.brg&&!cur.brgL);
@@ -3103,8 +3107,10 @@ $("signnone").onclick=()=>{
 $("signmodal").onclick=e=>{ if(e.target.id==="signmodal") closeSignPicker(); };
 $("t_rb").onclick=()=>{ cur.rb=!cur.rb;
   if(cur.rb){ cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; }
-  else cur.rbu=false;
+  else { cur.rbu=false; cur.rbS=false; }
   mark(); syncQuick(); repaint(); };
+$("rbs_s").onclick=()=>{ if(!cur)return; cur.rbS=true; cur.rbu=false; mark(); syncQuick(); repaint(); };
+$("rbs_l").onclick=()=>{ if(!cur)return; cur.rbS=false; mark(); syncQuick(); repaint(); };
 $("rb_eu").onclick=()=>{ cur.rbu=false; mark(); syncQuick(); repaint(); };
 $("rb_uk").onclick=()=>{ cur.rbu=true; mark(); syncQuick(); repaint(); };
 document.querySelectorAll("#csseg button").forEach(b=>
@@ -3504,7 +3510,7 @@ function armHit(sp,x,y){
   return null;
 }
 function offFromPoint(sp,x,y){                                    // where to attach the road, from the cursor
-  if(sp.rb) return rbNearestOff(x,y,armTurn(sp));                 // roundabout: entry stem / ring / exit stem
+  if(sp.rb&&!sp.rbS) return rbNearestOff(x,y,armTurn(sp));        // large roundabout: entry stem / ring / exit stem
   const turn=armTurn(sp), cs=quickCS(sp); let best=0,bd=1e9;
   const top=55+Math.abs(exitShift(sp));                            // the jog adds length to slide along
   /* slide range reaches the start ball: on a bridge that's pivot→ball past the
