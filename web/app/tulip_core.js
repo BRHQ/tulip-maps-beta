@@ -80,7 +80,6 @@ function specToString(sp){
   if(sp.dirt) toks.push("dirt");
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
   if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); if(sp.tilt) toks.push("tilt:"+Math.round(sp.tilt)); }
-  if(sp.lift&&!sp.rb) toks.push("lift:"+Math.round(sp.lift));
   for(const [k,t] of [["lc","lc"],["br","br"],["gate","gate"],["ford","ford"],["lx","lx"]]) if(sp[k]) toks.push(t);
   if(sp.end===1) toks.push("stop"); else if(sp.end===2) toks.push("ball");
   if(sp.bend) toks.push("bend:"+Math.round(sp.bend));
@@ -151,7 +150,6 @@ function specFromText(text){
     else if(/rail|track/.test(t)) sp.brgx="rail";
     else if(/\bflyover\b|motorway|over the road|over road/.test(t)) sp.brgx="road"; }
   sp.gate=/\bgate\b/.test(t);
-  sp.ford=/\bford\b|water splash/.test(t);
   sp.f=FUEL.some(k=>t.includes(k))?1:0;
   sp.warn=WARN.test(t)?1:0;
   if(t.includes("stop at hotel")||t.startsWith("stop ")||t.includes("finish")) sp.end=1;
@@ -503,7 +501,7 @@ function armAttach(off,turn,cs,sp){
   if(q.brg){
     /* bridged: off≤ -stem = down the vertical entry below the pivot;
        -stem..0 = along the tilted stem; off>0 = out along the exit */
-    const [px,py]=brgPivot(), [du,dv2]=stemDirOf(q), L=stemLen(q), [tx,ty]=exitBase(q);
+    const [px,py]=brgPivot(), [du,dv2]=stemDirOf(q), L=BRGSTEM, [tx,ty]=exitBase(q);
     if(off<=-L) return [px, Math.min(145, py-(off+L))];
     if(off<=0)  return [tx+du*off, ty+dv2*off];
     return ray(turn, Math.min(50, off), tx, ty);
@@ -532,19 +530,17 @@ const MAXSHIFT=30, MAXTILT=45;
 /* the BRIDGED route: entry rises to a fixed pivot P (the bottom dot), the
    middle stem leaves P at the tilt angle, the corner T (top dot) sits a
    slidable distance up that stem, the bridge rides the stem. */
-function brgPivot(){ return [CXX, CYY+MAXSHIFT]; }
+function brgPivot(){ return [CXX, CYY+18]; }          // 30% below the line's centre
+const BRGSTEM=36;                                      // pivot → bend point (fixed)
 function stemDirOf(sp){
   if(!sp.brg) return [0,-1];
   const t=Math.max(-MAXTILT,Math.min(MAXTILT,Math.round(sp.tilt||0)))*Math.PI/180;
   return [Math.sin(t), -Math.cos(t)];
 }
-function stemLen(sp){ return MAXSHIFT + Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.lift||0))); }
+function stemLen(){ return BRGSTEM; }
 function brgGeom(sp){
-  /* the bridge sits on the MIDDLE of the actual stem, shrinking if the stem
-     is short, so the marks always frame real road */
-  const L=Math.max(12,stemLen(sp));
-  const hh=Math.max(6, Math.min(sp.brgL?20:12, L/2-3));
-  return {L, uc:L/2, hh};
+  /* bridge in the middle of the stem, small or full-size large */
+  return {L:BRGSTEM, uc:BRGSTEM/2, hh:sp.brgL?20:12};
 }
 function exitShift(sp){ return (sp.rb||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.bend||0))); }
 /* the exit base: where the exit stem starts — the junction centre, nudged sideways by the shift */
@@ -556,11 +552,10 @@ function exitBase(sp){
      bridge the sideways half is off; the lift works everywhere. The exit
      keeps its full length — the arrow just moves with the bend. */
   if(sp.brg){
-    const [px,py]=brgPivot(), [dx2,dy2]=stemDirOf(sp), L=stemLen(sp);
-    return [px+dx2*L, py+dy2*L];
+    const [px,py]=brgPivot(), [dx2,dy2]=stemDirOf(sp);
+    return [px+dx2*BRGSTEM, py+dy2*BRGSTEM];
   }
-  const lift = Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.lift||0)));
-  return [CXX+exitShift(sp), CYY-lift];
+  return [CXX+exitShift(sp), CYY];
 }
 /* every symbol currently sitting in a corner — the arrow must not run underneath one */
 function symbolSpots(sp){
@@ -703,26 +698,9 @@ function quickToElements(sp){
       els.push({k:'l',p:[B[0],B[1],endx,endy],w:9,ss:0,es,ds,col:rc});
     }
   }
-  /* ── the shared little marks (one drawing each, reused everywhere) ────── */
-  const waveUnit=(x,y)=>{                          // two stacked waves — water, wherever it appears
-    for(const dy of [0,5.5])
-      els.push({k:'q',p:[x-6.5,y+dy,x-3.2,y+dy-3.6,x,y+dy],w:2.2,ss:0,es:0},
-               {k:'q',p:[x,y+dy,x+3.2,y+dy+3.6,x+6.5,y+dy],w:2.2,ss:0,es:0});
-  };
-  const railUnit=(x,y)=>{                          // a stub of railway — rails + sleepers
-    els.push({k:'l',p:[x-7,y-2,x+7,y-2],w:1.8,ss:0,es:0},
-             {k:'l',p:[x-7,y+2,x+7,y+2],w:1.8,ss:0,es:0});
-    for(const sx of [-4,0,4])
-      els.push({k:'l',p:[x+sx,y-4.5,x+sx,y+4.5],w:1.5,ss:0,es:0});
-  };
-  const roadUnit=(x,y)=>{                          // a stub of road — two parallel edges
-    els.push({k:'l',p:[x-7,y-2.6,x+7,y-2.6],w:1.9,ss:0,es:0},
-             {k:'l',p:[x-7,y+2.6,x+7,y+2.6],w:1.9,ss:0,es:0});
-  };
-  /* the junction centre belongs to ONE thing: roundabout > bridge > crossing > ford */
+  /* the junction centre belongs to ONE thing: roundabout > bridge > crossing */
   const brgOn = sp.brg && !sp.rb;
   const lxOn  = sp.lx  && !sp.rb && !brgOn;
-  const fordOn= sp.ford&& !sp.rb && !brgOn && !lxOn;
   if(brgOn){
     /* bridge: ]|[ across the middle stem — and it RIDES the stem: tilt the
        stem and the whole bridge (marks included) tilts with it. Drawn in stem
@@ -759,12 +737,6 @@ function quickToElements(sp){
         }
       }
     }
-  }
-  if(fordOn){
-    /* ford: water either side of the route, and one across the route just
-       below — the same wave mark the bridge uses */
-    const y=CYY+1;
-    waveUnit(EX-19,y-2.75); waveUnit(EX+19,y-2.75); waveUnit(EX,y+7);
   }
   if(lxOn){
     /* level crossing: the railway crossing the road at the junction — wide,

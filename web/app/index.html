@@ -721,7 +721,6 @@
         </div>
         <div class="csrow">
           <button class="tog" id="t_gate" title="gate across the road"><svg class="csi" viewBox="0 0 13 13"><path d="M2.5 6.5 H10.5"/><circle cx="2.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="10.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>Gate</button>
-          <button class="tog" id="t_ford" title="ford / water splash across the road"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 5 Q3.5 3 6.5 5 T11.5 5 M1.5 8.5 Q3.5 6.5 6.5 8.5 T11.5 8.5"/></svg>Ford</button>
           <button class="tog" id="t_lx" title="level crossing — the railway crosses the road"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 5 H11.5 M1.5 8 H11.5 M3.5 3.5 V9.5 M6.5 3.5 V9.5 M9.5 3.5 V9.5"/></svg>Crossing</button>
           <button class="tog" id="t_dirt" title="dirt / gravel road — the route and its side roads draw dashed"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg>Dirt road</button>
           <span class="seg" id="rbdir" style="display:none"><button id="rb_eu">EU ↺</button><button id="rb_uk">UK ↻</button></span>
@@ -897,7 +896,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 30 Jul · 8";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 30 Jul · 9";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2690,9 +2689,9 @@ function drawExitHandle(ctx){
   }
 }
 function exitHit(sp,x,y){ const [ex,ey]=exitTip(sp); return (x-ex)**2+(y-ey)**2 < 64; }   // r8
-function tiltDotPt(sp){ const [px,py]=brgPivot(), [du,dv]=stemDirOf(sp); return [px+du*12, py+dv*12]; }
+function tiltDotPt(sp){ return brgPivot(); }
 function tiltHit(sp,x,y){ if(!sp.brg) return false; const [tx,ty]=tiltDotPt(sp); return (x-tx)**2+(y-ty)**2 < 49; }
-function bendHit(sp,x,y){ if(sp.rb) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
+function bendHit(sp,x,y){ if(sp.rb||sp.brg) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
 function bendFromPoint(sp,x,y){ return Math.round(x-CXX); }      // jog: horizontal distance from the junction (left/right only)
 function segDist(x,y,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy||1; let t=((x-ax)*dx+(y-ay)*dy)/L2; t=t<0?0:t>1?1:t; return Math.hypot(x-(ax+t*dx), y-(ay+t*dy)); }
 function routeHit(sp,x,y){                                       // anywhere on the thick main route — click it to select
@@ -2803,8 +2802,8 @@ function resetQuick(){                               // the "reset to quick" but
   cur.arms=cur.arms.map(m=>({...m}));
   els=null; esel=-1; mark(); setMode(false); syncQuick(); repaint();
 }
-const TOGGLES=["brg","gate","ford","lx","dirt"];   // simple on/off features (auto-wired to t_<key> buttons); route ending is a 3-way button, not a toggle
-const SYMLABEL={lc:"rail",br:"bridge",brg:"bridge",gate:"gate",ford:"ford",lx:"crossing",stop:"stop",del:"del",dirt:"dirt road"};
+const TOGGLES=["brg","gate","lx","dirt"];   // simple on/off features (auto-wired to t_<key> buttons); route ending is a 3-way button, not a toggle
+const SYMLABEL={lc:"rail",br:"bridge",brg:"bridge",gate:"gate",lx:"crossing",stop:"stop",del:"del",dirt:"dirt road"};
 // fuel + warn cycle through positions/severity; signs cycle a speed sequence
 const SIGN_SEQ=["","20","30","40","50","60","70","80","90","100","110","120","130","140","nat"];
 function signLabel(v){ return v==="nat"?"NSL":v; }
@@ -3030,14 +3029,11 @@ $("t_brg").onclick=()=>{ if(!cur)return;
   cur.brg=!cur.brg;
   if(cur.brg){ if(cur.bend) cur.bend=0;
     if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135);
-    cur.rb=false; cur.rbu=false; cur.ford=false; cur.lx=false; }   // the centre holds ONE thing
+    cur.rb=false; cur.rbu=false; cur.lx=false; }   // the centre holds ONE thing
   else { cur.brgL=false; cur.brgx=""; cur.tilt=0; }
   mark(); syncQuick(); repaint(); };
-$("t_ford").onclick=()=>{ if(!cur)return; cur.ford=!cur.ford;
-  if(cur.ford){ cur.rb=false; cur.rbu=false; cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; }
-  mark(); syncQuick(); repaint(); };
 $("t_lx").onclick=()=>{ if(!cur)return; cur.lx=!cur.lx;
-  if(cur.lx){ cur.rb=false; cur.rbu=false; cur.brg=false; cur.brgL=false; cur.brgx=""; cur.ford=false; }
+  if(cur.lx){ cur.rb=false; cur.rbu=false; cur.brg=false; cur.brgL=false; cur.brgx=""; }
   mark(); syncQuick(); repaint(); };
 $("brg_s").onclick=()=>{ if(!cur)return; cur.brgL=false; mark(); syncQuick(); repaint(); };
 $("brg_l").onclick=()=>{ if(!cur)return; cur.brgL=true;  mark(); syncQuick(); repaint(); };
@@ -3068,7 +3064,7 @@ $("signnone").onclick=()=>{
 };
 $("signmodal").onclick=e=>{ if(e.target.id==="signmodal") closeSignPicker(); };
 $("t_rb").onclick=()=>{ cur.rb=!cur.rb;
-  if(cur.rb){ cur.brg=false; cur.brgL=false; cur.brgx=""; cur.ford=false; cur.lx=false; }
+  if(cur.rb){ cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; }
   else cur.rbu=false;
   mark(); syncQuick(); repaint(); };
 $("rb_eu").onclick=()=>{ cur.rbu=false; mark(); syncQuick(); repaint(); };
@@ -3504,26 +3500,7 @@ function quickMove(ev){
     cur.turn=Math.max(Math.max(-160,cur.tilt-135),Math.min(Math.min(160,cur.tilt+135),cur.turn||0));
     repaint(); return; }
   if(armDrag.mode==='bend'){
-    if(!cur.brg){
-      cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y)));            // sideways: the chicane jog (off while bridged)
-      /* vertical: slide where the bend starts. The exit keeps its FULL length —
-         so the lift stops where the arrow head would leave the canvas. */
-      let lf=Math.max(-30,Math.min(30,Math.round(CYY-y)));
-      const tn=(cur.turn||0)*Math.PI/180, dyu=-Math.cos(tn), ln=(cur.end?52:68), pad=15;
-      if(dyu<0) lf=Math.min(lf, Math.round(CYY-(pad-ln*dyu)));               // exit points up: cap the up-lift
-      else if(dyu>0) lf=Math.max(lf, Math.round(CYY-(THh-pad-ln*dyu)));      // exit folds down: cap the down-lift
-      cur.lift=Math.max(-30,Math.min(30,lf));
-    } else {
-      /* bridged: the top dot slides ALONG the stem; full-length arrow must
-         stay on the canvas, so back off until it fits */
-      const [px,py]=brgPivot(), [du,dv]=stemDirOf(cur);
-      let sL=Math.max(0,Math.min(60,(x-px)*du+(y-py)*dv));
-      const tn=(cur.turn||0)*Math.PI/180, ln=(cur.end?52:68), pad=15;
-      const fits=v=>{ const tx=px+du*v+Math.sin(tn)*ln, ty=py+dv*v-Math.cos(tn)*ln;
-        return tx>=pad&&tx<=TW-pad&&ty>=pad&&ty<=THh-pad; };
-      while(sL>0 && !fits(sL)) sL--;
-      cur.lift=Math.round(sL-30);
-    }
+    cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y)));              // the chicane jog — sideways only
     repaint(); return; }
   const m=cur.arms[armDrag.i]; if(!m){ armDrag=null; return; }
   if(armDrag.mode==='tip'){ const g=armGeom(cur,m);              // attached end holds still (a ring point on a roundabout)
