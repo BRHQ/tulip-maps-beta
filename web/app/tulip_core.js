@@ -29,16 +29,18 @@ function parseSpec(s){
   s=s.trim();
   if(s==="d"||s.startsWith("d ")) return {draw:parseDraw(s)};
   const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,tilt:0,gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
-  const addArm=(a,off,len)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); sp.arms.push(m); } };
+  const addArm=(a,off,len,rail)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); if(rail) m.rail=true; sp.arms.push(m); } };
   for(const tok of s.toLowerCase().split(/\s+/)){
     if(tok.startsWith("a:")){ const v=parseFloat(tok.slice(2)); if(!isNaN(v)) sp.turn=Math.max(-160,Math.min(160,Math.round(v))); }
     else if(tok.startsWith("cs:")){ const v=parseInt(tok.slice(3)); if(v>=0&&v<=3) sp.cs=v; }
     else if(tok.startsWith("arm:")){
-      const [av,rest]=tok.slice(4).split("@");
+      let body=tok.slice(4), rail=false;
+      if(body.endsWith("r")){ rail=true; body=body.slice(0,-1); }   // trailing r = a railway, not a road
+      const [av,rest]=body.split("@");
       let ov=rest, lv;                                     // rest can be "off" or "off*len"
       if(rest!=null && rest.indexOf("*")>=0){ const p=rest.split("*"); ov=p[0]; lv=p[1]; }
       const a=parseFloat(av), off=parseFloat(ov||"0"), len=lv!=null?parseFloat(lv):undefined;
-      if(!isNaN(a)) addArm(Math.max(-170,Math.min(170,Math.round(a))), isNaN(off)?0:Math.max(-240,Math.min(240,Math.round(off))), len);   // off up to ±240 so it can carry a roundabout ring/stem position
+      if(!isNaN(a)) addArm(Math.max(-170,Math.min(170,Math.round(a))), isNaN(off)?0:Math.max(-240,Math.min(240,Math.round(off))), len, rail);   // off up to ±240 so it can carry a roundabout ring/stem position
     }
     else if(tok==="x"){ addArm(-90,0); addArm(0,0); addArm(90,0); }
     else if(tok==="al") addArm(-90,0);
@@ -71,10 +73,10 @@ function specToString(sp){
   const toks=["a:"+(sp.turn==null?0:sp.turn)];
   for(const m of [...sp.arms].sort((x,y)=>x.a-y.a||x.off-y.off)){
     const dl=m.len==null||Math.round(m.len)===38;         // default length? then shorthand is fine
-    if(!m.off&&dl&&m.a===-90) toks.push("al");
-    else if(!m.off&&dl&&m.a===0) toks.push("aa");
-    else if(!m.off&&dl&&m.a===90) toks.push("ar");
-    else { let t="arm:"+m.a; if(m.off||!dl) t+="@"+(m.off||0); if(!dl) t+="*"+Math.round(m.len); toks.push(t); }
+    if(!m.rail&&!m.off&&dl&&m.a===-90) toks.push("al");
+    else if(!m.rail&&!m.off&&dl&&m.a===0) toks.push("aa");
+    else if(!m.rail&&!m.off&&dl&&m.a===90) toks.push("ar");
+    else { let t="arm:"+m.a; if(m.off||!dl) t+="@"+(m.off||0); if(!dl) t+="*"+Math.round(m.len); if(m.rail) t+="r"; toks.push(t); }
   }
   if(sp.rb) toks.push(sp.rbu?"rbu":"rb");
   if(sp.dirt) toks.push("dirt");
@@ -143,7 +145,6 @@ function specFromText(text){
   sp.rb=t.includes("roundabout")||["1st exit","2nd exit","3rd exit"].some(k=>t.includes(k));
   if(["xroad","x road","crossroad","cross road"].some(k=>t.includes(k))) sp.arms.push({a:-90,off:0},{a:0,off:0},{a:90,off:0});
   else if(Math.abs(sp.turn)>=60&&!sp.rb) sp.arms.push({a:0,off:0});
-  sp.lx=t.includes("level crossing");
   sp.lc=t.includes("cattle grid");
   sp.brg=/\bbridge\b|\bflyover\b/.test(t);
   if(sp.brg){ if(/water|river|stream|canal/.test(t)) sp.brgx="water";
@@ -530,8 +531,8 @@ const MAXSHIFT=30, MAXTILT=45;
 /* the BRIDGED route: entry rises to a fixed pivot P (the bottom dot), the
    middle stem leaves P at the tilt angle, the corner T (top dot) sits a
    slidable distance up that stem, the bridge rides the stem. */
-function brgPivot(){ return [CXX, CYY+18]; }          // 30% below the line's centre
-const BRGSTEM=36;                                      // pivot → bend point (fixed)
+function brgPivot(){ return [CXX, CYY+30]; }          // 50% below the line's centre
+const BRGSTEM=60;                                      // pivot → bend point (fixed)
 function stemDirOf(sp){
   if(!sp.brg) return [0,-1];
   const t=Math.max(-MAXTILT,Math.min(MAXTILT,Math.round(sp.tilt||0)))*Math.PI/180;
@@ -635,6 +636,13 @@ function armGeom(sp,m){ const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp
 function endStyle(sp){ return sp.end===1?3 : sp.end===2?1 : 2; }
 function quickToElements(sp){
   const els=[];
+  const railSeg=(x1,y1,x2,y2)=>{            // a stretch of railway between two points
+    const len=Math.hypot(x2-x1,y2-y1)||1, ux=(x2-x1)/len, uy=(y2-y1)/len, px=-uy, py=ux;
+    for(const o of [-2,2])
+      els.push({k:'l',p:[x1+px*o,y1+py*o,x2+px*o,y2+py*o],w:1.8,ss:0,es:0});
+    for(let d=4; d<len-2; d+=7)
+      els.push({k:'l',p:[x1+ux*d+px*4.5,y1+uy*d+py*4.5,x1+ux*d-px*4.5,y1+uy*d-py*4.5],w:1.5,ss:0,es:0});
+  };
   if(sp.del){ els.push({k:'l',p:[30,30,158,130],w:10,ss:0,es:0},{k:'l',p:[158,30,30,130],w:10,ss:0,es:0}); return els; }
   // with a bridge the exit can't fold back into the marks: stay within 135° of the stem
   const t0=sp.turn==null?0:sp.turn;
@@ -652,7 +660,8 @@ function quickToElements(sp){
     els.push({k:'c',p:[CXX,CYY,rr],fill:0,w:4,ds,col:rc});
     for(const m of sp.arms){                              // side roads on the roundabout — attach along entry stem / ring / exit stem via `off`
       const [px,py]=armAttachRB(m.off,turn), [ax,ay]=ray(m.a,m.len||38,px,py);
-      els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
+      if(m.rail) railSeg(px,py,ax,ay);
+      else els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
     }
     const [ex,ey]=ray(180,rr);
     els.push({k:'l',p:[EX,EY,ex,ey],w:9,ss:1,es:0,ds,col:rc});
@@ -668,7 +677,8 @@ function quickToElements(sp){
     for(const m of sp.arms){                              // every side road always draws — never hidden by the main route
       const [px,py]=armAttach(m.off,turn,cs,sp);
       const [ax,ay]=ray(m.a,m.len||38,px,py);             // len: draggable reach (38 = default stub)
-      els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
+      if(m.rail) railSeg(px,py,ax,ay);
+      else els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
     }
     const shift=exitShift(sp), [bx0,by0]=exitBase(sp), [endx,endy]=exitTipPt(sp), es=endStyle(sp);
     if(sp.brg){                                    // bridged: entry up to the pivot, the tilted stem, then the corner
