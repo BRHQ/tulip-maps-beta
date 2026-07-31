@@ -461,7 +461,7 @@ function drawSign(ctx,code,x,y,sc){
 function drawElements(ctx,els){
   ctx.lineCap="round"; ctx.lineJoin="round";
   for(const e of els){
-    ctx.strokeStyle=e.col||INKC; ctx.fillStyle=INKC;
+    ctx.strokeStyle=e.col||INKC; ctx.fillStyle=e.col||INKC;
     if(e.k==='l'){ const [x1,y1,x2,y2]=e.p; ctx.lineWidth=e.w;
       if(e.ds){ ctx.setLineDash([e.w*1.1,e.w*1.5]); if(e.dof) ctx.lineDashOffset=e.dof; }
       ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
@@ -578,6 +578,7 @@ function exitTipPt(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn)), [bx,by]=exitBase(sp);
   const dx=Math.sin(turn*Math.PI/180), dy=-Math.cos(turn*Math.PI/180);
   let len=sp.end?52:68;
+  if(sp.brg) len=Math.max(12,len-30);   // the corner sits 30 past the centre — give it back, so the route stays the same overall length
   const pad=15;                                                  // keep the arrow head on the canvas
   if(dx>1e-3) len=Math.min(len,(TW-pad-bx)/dx); else if(dx<-1e-3) len=Math.min(len,(pad-bx)/dx);
   if(dy>1e-3) len=Math.min(len,(THh-pad-by)/dy); else if(dy<-1e-3) len=Math.min(len,(pad-by)/dy);
@@ -659,7 +660,6 @@ function quickToElements(sp){
                 : (sp.cs===undefined?1:sp.cs);
   if(sp.rb){
     const rr=17;
-    els.push({k:'c',p:[CXX,CYY,rr],fill:0,w:4,ds,col:rc});
     for(const m of sp.arms){                              // side roads on the roundabout — attach along entry stem / ring / exit stem via `off`
       const [px,py]=armAttachRB(m.off,turn), [ax,ay]=ray(m.a,m.len||38,px,py);
       if(m.rail) railSeg(px,py,ax,ay);
@@ -671,7 +671,14 @@ function quickToElements(sp){
     const sgn=sp.rbu?1:-1, steps=Math.max(3,Math.round(arc/25));
     for(let i=0;i<steps;i++){
       const [ax,ay]=ray(180+sgn*arc*i/steps,rr), [bx,by]=ray(180+sgn*arc*(i+1)/steps,rr);
-      els.push({k:'l',p:[ax,ay,bx,by],w:9,ss:0,es:0,col:rc});   // the travelled road stays solid — dirt shows on the unused half (the thin circle)
+      els.push({k:'l',p:[ax,ay,bx,by],w:9,ss:0,es:0,ds,col:rc});
+    }
+    /* the unused half of the ring — its own thin arc, so nothing hides
+       under the travelled road (dirt dashes both, as driven) */
+    const rem=360-arc, rsteps=Math.max(2,Math.round(rem/25));
+    for(let i=0;i<rsteps;i++){
+      const [ax,ay]=ray(180+sgn*(arc+rem*i/rsteps),rr), [bx,by]=ray(180+sgn*(arc+rem*(i+1)/rsteps),rr);
+      els.push({k:'l',p:[ax,ay,bx,by],w:4,ss:0,es:0,ds,col:rc});
     }
     const [rx,ry]=ray(turn,rr), [ox,oy]=ray(turn,sp.end?52:68);
     pushExit(els,rx,ry,ox,oy,sp,ds,rc);

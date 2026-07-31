@@ -56,6 +56,7 @@
   .quick button:hover, .tog:hover { background:#e9ede9; border-color:#c6cdc6; }
   .tog.on, .tog.on:hover { background:var(--green); color:#fff; border-color:var(--green); }
   #t_brgx { white-space:nowrap; }
+  #armtype .csi.at { width:16px; height:16px; margin:0; }
   #colbox { width:27px; height:27px; border-radius:7px; border:1px solid var(--hair);
     background:#14141a; cursor:pointer; flex:none; padding:0; }
   #colpop { position:fixed; z-index:3000; background:var(--card,#fff); border:1px solid var(--hair);
@@ -721,7 +722,7 @@
           <span class="seg" id="csseg"><button data-cs="0" title="sharp corner"><svg class="csi" viewBox="0 0 12 12"><path d="M3 2 V9 H10"/></svg></button><button data-cs="1" title="curvy corner"><svg class="csi" viewBox="0 0 12 12"><path d="M3 2 Q3 9 10 9"/></svg></button></span>
           <button class="tog ico" id="t_dirt" title="dirt / gravel road — the route and its side roads draw dashed"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg></button>
           <button class="tog ico" id="t_end" title="how the route line ends — click to cycle Arrow / Flat / Ball"></button>
-          <span class="seg"><button id="armtype" title="what ＋ adds — click to swap between road and railway"><svg class="csi" viewBox="0 0 13 13"><path d="M2 11 L11 2"/></svg></button><button id="addarm" title="add a side road — or double-click the tulip">＋</button></span>
+          <span class="seg"><button id="armtype" title="what ＋ adds — click to swap between road and railway"><svg class="csi at" viewBox="0 0 14 14"><path d="M4 1.2 V12.8 M10 1.2 V12.8 M7 2.2 V4 M7 6.2 V8 M7 10.2 V12"/></svg></button><button id="addarm" title="add a side road — or double-click the tulip">＋</button></span>
           <div id="colpop" style="display:none">
             <button class="colsw" data-c="" style="background:#14141a" title="classic black"></button>
             <button class="colsw" data-c="#1445d0" style="background:#1445d0" title="raid blue"></button>
@@ -912,7 +913,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 31 Jul · 2";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 31 Jul · 3";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -3025,8 +3026,8 @@ function syncQuick(){
 /* side roads are edited on the canvas now — this just drops a fresh one in and selects it */
 let armType="road";                                     // what ＋ adds — road or railway
 const ARMTYPE_ICON={
-  road:'<svg class="csi" viewBox="0 0 13 13"><path d="M2 11 L11 2"/></svg>',
-  rail:'<svg class="csi" viewBox="0 0 13 13"><path d="M2.6 9.4 L9.4 2.6 M3.6 10.4 L10.4 3.6 M4.6 4.4 L6.6 6.4 M6.4 2.6 L8.4 4.6 M2.8 6.2 L4.8 8.2"/></svg>'};
+  road:'<svg class="csi at" viewBox="0 0 14 14"><path d="M4 1.2 V12.8 M10 1.2 V12.8 M7 2.2 V4 M7 6.2 V8 M7 10.2 V12"/></svg>',
+  rail:'<svg class="csi at" viewBox="0 0 14 14"><path d="M4.8 1.2 V12.8 M9.2 1.2 V12.8 M2.8 3.2 H11.2 M2.8 7 H11.2 M2.8 10.8 H11.2"/></svg>'};
 $("armtype").onclick=()=>{ armType=armType==="road"?"rail":"road";
   $("armtype").innerHTML=ARMTYPE_ICON[armType];
   $("armtype").title="what ＋ adds: "+(armType==="road"?"a side ROAD":"a RAILWAY")+" — click to swap"; };
@@ -3506,7 +3507,10 @@ function offFromPoint(sp,x,y){                                    // where to at
   if(sp.rb) return rbNearestOff(x,y,armTurn(sp));                 // roundabout: entry stem / ring / exit stem
   const turn=armTurn(sp), cs=quickCS(sp); let best=0,bd=1e9;
   const top=55+Math.abs(exitShift(sp));                            // the jog adds length to slide along
-  for(let o=-55;o<=top;o++){ const [ax,ay]=armAttach(o,turn,cs,sp); const d=(ax-x)**2+(ay-y)**2; if(d<bd){bd=d;best=o;} }
+  /* slide range reaches the start ball: on a bridge that's pivot→ball past the
+     whole stem; on a plain tulip it's the entry down to the ball */
+  const lo = sp.brg ? -(60+(145-116)) : -(145-exitBase(sp)[1]);
+  for(let o=lo;o<=top;o++){ const [ax,ay]=armAttach(o,turn,cs,sp); const d=(ax-x)**2+(ay-y)**2; if(d<bd){bd=d;best=o;} }
   return best;
 }
 function cornerPos(){ return {tl:[26,24], tr:[TW-26,26], bl:[26,THh-28], br:[TW-26,THh-28]}; }
