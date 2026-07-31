@@ -28,7 +28,7 @@ function parseSpec(s){
   if(!s||!s.trim()) return null;
   s=s.trim();
   if(s==="d"||s.startsWith("d ")) return {draw:parseDraw(s)};
-  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
+  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
   const addArm=(a,off,len)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); sp.arms.push(m); } };
   for(const tok of s.toLowerCase().split(/\s+/)){
     if(tok.startsWith("a:")){ const v=parseFloat(tok.slice(2)); if(!isNaN(v)) sp.turn=Math.max(-160,Math.min(160,Math.round(v))); }
@@ -44,7 +44,9 @@ function parseSpec(s){
     else if(tok==="al") addArm(-90,0);
     else if(tok==="aa") addArm(0,0);
     else if(tok==="ar") addArm(90,0);
-    else if(["rb","rbu","dirt","lc","br","brg"].includes(tok)) sp[tok]=true;
+    else if(["rb","rbu","dirt","lc","br","brg","gate","ford","lx"].includes(tok)) sp[tok]=true;
+    else if(tok==="brgl"){ sp.brg=true; sp.brgL=true; }
+    else if(tok.startsWith("brgx:")){ const v=tok.slice(5); if(["water","rail","road"].includes(v)){ sp.brg=true; sp.brgx=v; } }
     else if(tok==="stop") sp.end=1;                 // flat bar (old "stop" spelling)
     else if(tok==="ball") sp.end=2;                 // round blob ending
     else if(tok.startsWith("bend:")){ const v=parseFloat(tok.slice(5)); if(!isNaN(v)) sp.bend=Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(v))); }   // chicane shift of the exit base
@@ -75,7 +77,8 @@ function specToString(sp){
   if(sp.rb) toks.push(sp.rbu?"rbu":"rb");
   if(sp.dirt) toks.push("dirt");
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
-  for(const [k,t] of [["lc","lc"],["br","br"],["brg","brg"]]) if(sp[k]) toks.push(t);
+  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); }
+  for(const [k,t] of [["lc","lc"],["br","br"],["gate","gate"],["ford","ford"],["lx","lx"]]) if(sp[k]) toks.push(t);
   if(sp.end===1) toks.push("stop"); else if(sp.end===2) toks.push("ball");
   if(sp.bend) toks.push("bend:"+Math.round(sp.bend));
   if(sp.f===1) toks.push("f"); else if(sp.f===2) toks.push("f2");
@@ -133,13 +136,19 @@ function parseTurn(t){
 }
 function specFromText(text){
   const t=(text||"").toLowerCase();
-  const sp={turn:parseTurn(t)||0,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
+  const sp={turn:parseTurn(t)||0,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
   if(t.includes("delete")||t.includes("pressed in error")){ sp.del=true; return sp; }
   sp.rb=t.includes("roundabout")||["1st exit","2nd exit","3rd exit"].some(k=>t.includes(k));
   if(["xroad","x road","crossroad","cross road"].some(k=>t.includes(k))) sp.arms.push({a:-90,off:0},{a:0,off:0},{a:90,off:0});
   else if(Math.abs(sp.turn)>=60&&!sp.rb) sp.arms.push({a:0,off:0});
-  sp.lc=t.includes("level crossing")||t.includes("cattle grid");
-  sp.br=t.includes("bridge");
+  sp.lx=t.includes("level crossing");
+  sp.lc=t.includes("cattle grid");
+  sp.brg=/\bbridge\b|\bflyover\b/.test(t);
+  if(sp.brg){ if(/water|river|stream|canal/.test(t)) sp.brgx="water";
+    else if(/rail|track/.test(t)) sp.brgx="rail";
+    else if(/\bflyover\b|motorway|over the road|over road/.test(t)) sp.brgx="road"; }
+  sp.gate=/\bgate\b/.test(t);
+  sp.ford=/\bford\b|water splash/.test(t);
   sp.f=FUEL.some(k=>t.includes(k))?1:0;
   sp.warn=WARN.test(t)?1:0;
   if(t.includes("stop at hotel")||t.startsWith("stop ")||t.includes("finish")) sp.end=1;
@@ -506,7 +515,7 @@ function armAttach(off,turn,cs,sp){
    the entry meets the line, so the route steps sideways (entry up → short jog → exit up).
    The green centre dot rides this. Capped so it stays a gentle jog, not a dogleg. */
 const MAXSHIFT=30;
-function exitShift(sp){ return sp.rb ? 0 : Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.bend||0))); }
+function exitShift(sp){ return (sp.rb||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.bend||0))); }
 /* the exit base: where the exit stem starts — the junction centre, nudged sideways by the shift */
 function exitBase(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
@@ -587,7 +596,8 @@ function endStyle(sp){ return sp.end===1?3 : sp.end===2?1 : 2; }
 function quickToElements(sp){
   const els=[];
   if(sp.del){ els.push({k:'l',p:[30,30,158,130],w:10,ss:0,es:0},{k:'l',p:[158,30,30,130],w:10,ss:0,es:0}); return els; }
-  const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
+  const tmax=sp.brg?135:160;   // with a bridge on the junction the exit can't fold all the way back
+  const turn=Math.max(-tmax,Math.min(tmax,sp.turn==null?0:sp.turn));
   const ds=sp.dirt?1:0;
   // VM style (cs:3): auto-pick the corner shape from the angle + draw purple.
   const vm = sp.cs===3;
@@ -599,7 +609,7 @@ function quickToElements(sp){
     els.push({k:'c',p:[CXX,CYY,rr],fill:0,w:4,col:rc});
     for(const m of sp.arms){                              // side roads on the roundabout — attach along entry stem / ring / exit stem via `off`
       const [px,py]=armAttachRB(m.off,turn), [ax,ay]=ray(m.a,m.len||38,px,py);
-      els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0});
+      els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
     }
     const [ex,ey]=ray(180,rr);
     els.push({k:'l',p:[EX,EY,ex,ey],w:9,ss:1,es:0,ds,col:rc});
@@ -615,7 +625,7 @@ function quickToElements(sp){
     for(const m of sp.arms){                              // every side road always draws — never hidden by the main route
       const [px,py]=armAttach(m.off,turn,cs,sp);
       const [ax,ay]=ray(m.a,m.len||38,px,py);             // len: draggable reach (38 = default stub)
-      els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0});
+      els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
     }
     const shift=exitShift(sp), [bx0,by0]=exitBase(sp), [endx,endy]=exitTipPt(sp), es=endStyle(sp);
     if(cs===0){                                    // sharp: hard corners — entry up, sideways jog, exit up
@@ -631,16 +641,58 @@ function quickToElements(sp){
     }
   }
   if(sp.brg){
-    /* bridge: ]|[ — a bracket either side of the entry stem, caps turned away
-       from the road. The stem is vertical at EX in every case (roundabouts
-       included), so the marks sit at a fixed height above the entry. */
-    const yc=127, hh=12, dx=14, cap=6, bw=3.5;
+    /* bridge: ]|[ across the junction centre — the middle of the main route.
+       Small hugs the line; Large spans more of it. The jog handle is disabled
+       and the exit angle capped at 135° while it's on, so nothing collides. */
+    const yc=CYY+(sp.brgL?8:5), hh=sp.brgL?20:12, dx=sp.brgL?17:14, cap=sp.brgL?7:6, bw=3.5;   // biased a touch down the stem so the route passes through the marks at every exit angle
     els.push({k:'l',p:[EX-dx-cap,yc-hh,EX-dx,yc-hh],w:bw,ss:0,es:0},
              {k:'l',p:[EX-dx,yc-hh,EX-dx,yc+hh],w:bw,ss:0,es:0},
              {k:'l',p:[EX-dx,yc+hh,EX-dx-cap,yc+hh],w:bw,ss:0,es:0},
              {k:'l',p:[EX+dx+cap,yc-hh,EX+dx,yc-hh],w:bw,ss:0,es:0},
              {k:'l',p:[EX+dx,yc-hh,EX+dx,yc+hh],w:bw,ss:0,es:0},
              {k:'l',p:[EX+dx,yc+hh,EX+dx+cap,yc+hh],w:bw,ss:0,es:0});
+    /* what the bridge crosses — drawn through the gap, either side of the road */
+    if(sp.brgx){
+      const xo=dx+3, xi=6.5, cw=2.4;
+      for(const sgn of [-1,1]){
+        const a=EX+sgn*xo, b=EX+sgn*xi;                    // outer → inner
+        if(sp.brgx==="water"){
+          const m=(a+b)/2;
+          els.push({k:'q',p:[a,yc,(a+m)/2,yc-4,m,yc],w:cw,ss:0,es:0},
+                   {k:'q',p:[m,yc,(m+b)/2,yc+4,b,yc],w:cw,ss:0,es:0});
+        }else if(sp.brgx==="rail"){
+          els.push({k:'l',p:[a,yc,b,yc],w:cw,ss:0,es:0});
+          const m=(a+b)/2;
+          els.push({k:'l',p:[m-2,yc-3.5,m-2,yc+3.5],w:1.8,ss:0,es:0},
+                   {k:'l',p:[m+2.5,yc-3.5,m+2.5,yc+3.5],w:1.8,ss:0,es:0});
+        }else{                                             // road
+          els.push({k:'l',p:[a,yc-2.6,b,yc-2.6],w:1.9,ss:0,es:0},
+                   {k:'l',p:[a,yc+2.6,b,yc+2.6],w:1.9,ss:0,es:0});
+        }
+      }
+    }
+  }
+  if(sp.gate){
+    /* gate: a bar across the road on the approach, a post at each end */
+    const y=122, gx=13;
+    els.push({k:'l',p:[EX-gx,y,EX+gx,y],w:3,ss:0,es:0},
+             {k:'c',p:[EX-gx,y,2.4],fill:1,w:1.6},
+             {k:'c',p:[EX+gx,y,2.4],fill:1,w:1.6});
+  }
+  if(sp.ford){
+    /* ford: two water waves across the road on the approach */
+    for(const y of [118,126]){
+      els.push({k:'q',p:[EX-12,y,EX-6,y-4,EX,y],w:2.4,ss:0,es:0},
+               {k:'q',p:[EX,y,EX+6,y+4,EX+12,y],w:2.4,ss:0,es:0});
+    }
+  }
+  if(sp.lx){
+    /* level crossing: the railway itself crossing the road — rails + sleepers */
+    const y1=119.5, y2=124.5, lxw=15;
+    els.push({k:'l',p:[EX-lxw,y1,EX+lxw,y1],w:2,ss:0,es:0},
+             {k:'l',p:[EX-lxw,y2,EX+lxw,y2],w:2,ss:0,es:0});
+    for(const sx of [-10.5,-3.5,3.5,10.5])
+      els.push({k:'l',p:[EX+sx,y1-2.5,EX+sx,y2+2.5],w:1.6,ss:0,es:0});
   }
   if(sp.lc) els.push({k:'s',name:'lc',p:[CXX,CYY+40],sc:1});
   if(sp.br) els.push({k:'s',name:'br',p:[TW-25,28],sc:1});

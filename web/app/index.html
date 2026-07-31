@@ -55,6 +55,7 @@
     font-weight:600; color:var(--char); cursor:pointer; line-height:1.15; transition:background .12s, border-color .12s, color .12s; }
   .quick button:hover, .tog:hover { background:#e9ede9; border-color:#c6cdc6; }
   .tog.on, .tog.on:hover { background:var(--green); color:#fff; border-color:var(--green); }
+  #t_brgx { white-space:nowrap; }
   #t_end { min-width:74px; box-sizing:border-box; text-align:left; }   /* fixed at the Arrow width so Flat / Ball don't resize the button */
   /* snap angle bar — the 7 presets are notches the handle sticks to */
   .snapbar { margin:2px 0 10px; }
@@ -156,7 +157,7 @@
   #degov.on { opacity:1; }
   /* quick and detailed controls occupy exactly the same space, so the tulip box never
      changes size when you swap modes. Detailed has more controls, so it scrolls inside. */
-  #quickui, #drawui { height:124px; box-sizing:border-box; overflow-y:auto; overflow-x:hidden; }
+  #quickui, #drawui { height:152px; box-sizing:border-box; overflow-y:auto; overflow-x:hidden; }
   /* detailed has three rows of controls — sit them a touch tighter so they all fit */
   #drawui .csrow { margin-top:5px; gap:5px; }
   #drawui .tog, #drawui .seg > button { padding-top:3px; padding-bottom:3px; }
@@ -714,7 +715,15 @@
         </div>
         <div class="csrow">
           <button class="tog" id="t_rb"><svg class="csi" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="3"/><path d="M6.5 1.1 V3.1 M1.1 6.5 H3.1 M6.5 9.9 V11.9 M9.9 6.5 H11.9"/></svg>Roundabout</button>
-          <button class="tog" id="t_brg" title="bridge — the marks appear across the route line"><svg class="csi" viewBox="0 0 13 13"><path d="M6.5 1.5 V11.5 M2.2 3.2 H4 M4 3.2 V9.8 M4 9.8 H2.2 M10.8 3.2 H9 M9 3.2 V9.8 M9 9.8 H10.8"/></svg>Bridge</button>
+          <button class="tog" id="t_brg" title="bridge — the marks appear across the middle of the route"><svg class="csi" viewBox="0 0 13 13"><path d="M6.5 1.5 V11.5 M2.2 3.2 H4 M4 3.2 V9.8 M4 9.8 H2.2 M10.8 3.2 H9 M9 3.2 V9.8 M9 9.8 H10.8"/></svg>Bridge</button>
+          <span class="seg" id="brgsize" style="display:none" title="how much of the route the bridge spans"><button id="brg_s">Sm</button><button id="brg_l">Lg</button></span>
+          <button class="tog" id="t_brgx" style="display:none" title="what the bridge crosses — click to cycle">over —</button>
+        </div>
+        <div class="csrow">
+          <button class="tog" id="t_gate" title="gate across the road"><svg class="csi" viewBox="0 0 13 13"><path d="M2.5 6.5 H10.5"/><circle cx="2.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="10.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>Gate</button>
+          <button class="tog" id="t_ford" title="ford / water splash across the road"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 5 Q3.5 3 6.5 5 T11.5 5 M1.5 8.5 Q3.5 6.5 6.5 8.5 T11.5 8.5"/></svg>Ford</button>
+          <button class="tog" id="t_lx" title="level crossing — the railway crosses the road"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 5 H11.5 M1.5 8 H11.5 M3.5 3.5 V9.5 M6.5 3.5 V9.5 M9.5 3.5 V9.5"/></svg>Crossing</button>
+          <button class="tog" id="t_dirt" title="dirt / gravel road — the route and its side roads draw dashed"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg>Dirt road</button>
           <span class="seg" id="rbdir" style="display:none"><button id="rb_eu">EU ↺</button><button id="rb_uk">UK ↻</button></span>
         </div>
       </div>
@@ -888,7 +897,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 30 Jul · 3";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 30 Jul · 4";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2670,14 +2679,14 @@ function drawExitHandle(ctx){
   const [ex,ey]=exitTip(cur);
   ctx.fillStyle="rgba(255,255,255,.4)"; ctx.strokeStyle="#1f9d57"; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(ex,ey,5,0,7); ctx.fill(); ctx.stroke();
-  if(!cur.rb){                                                   // green centre dot — grab it and jog the exit left/right (not on roundabouts)
+  if(!cur.rb && !cur.brg){                                       // green centre dot — grab it and jog the exit left/right (not on roundabouts or bridges)
     const [bx,by]=exitBendPt(cur);
     ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.arc(bx,by,4.6,0,7); ctx.fill(); ctx.stroke();
   }
 }
 function exitHit(sp,x,y){ const [ex,ey]=exitTip(sp); return (x-ex)**2+(y-ey)**2 < 64; }   // r8
-function bendHit(sp,x,y){ if(sp.rb) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
+function bendHit(sp,x,y){ if(sp.rb||sp.brg) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
 function bendFromPoint(sp,x,y){ return Math.round(x-CXX); }      // jog: horizontal distance from the junction (left/right only)
 function segDist(x,y,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy||1; let t=((x-ax)*dx+(y-ay)*dy)/L2; t=t<0?0:t>1?1:t; return Math.hypot(x-(ax+t*dx), y-(ay+t*dy)); }
 function routeHit(sp,x,y){                                       // anywhere on the thick main route — click it to select
@@ -2788,8 +2797,8 @@ function resetQuick(){                               // the "reset to quick" but
   cur.arms=cur.arms.map(m=>({...m}));
   els=null; esel=-1; mark(); setMode(false); syncQuick(); repaint();
 }
-const TOGGLES=["brg"];   // simple on/off features (auto-wired to t_<key> buttons); route ending is a 3-way button, not a toggle
-const SYMLABEL={lc:"rail",br:"bridge",brg:"bridge",stop:"stop",del:"del",dirt:"dirt"};
+const TOGGLES=["brg","gate","ford","lx","dirt"];   // simple on/off features (auto-wired to t_<key> buttons); route ending is a 3-way button, not a toggle
+const SYMLABEL={lc:"rail",br:"bridge",brg:"bridge",gate:"gate",ford:"ford",lx:"crossing",stop:"stop",del:"del",dirt:"dirt road"};
 // fuel + warn cycle through positions/severity; signs cycle a speed sequence
 const SIGN_SEQ=["","20","30","40","50","60","70","80","90","100","110","120","130","140","nat"];
 function signLabel(v){ return v==="nat"?"NSL":v; }
@@ -2977,6 +2986,12 @@ function syncQuick(){
   // a roundabout has no sharp/curvy corner — swap that pair out for the EU/UK
   // direction picker so the row never wraps onto a second line
   $("rbdir").style.display=cur.rb?"inline-flex":"none";
+  $("brgsize").style.display=cur.brg?"inline-flex":"none";
+  $("t_brgx").style.display=cur.brg?"inline-flex":"none";
+  $("brg_s").classList.toggle("on",cur.brg&&!cur.brgL);
+  $("brg_l").classList.toggle("on",cur.brg&&!!cur.brgL);
+  $("t_brgx").textContent="over "+(cur.brgx||"—");
+  $("t_brgx").classList.toggle("on",!!cur.brgx);
   syncEndBtn();
   $("rb_eu").classList.toggle("on",cur.rb&&!cur.rbu);
   $("rb_uk").classList.toggle("on",cur.rb&&!!cur.rbu);
@@ -2995,12 +3010,27 @@ $("addarm").onclick=()=>{
 $("angle").oninput=e=>{
   if(!cur)return;
   let a=parseInt(e.target.value);
+  if(cur.brg&&Math.abs(a)>135){ a=(a<0?-135:135); e.target.value=a; }
   const nd=nearestDetent(a);
   if(Math.abs(nd.a-a)<=12){ a=nd.a; e.target.value=a; }   // notch magnet
   cur.turn=a; showDeg(a); mark(); syncQuick(); repaint();
 };
 buildSnapBar();
 for(const k of TOGGLES) $("t_"+k).onclick=()=>{ if(!cur)return; cur[k]=!cur[k]; mark(); syncQuick(); repaint(); };
+/* the bridge needs more than a plain toggle: it owns the junction centre, so the
+   chicane jog resets and the exit can't fold past 135° while it's on */
+$("t_brg").onclick=()=>{ if(!cur)return;
+  cur.brg=!cur.brg;
+  if(cur.brg){ if(cur.bend) cur.bend=0;
+    if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135); }
+  else { cur.brgL=false; cur.brgx=""; }
+  mark(); syncQuick(); repaint(); };
+$("brg_s").onclick=()=>{ if(!cur)return; cur.brgL=false; mark(); syncQuick(); repaint(); };
+$("brg_l").onclick=()=>{ if(!cur)return; cur.brgL=true;  mark(); syncQuick(); repaint(); };
+$("t_brgx").onclick=()=>{ if(!cur)return;
+  const seq=["","water","rail","road"];
+  cur.brgx=seq[(seq.indexOf(cur.brgx||"")+1)%seq.length];
+  mark(); syncQuick(); repaint(); };
 /* how the route line ends — one button cycling Flat → Ball → Arrow, icon and word both change */
 const END_LOOK=[
   { name:"Arrow", icon:'<svg class="csi" viewBox="0 0 12 12"><path d="M6 10 V3 M3 5.6 L6 2.6 L9 5.6"/></svg>' },
@@ -3445,7 +3475,7 @@ function quickDown(ev){
 function quickMove(ev){
   const [x,y]=canvasPt(ev);
   if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
-  if(armDrag.mode==='exit'){ const bx=CXX+(cur.rb?0:Math.max(-30,Math.min(30,cur.bend||0))); cur.turn=Math.max(-160,Math.min(160,snapAngle(Math.atan2(x-bx, CYY-y)*180/Math.PI))); repaint(); return; }   // main arrow → the exit angle (about the shifted base)
+  if(armDrag.mode==='exit'){ const bx=CXX+(cur.rb?0:Math.max(-30,Math.min(30,cur.bend||0))); const mxa=cur.brg?135:160; cur.turn=Math.max(-mxa,Math.min(mxa,snapAngle(Math.atan2(x-bx, CYY-y)*180/Math.PI))); repaint(); return; }   // main arrow → the exit angle (about the shifted base)
   if(armDrag.mode==='bend'){ cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y))); repaint(); return; }   // green centre dot — jog the exit left/right, a little
   const m=cur.arms[armDrag.i]; if(!m){ armDrag=null; return; }
   if(armDrag.mode==='tip'){ const g=armGeom(cur,m);              // attached end holds still (a ring point on a roundabout)
