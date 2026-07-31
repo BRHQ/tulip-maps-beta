@@ -78,7 +78,8 @@ function specToString(sp){
   if(sp.rb) toks.push(sp.rbu?"rbu":"rb");
   if(sp.dirt) toks.push("dirt");
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
-  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); if(sp.lift) toks.push("lift:"+Math.round(sp.lift)); }
+  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); }
+  if(sp.lift&&!sp.rb) toks.push("lift:"+Math.round(sp.lift));
   for(const [k,t] of [["lc","lc"],["br","br"],["gate","gate"],["ford","ford"],["lx","lx"]]) if(sp[k]) toks.push(t);
   if(sp.end===1) toks.push("stop"); else if(sp.end===2) toks.push("ball");
   if(sp.bend) toks.push("bend:"+Math.round(sp.bend));
@@ -524,10 +525,11 @@ function exitShift(sp){ return (sp.rb||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min
 function exitBase(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
   if(sp.rb) return ray(turn,17);
-  /* with a bridge, the green dot slides the START OF THE BEND up and down the
-     route instead of jogging it sideways — up toward the bridge end = shorter
-     exit stem (the tip's keep-on-canvas clamp does the shortening). */
-  const lift = sp.brg ? Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.lift||0))) : 0;
+  /* the green dot is a two-way handle: sideways = the chicane jog (bend),
+     up/down = sliding WHERE THE BEND STARTS along the route (lift). On a
+     bridge the sideways half is off; the lift works everywhere. The exit
+     keeps its full length — the arrow just moves with the bend. */
+  const lift = Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.lift||0)));
   return [CXX+exitShift(sp), CYY-lift];
 }
 /* every symbol currently sitting in a corner — the arrow must not run underneath one */

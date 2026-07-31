@@ -897,7 +897,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 30 Jul · 6";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 30 Jul · 7";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -3022,10 +3022,9 @@ for(const k of TOGGLES) $("t_"+k).onclick=()=>{ if(!cur)return; cur[k]=!cur[k]; 
 $("t_brg").onclick=()=>{ if(!cur)return;
   cur.brg=!cur.brg;
   if(cur.brg){ if(cur.bend) cur.bend=0;
-    cur.lift=0;
     if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135);
     cur.rb=false; cur.rbu=false; cur.ford=false; cur.lx=false; }   // the centre holds ONE thing
-  else { cur.brgL=false; cur.brgx=""; cur.lift=0; }
+  else { cur.brgL=false; cur.brgx=""; }
   mark(); syncQuick(); repaint(); };
 $("t_ford").onclick=()=>{ if(!cur)return; cur.ford=!cur.ford;
   if(cur.ford){ cur.rb=false; cur.rbu=false; cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; }
@@ -3488,8 +3487,14 @@ function quickMove(ev){
   if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
   if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur); const mxa=cur.brg?135:160; cur.turn=Math.max(-mxa,Math.min(mxa,snapAngle(Math.atan2(x-pbx, pby-y)*180/Math.PI))); repaint(); return; }   // main arrow → the exit angle (about the true corner, lifted or jogged)
   if(armDrag.mode==='bend'){
-    if(cur.brg) cur.lift=Math.max(-30,Math.min(30,Math.round(CYY-y)));       // bridge: slide where the bend starts, up/down the route
-    else cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y)));         // normal: jog the exit left/right, a little
+    if(!cur.brg) cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y))); // sideways: the chicane jog (off while bridged)
+    /* vertical: slide where the bend starts. The exit keeps its FULL length —
+       so the lift stops where the arrow head would leave the canvas. */
+    let lf=Math.max(-30,Math.min(30,Math.round(CYY-y)));
+    const tn=(cur.turn||0)*Math.PI/180, dyu=-Math.cos(tn), ln=(cur.end?52:68), pad=15;
+    if(dyu<0) lf=Math.min(lf, Math.round(CYY-(pad-ln*dyu)));                 // exit points up: cap the up-lift
+    else if(dyu>0) lf=Math.max(lf, Math.round(CYY-(THh-pad-ln*dyu)));        // exit folds down: cap the down-lift
+    cur.lift=Math.max(-30,Math.min(30,lf));
     repaint(); return; }
   const m=cur.arms[armDrag.i]; if(!m){ armDrag=null; return; }
   if(armDrag.mode==='tip'){ const g=armGeom(cur,m);              // attached end holds still (a ring point on a roundabout)
