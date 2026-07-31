@@ -897,7 +897,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 30 Jul · 7";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 30 Jul · 8";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2679,13 +2679,19 @@ function drawExitHandle(ctx){
   const [ex,ey]=exitTip(cur);
   ctx.fillStyle="rgba(255,255,255,.4)"; ctx.strokeStyle="#1f9d57"; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(ex,ey,5,0,7); ctx.fill(); ctx.stroke();
-  if(!cur.rb){                                                   // green centre dot — jogs the exit sideways; on a BRIDGE it slides the bend up/down the route instead
+  if(!cur.rb){                                                   // green centre dot — jogs the exit sideways; on a BRIDGE it slides the bend along the stem
     const [bx,by]=exitBendPt(cur);
     ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.arc(bx,by,4.6,0,7); ctx.fill(); ctx.stroke();
+    if(cur.brg){                                                 // the second, lower dot: tilts the stem (and the bridge with it)
+      const [tx,ty]=tiltDotPt(cur);
+      ctx.beginPath(); ctx.arc(tx,ty,4.6,0,7); ctx.fill(); ctx.stroke();
+    }
   }
 }
 function exitHit(sp,x,y){ const [ex,ey]=exitTip(sp); return (x-ex)**2+(y-ey)**2 < 64; }   // r8
+function tiltDotPt(sp){ const [px,py]=brgPivot(), [du,dv]=stemDirOf(sp); return [px+du*12, py+dv*12]; }
+function tiltHit(sp,x,y){ if(!sp.brg) return false; const [tx,ty]=tiltDotPt(sp); return (x-tx)**2+(y-ty)**2 < 49; }
 function bendHit(sp,x,y){ if(sp.rb) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
 function bendFromPoint(sp,x,y){ return Math.round(x-CXX); }      // jog: horizontal distance from the junction (left/right only)
 function segDist(x,y,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy||1; let t=((x-ax)*dx+(y-ay)*dy)/L2; t=t<0?0:t>1?1:t; return Math.hypot(x-(ax+t*dx), y-(ay+t*dy)); }
@@ -3010,7 +3016,8 @@ $("addarm").onclick=()=>{
 $("angle").oninput=e=>{
   if(!cur)return;
   let a=parseInt(e.target.value);
-  if(cur.brg&&Math.abs(a)>135){ a=(a<0?-135:135); e.target.value=a; }
+  if(cur.brg){ const lo=Math.max(-160,(cur.tilt||0)-135), hi=Math.min(160,(cur.tilt||0)+135);
+    if(a<lo){a=lo;e.target.value=a;} if(a>hi){a=hi;e.target.value=a;} }
   const nd=nearestDetent(a);
   if(Math.abs(nd.a-a)<=12){ a=nd.a; e.target.value=a; }   // notch magnet
   cur.turn=a; showDeg(a); mark(); syncQuick(); repaint();
@@ -3024,7 +3031,7 @@ $("t_brg").onclick=()=>{ if(!cur)return;
   if(cur.brg){ if(cur.bend) cur.bend=0;
     if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135);
     cur.rb=false; cur.rbu=false; cur.ford=false; cur.lx=false; }   // the centre holds ONE thing
-  else { cur.brgL=false; cur.brgx=""; }
+  else { cur.brgL=false; cur.brgx=""; cur.tilt=0; }
   mark(); syncQuick(); repaint(); };
 $("t_ford").onclick=()=>{ if(!cur)return; cur.ford=!cur.ford;
   if(cur.ford){ cur.rb=false; cur.rbu=false; cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; }
@@ -3477,6 +3484,7 @@ function quickDown(ev){
   const [x,y]=canvasPt(ev); const hit=armHit(cur,x,y);
   if(hit){ armSel=hit.i; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag=hit; $("big").style.cursor="grabbing"; repaint(); }
   else if(armSel<0 && exitHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'exit'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the main arrow (brings its ring back)
+  else if(armSel<0 && tiltHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'tilt'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the tilt dot (bridge)
   else if(armSel<0 && bendHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'bend'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the bend handle
   else if(routeHit(cur,x,y)){ armSel=-1; hideHandles=false; repaint(); }   // click the main route anywhere → select it, dots come back
   else if(armSel!==-1){ armSel=-1; repaint(); }                  // deselect the side road
@@ -3485,16 +3493,37 @@ function quickDown(ev){
 function quickMove(ev){
   const [x,y]=canvasPt(ev);
   if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
-  if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur); const mxa=cur.brg?135:160; cur.turn=Math.max(-mxa,Math.min(mxa,snapAngle(Math.atan2(x-pbx, pby-y)*180/Math.PI))); repaint(); return; }   // main arrow → the exit angle (about the true corner, lifted or jogged)
+  if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur); const lo=cur.brg?Math.max(-160,(cur.tilt||0)-135):-160, hi=cur.brg?Math.min(160,(cur.tilt||0)+135):160; cur.turn=Math.max(lo,Math.min(hi,snapAngle(Math.atan2(x-pbx, pby-y)*180/Math.PI))); repaint(); return; }   // main arrow → the exit angle (about the true corner, lifted or jogged)
+  if(armDrag.mode==='tilt'){
+    /* swing the stem about the pivot: dot sideways = stem (and bridge) angle */
+    const [px,py]=brgPivot();
+    let th=Math.atan2(x-px, py-y)*180/Math.PI;
+    if(Math.abs(th)<4) th=0;                                                 // gentle magnet at straight
+    cur.tilt=Math.max(-45,Math.min(45,Math.round(th)));
+    /* keep the exit inside its 135°-of-the-stem window as the stem swings */
+    cur.turn=Math.max(Math.max(-160,cur.tilt-135),Math.min(Math.min(160,cur.tilt+135),cur.turn||0));
+    repaint(); return; }
   if(armDrag.mode==='bend'){
-    if(!cur.brg) cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y))); // sideways: the chicane jog (off while bridged)
-    /* vertical: slide where the bend starts. The exit keeps its FULL length —
-       so the lift stops where the arrow head would leave the canvas. */
-    let lf=Math.max(-30,Math.min(30,Math.round(CYY-y)));
-    const tn=(cur.turn||0)*Math.PI/180, dyu=-Math.cos(tn), ln=(cur.end?52:68), pad=15;
-    if(dyu<0) lf=Math.min(lf, Math.round(CYY-(pad-ln*dyu)));                 // exit points up: cap the up-lift
-    else if(dyu>0) lf=Math.max(lf, Math.round(CYY-(THh-pad-ln*dyu)));        // exit folds down: cap the down-lift
-    cur.lift=Math.max(-30,Math.min(30,lf));
+    if(!cur.brg){
+      cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y)));            // sideways: the chicane jog (off while bridged)
+      /* vertical: slide where the bend starts. The exit keeps its FULL length —
+         so the lift stops where the arrow head would leave the canvas. */
+      let lf=Math.max(-30,Math.min(30,Math.round(CYY-y)));
+      const tn=(cur.turn||0)*Math.PI/180, dyu=-Math.cos(tn), ln=(cur.end?52:68), pad=15;
+      if(dyu<0) lf=Math.min(lf, Math.round(CYY-(pad-ln*dyu)));               // exit points up: cap the up-lift
+      else if(dyu>0) lf=Math.max(lf, Math.round(CYY-(THh-pad-ln*dyu)));      // exit folds down: cap the down-lift
+      cur.lift=Math.max(-30,Math.min(30,lf));
+    } else {
+      /* bridged: the top dot slides ALONG the stem; full-length arrow must
+         stay on the canvas, so back off until it fits */
+      const [px,py]=brgPivot(), [du,dv]=stemDirOf(cur);
+      let sL=Math.max(0,Math.min(60,(x-px)*du+(y-py)*dv));
+      const tn=(cur.turn||0)*Math.PI/180, ln=(cur.end?52:68), pad=15;
+      const fits=v=>{ const tx=px+du*v+Math.sin(tn)*ln, ty=py+dv*v-Math.cos(tn)*ln;
+        return tx>=pad&&tx<=TW-pad&&ty>=pad&&ty<=THh-pad; };
+      while(sL>0 && !fits(sL)) sL--;
+      cur.lift=Math.round(sL-30);
+    }
     repaint(); return; }
   const m=cur.arms[armDrag.i]; if(!m){ armDrag=null; return; }
   if(armDrag.mode==='tip'){ const g=armGeom(cur,m);              // attached end holds still (a ring point on a roundabout)

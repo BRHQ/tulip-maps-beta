@@ -28,7 +28,7 @@ function parseSpec(s){
   if(!s||!s.trim()) return null;
   s=s.trim();
   if(s==="d"||s.startsWith("d ")) return {draw:parseDraw(s)};
-  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
+  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,tilt:0,gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
   const addArm=(a,off,len)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); sp.arms.push(m); } };
   for(const tok of s.toLowerCase().split(/\s+/)){
     if(tok.startsWith("a:")){ const v=parseFloat(tok.slice(2)); if(!isNaN(v)) sp.turn=Math.max(-160,Math.min(160,Math.round(v))); }
@@ -48,6 +48,7 @@ function parseSpec(s){
     else if(tok==="brgl"){ sp.brg=true; sp.brgL=true; }
     else if(tok.startsWith("brgx:")){ const v=tok.slice(5); if(["water","rail","road"].includes(v)){ sp.brg=true; sp.brgx=v; } }
     else if(tok.startsWith("lift:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.lift=Math.max(-30,Math.min(30,v)); }
+    else if(tok.startsWith("tilt:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.tilt=Math.max(-45,Math.min(45,v)); }
     else if(tok==="stop") sp.end=1;                 // flat bar (old "stop" spelling)
     else if(tok==="ball") sp.end=2;                 // round blob ending
     else if(tok.startsWith("bend:")){ const v=parseFloat(tok.slice(5)); if(!isNaN(v)) sp.bend=Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(v))); }   // chicane shift of the exit base
@@ -78,7 +79,7 @@ function specToString(sp){
   if(sp.rb) toks.push(sp.rbu?"rbu":"rb");
   if(sp.dirt) toks.push("dirt");
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
-  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); }
+  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); if(sp.tilt) toks.push("tilt:"+Math.round(sp.tilt)); }
   if(sp.lift&&!sp.rb) toks.push("lift:"+Math.round(sp.lift));
   for(const [k,t] of [["lc","lc"],["br","br"],["gate","gate"],["ford","ford"],["lx","lx"]]) if(sp[k]) toks.push(t);
   if(sp.end===1) toks.push("stop"); else if(sp.end===2) toks.push("ball");
@@ -499,6 +500,14 @@ function armAttach(off,turn,cs,sp){
      When the exit is jogged sideways, the jog counts as part of the distance along
      the route, so a side road slides entry → jog → exit without jumping. */
   const q = sp || {turn:turn}, s = exitShift(q);
+  if(q.brg){
+    /* bridged: off≤ -stem = down the vertical entry below the pivot;
+       -stem..0 = along the tilted stem; off>0 = out along the exit */
+    const [px,py]=brgPivot(), [du,dv2]=stemDirOf(q), L=stemLen(q), [tx,ty]=exitBase(q);
+    if(off<=-L) return [px, Math.min(145, py-(off+L))];
+    if(off<=0)  return [tx+du*off, ty+dv2*off];
+    return ray(turn, Math.min(50, off), tx, ty);
+  }
   const byB = exitBase(q)[1];                              // the corner's y — rides the bridge lift
   if(cs===0 || cs===undefined){                           // sharp: entry -> jog -> exit, the jog counting as distance
     const as=Math.abs(s), sg=s<0?-1:1;
@@ -519,7 +528,24 @@ function armAttach(off,turn,cs,sp){
 /* sp.bend is the CHICANE SHIFT: the exit stem starts a little to the LEFT/RIGHT of where
    the entry meets the line, so the route steps sideways (entry up → short jog → exit up).
    The green centre dot rides this. Capped so it stays a gentle jog, not a dogleg. */
-const MAXSHIFT=30;
+const MAXSHIFT=30, MAXTILT=45;
+/* the BRIDGED route: entry rises to a fixed pivot P (the bottom dot), the
+   middle stem leaves P at the tilt angle, the corner T (top dot) sits a
+   slidable distance up that stem, the bridge rides the stem. */
+function brgPivot(){ return [CXX, CYY+MAXSHIFT]; }
+function stemDirOf(sp){
+  if(!sp.brg) return [0,-1];
+  const t=Math.max(-MAXTILT,Math.min(MAXTILT,Math.round(sp.tilt||0)))*Math.PI/180;
+  return [Math.sin(t), -Math.cos(t)];
+}
+function stemLen(sp){ return MAXSHIFT + Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.lift||0))); }
+function brgGeom(sp){
+  /* the bridge sits on the MIDDLE of the actual stem, shrinking if the stem
+     is short, so the marks always frame real road */
+  const L=Math.max(12,stemLen(sp));
+  const hh=Math.max(6, Math.min(sp.brgL?20:12, L/2-3));
+  return {L, uc:L/2, hh};
+}
 function exitShift(sp){ return (sp.rb||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.bend||0))); }
 /* the exit base: where the exit stem starts — the junction centre, nudged sideways by the shift */
 function exitBase(sp){
@@ -529,6 +555,10 @@ function exitBase(sp){
      up/down = sliding WHERE THE BEND STARTS along the route (lift). On a
      bridge the sideways half is off; the lift works everywhere. The exit
      keeps its full length — the arrow just moves with the bend. */
+  if(sp.brg){
+    const [px,py]=brgPivot(), [dx2,dy2]=stemDirOf(sp), L=stemLen(sp);
+    return [px+dx2*L, py+dy2*L];
+  }
   const lift = Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.lift||0)));
   return [CXX+exitShift(sp), CYY-lift];
 }
@@ -568,10 +598,15 @@ function exitTipPt(sp){
    the de Casteljau split of the ORIGINAL single corner curve, so with no jog it draws
    exactly the sweep it always did — nothing jumps when the jog starts. */
 function curveS(sp,turn,cs){
-  const j=cs===2?44:30, [bx0,by0]=exitBase(sp);
-  const A=[CXX,by0+j], B=ray(turn,j,bx0,by0);
+  let j=cs===2?44:30; const [bx0,by0]=exitBase(sp);
+  if(sp.brg){ const g=brgGeom(sp);
+    j=Math.max(2, Math.min(j, g.L-(g.uc+g.hh)-2)); }        // the curve starts past the bridge, not inside it
+  const [dvx,dvy]=stemDirOf(sp);
+  const A=sp.brg? [bx0-dvx*j, by0-dvy*j] : [CXX,by0+j];
+  const B=ray(turn,j,bx0,by0);
   const ux=Math.sin(turn*Math.PI/180), uy=-Math.cos(turn*Math.PI/180);
-  const C1=[CXX, by0+j/2], C2=[B[0]-ux*j/2, B[1]-uy*j/2];
+  const C1=sp.brg? [A[0]+dvx*j/2, A[1]+dvy*j/2] : [CXX, by0+j/2];
+  const C2=[B[0]-ux*j/2, B[1]-uy*j/2];
   return [A, C1, [(C1[0]+C2[0])/2,(C1[1]+C2[1])/2], C2, B];
 }
 /* the straight exit stem [base → tip] */
@@ -606,8 +641,11 @@ function endStyle(sp){ return sp.end===1?3 : sp.end===2?1 : 2; }
 function quickToElements(sp){
   const els=[];
   if(sp.del){ els.push({k:'l',p:[30,30,158,130],w:10,ss:0,es:0},{k:'l',p:[158,30,30,130],w:10,ss:0,es:0}); return els; }
-  const tmax=sp.brg?135:160;   // with a bridge on the junction the exit can't fold all the way back
-  const turn=Math.max(-tmax,Math.min(tmax,sp.turn==null?0:sp.turn));
+  // with a bridge the exit can't fold back into the marks: stay within 135° of the stem
+  const t0=sp.turn==null?0:sp.turn;
+  const turn=sp.brg
+    ? Math.max(Math.max(-160,(sp.tilt||0)-135), Math.min(Math.min(160,(sp.tilt||0)+135), t0))
+    : Math.max(-160,Math.min(160,t0));
   const ds=sp.dirt?1:0;
   // VM style (cs:3): auto-pick the corner shape from the angle + draw purple.
   const vm = sp.cs===3;
@@ -638,7 +676,20 @@ function quickToElements(sp){
       els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
     }
     const shift=exitShift(sp), [bx0,by0]=exitBase(sp), [endx,endy]=exitTipPt(sp), es=endStyle(sp);
-    if(cs===0){                                    // sharp: hard corners — entry up, sideways jog, exit up
+    if(sp.brg){                                    // bridged: entry up to the pivot, the tilted stem, then the corner
+      const [px,py]=brgPivot();
+      els.push({k:'l',p:[EX,EY,px,py],w:9,ss:1,es:0,ds,col:rc});
+      if(cs===0){
+        els.push({k:'l',p:[px,py,bx0,by0],w:9,ss:0,es:0,ds,dof:ds?9.9:0,col:rc});
+        els.push({k:'l',p:[bx0,by0,endx,endy],w:9,ss:0,es,ds,dof:ds?9.9:0,col:rc});
+      } else {
+        const [A,C1,M,C2,B]=curveS(sp,turn,cs);
+        els.push({k:'l',p:[px,py,A[0],A[1]],w:9,ss:0,es:0,ds,dof:ds?9.9:0,col:rc});
+        els.push({k:'q',p:[A[0],A[1],C1[0],C1[1],M[0],M[1]],w:9,ss:0,es:0,ds,col:rc});
+        els.push({k:'q',p:[M[0],M[1],C2[0],C2[1],B[0],B[1]],w:9,ss:0,es:0,ds,col:rc});
+        els.push({k:'l',p:[B[0],B[1],endx,endy],w:9,ss:0,es,ds,col:rc});
+      }
+    } else if(cs===0){                             // sharp: hard corners — entry up, sideways jog, exit up
       els.push({k:'l',p:[EX,EY,CXX,by0],w:9,ss:1,es:0,ds,col:rc});
       // dirt roads: the pieces after the corner begin with a GAP in the dash,
       // so two dash-ends never fuse into a blob at the elbow
@@ -673,24 +724,39 @@ function quickToElements(sp){
   const lxOn  = sp.lx  && !sp.rb && !brgOn;
   const fordOn= sp.ford&& !sp.rb && !brgOn && !lxOn;
   if(brgOn){
-    /* bridge: ]|[ across the junction centre — the middle of the main route.
-       Small hugs the line; Large spans more of it. The jog handle is disabled
-       and the exit angle capped at 135° while it's on, so nothing collides. */
-    const yc=CYY+(sp.brgL?8:5), hh=sp.brgL?20:12, dx=sp.brgL?17:14, cap=sp.brgL?7:6, bw=3.5;   // biased a touch down the stem so the route passes through the marks at every exit angle
-    els.push({k:'l',p:[EX-dx-cap,yc-hh,EX-dx,yc-hh],w:bw,ss:0,es:0},
-             {k:'l',p:[EX-dx,yc-hh,EX-dx,yc+hh],w:bw,ss:0,es:0},
-             {k:'l',p:[EX-dx,yc+hh,EX-dx-cap,yc+hh],w:bw,ss:0,es:0},
-             {k:'l',p:[EX+dx+cap,yc-hh,EX+dx,yc-hh],w:bw,ss:0,es:0},
-             {k:'l',p:[EX+dx,yc-hh,EX+dx,yc+hh],w:bw,ss:0,es:0},
-             {k:'l',p:[EX+dx,yc+hh,EX+dx+cap,yc+hh],w:bw,ss:0,es:0});
-    /* what the bridge crosses — the mark sits OUTSIDE the bridge, both sides */
+    /* bridge: ]|[ across the middle stem — and it RIDES the stem: tilt the
+       stem and the whole bridge (marks included) tilts with it. Drawn in stem
+       coordinates (u along the stem from the pivot, v across it), then mapped. */
+    const [pxB,pyB]=brgPivot(), [du,dv2]=stemDirOf(sp);
+    const M=(u,v)=>[pxB+du*u-dv2*v, pyB+dv2*u+du*v];          // stem frame → canvas
+    const g=brgGeom(sp), uc=g.uc, hh=g.hh, dx=sp.brgL?17:14, cap=sp.brgL?7:6, bw=3.5;
+    const seg=(u1,v1,u2,v2,w)=>{ const a=M(u1,v1), b=M(u2,v2);
+      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:w||bw,ss:0,es:0}); };
+    for(const sgn of [-1,1]){
+      seg(uc-hh, sgn*(dx+cap), uc-hh, sgn*dx);               // cap, turned away
+      seg(uc-hh, sgn*dx,       uc+hh, sgn*dx);               // the bracket itself
+      seg(uc+hh, sgn*dx,       uc+hh, sgn*(dx+cap));         // cap, turned away
+    }
+    /* what the bridge crosses — the mark sits OUTSIDE the bridge, both sides,
+       riding the same frame */
     if(sp.brgx){
-      const xs=dx+cap+9;
+      const vs=dx+cap+9;
       for(const sgn of [-1,1]){
-        const x=EX+sgn*xs;
-        if(sp.brgx==="water") waveUnit(x,yc-2.75);
-        else if(sp.brgx==="rail") railUnit(x,yc);
-        else roadUnit(x,yc);
+        if(sp.brgx==="water"){
+          for(const uu of [-2.75,2.75]){
+            const a=M(uc+uu,sgn*vs-6.5), m=M(uc+uu-3.6,sgn*vs-3.2), b=M(uc+uu,sgn*vs);
+            const m2=M(uc+uu+3.6,sgn*vs+3.2), c=M(uc+uu,sgn*vs+6.5);
+            els.push({k:'q',p:[a[0],a[1],m[0],m[1],b[0],b[1]],w:2.2,ss:0,es:0},
+                     {k:'q',p:[b[0],b[1],m2[0],m2[1],c[0],c[1]],w:2.2,ss:0,es:0});
+          }
+        }else if(sp.brgx==="rail"){
+          seg(uc-2, sgn*vs-7, uc-2, sgn*vs+7, 1.8);
+          seg(uc+2, sgn*vs-7, uc+2, sgn*vs+7, 1.8);
+          for(const sv of [-4,0,4]) seg(uc-4.5, sgn*vs+sv, uc+4.5, sgn*vs+sv, 1.5);
+        }else{
+          seg(uc-2.6, sgn*vs-7, uc-2.6, sgn*vs+7, 1.9);
+          seg(uc+2.6, sgn*vs-7, uc+2.6, sgn*vs+7, 1.9);
+        }
       }
     }
   }
