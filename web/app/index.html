@@ -56,7 +56,15 @@
   .quick button:hover, .tog:hover { background:#e9ede9; border-color:#c6cdc6; }
   .tog.on, .tog.on:hover { background:var(--green); color:#fff; border-color:var(--green); }
   #t_brgx { white-space:nowrap; }
-  #t_end { min-width:74px; box-sizing:border-box; text-align:left; }   /* fixed at the Arrow width so Flat / Ball don't resize the button */
+  #colbox { width:27px; height:27px; border-radius:7px; border:1px solid var(--hair);
+    background:#14141a; cursor:pointer; flex:none; padding:0; }
+  #colpop { position:fixed; z-index:3000; background:var(--card,#fff); border:1px solid var(--hair);
+    border-radius:9px; box-shadow:0 10px 26px rgba(20,61,46,.25); padding:7px; display:flex; gap:6px; align-items:center; }
+  .colsw { width:22px; height:22px; border-radius:6px; border:1px solid rgba(0,0,0,.15); cursor:pointer; padding:0; }
+  .colsw.on { outline:2px solid var(--green); outline-offset:1px; }
+  .colmore { font-size:10.5px; font-weight:700; color:var(--mut); cursor:pointer; display:inline-flex; align-items:center; gap:3px; }
+  .colmore input { width:22px; height:22px; border:none; padding:0; background:none; cursor:pointer; }
+
   /* snap angle bar — the 7 presets are notches the handle sticks to */
   .snapbar { margin:2px 0 10px; }
   .addrow { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:9px; }
@@ -709,20 +717,29 @@
           </div>
         </div>
         <div class="csrow">
-          <span class="seg" id="csseg"><button data-cs="0"><svg class="csi" viewBox="0 0 12 12"><path d="M3 2 V9 H10"/></svg>Sharp</button><button data-cs="1"><svg class="csi" viewBox="0 0 12 12"><path d="M3 2 Q3 9 10 9"/></svg>Curvy</button></span>
-          <button class="tog" id="t_end" title="how the route line ends — click to cycle Arrow / Flat / Ball">Arrow</button>
-          <button class="tog" id="addarm" title="add one — or double-click the tulip">＋</button><button class="tog" id="armtype" title="what ＋ adds — click to swap between road and railway">Road</button>
+          <button id="colbox" title="colour of the main road"></button>
+          <span class="seg" id="csseg"><button data-cs="0" title="sharp corner"><svg class="csi" viewBox="0 0 12 12"><path d="M3 2 V9 H10"/></svg></button><button data-cs="1" title="curvy corner"><svg class="csi" viewBox="0 0 12 12"><path d="M3 2 Q3 9 10 9"/></svg></button></span>
+          <button class="tog ico" id="t_dirt" title="dirt / gravel road — the route and its side roads draw dashed"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg></button>
+          <button class="tog ico" id="t_end" title="how the route line ends — click to cycle Arrow / Flat / Ball"></button>
+          <span class="seg"><button id="armtype" title="what ＋ adds — click to swap between road and railway"><svg class="csi" viewBox="0 0 13 13"><path d="M2 11 L11 2"/></svg></button><button id="addarm" title="add a side road — or double-click the tulip">＋</button></span>
+          <div id="colpop" style="display:none">
+            <button class="colsw" data-c="" style="background:#14141a" title="classic black"></button>
+            <button class="colsw" data-c="#1445d0" style="background:#1445d0" title="raid blue"></button>
+            <button class="colsw" data-c="#7b2ff2" style="background:#7b2ff2" title="purple"></button>
+            <button class="colsw" data-c="#1f7a45" style="background:#1f7a45" title="green"></button>
+            <button class="colsw" data-c="#c03a2b" style="background:#c03a2b" title="red"></button>
+            <label class="colmore" title="any colour">more<input type="color" id="colmore" value="#14141a"></label>
+          </div>
         </div>
         <div class="csrow">
-          <button class="tog" id="t_rb"><svg class="csi" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="3"/><path d="M6.5 1.1 V3.1 M1.1 6.5 H3.1 M6.5 9.9 V11.9 M9.9 6.5 H11.9"/></svg>Roundabout</button>
           <button class="tog" id="t_brg" title="bridge — the marks appear across the middle of the route"><svg class="csi" viewBox="0 0 13 13"><path d="M6.5 1.5 V11.5 M2.2 3.2 H4 M4 3.2 V9.8 M4 9.8 H2.2 M10.8 3.2 H9 M9 3.2 V9.8 M9 9.8 H10.8"/></svg>Bridge</button>
           <span class="seg" id="brgsize" style="display:none" title="how much of the route the bridge spans"><button id="brg_s">Sm</button><button id="brg_l">Lg</button></span>
           <button class="tog" id="t_brgx" style="display:none" title="what the bridge crosses — click to cycle">over —</button>
         </div>
         <div class="csrow">
-          <button class="tog" id="t_gate" title="gate across the road"><svg class="csi" viewBox="0 0 13 13"><path d="M2.5 6.5 H10.5"/><circle cx="2.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="10.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>Gate</button>
-          <button class="tog" id="t_dirt" title="dirt / gravel road — the route and its side roads draw dashed"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg>Dirt road</button>
+          <button class="tog" id="t_rb" title="roundabout"><svg class="csi" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="3"/><path d="M6.5 1.1 V3.1 M1.1 6.5 H3.1 M6.5 9.9 V11.9 M9.9 6.5 H11.9"/></svg>Roundabout</button>
           <span class="seg" id="rbdir" style="display:none"><button id="rb_eu">EU ↺</button><button id="rb_uk">UK ↻</button></span>
+          <button class="tog" id="t_gate" title="gate across the road"><svg class="csi" viewBox="0 0 13 13"><path d="M2.5 6.5 H10.5"/><circle cx="2.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="10.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>Gate</button>
         </div>
       </div>
       <div id="drawui" style="display:none">
@@ -895,7 +912,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 31 Jul · 1";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 31 Jul · 2";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2996,6 +3013,7 @@ function syncQuick(){
   $("brg_l").classList.toggle("on",cur.brg&&!!cur.brgL);
   $("t_brgx").textContent="over "+(cur.brgx||"—");
   $("t_brgx").classList.toggle("on",!!cur.brgx);
+  const cb=$("colbox"); if(cb) cb.style.background=cur.col||"#14141a";
   syncEndBtn();
   $("rb_eu").classList.toggle("on",cur.rb&&!cur.rbu);
   $("rb_uk").classList.toggle("on",cur.rb&&!!cur.rbu);
@@ -3006,8 +3024,25 @@ function syncQuick(){
 }
 /* side roads are edited on the canvas now — this just drops a fresh one in and selects it */
 let armType="road";                                     // what ＋ adds — road or railway
+const ARMTYPE_ICON={
+  road:'<svg class="csi" viewBox="0 0 13 13"><path d="M2 11 L11 2"/></svg>',
+  rail:'<svg class="csi" viewBox="0 0 13 13"><path d="M2.6 9.4 L9.4 2.6 M3.6 10.4 L10.4 3.6 M4.6 4.4 L6.6 6.4 M6.4 2.6 L8.4 4.6 M2.8 6.2 L4.8 8.2"/></svg>'};
 $("armtype").onclick=()=>{ armType=armType==="road"?"rail":"road";
-  $("armtype").textContent=armType==="road"?"Road":"Rail"; };
+  $("armtype").innerHTML=ARMTYPE_ICON[armType];
+  $("armtype").title="what ＋ adds: "+(armType==="road"?"a side ROAD":"a RAILWAY")+" — click to swap"; };
+/* the colour box: quick samples, then any colour */
+$("colbox").onclick=e=>{ e.stopPropagation();
+  const p=$("colpop"), r=$("colbox").getBoundingClientRect();
+  const show=p.style.display==="none";
+  p.style.display=show?"flex":"none";
+  if(show){ p.style.left=Math.round(r.left)+"px"; p.style.top=Math.round(r.bottom+6)+"px";
+    document.querySelectorAll(".colsw").forEach(b=>b.classList.toggle("on",(cur&&(cur.col||""))===b.dataset.c)); }
+};
+document.addEventListener("pointerdown",e=>{ const p=$("colpop");
+  if(p&&p.style.display!=="none"&&!p.contains(e.target)&&e.target.id!=="colbox") p.style.display="none"; });
+document.querySelectorAll(".colsw").forEach(b=>b.onclick=()=>{ if(!cur)return;
+  cur.col=b.dataset.c; $("colpop").style.display="none"; mark(); syncQuick(); repaint(); });
+$("colmore").oninput=e=>{ if(!cur)return; cur.col=e.target.value; mark(); syncQuick(); repaint(); };
 $("addarm").onclick=()=>{
   if(!cur)return;
   const m = cur.rb? {a:90,off:90,len:38} : {a:90,off:0,len:38};   // on a roundabout: on the ring, out to the right
@@ -3050,8 +3085,9 @@ const END_LOOK=[
 function syncEndBtn(){
   const b=$("t_end"); if(!b||!cur) return;
   const e=cur.end||0, L=END_LOOK[e]||END_LOOK[0];
-  b.innerHTML=L.icon+L.name;
-  b.classList.remove("on");                    // never highlighted — only the icon + word change on cycle
+  b.innerHTML=L.icon;
+  b.title="route end: "+L.name+" — click to cycle";
+  b.classList.remove("on");                    // never highlighted — only the icon changes on cycle
 }
 $("t_end").onclick=()=>{ if(!cur)return; cur.end=((cur.end||0)+1)%3; mark(); syncQuick(); repaint(); };
 $("signclose").onclick=closeSignPicker;

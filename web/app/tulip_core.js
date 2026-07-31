@@ -28,7 +28,7 @@ function parseSpec(s){
   if(!s||!s.trim()) return null;
   s=s.trim();
   if(s==="d"||s.startsWith("d ")) return {draw:parseDraw(s)};
-  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,tilt:0,gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
+  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,tilt:0,col:"",gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
   const addArm=(a,off,len,rail)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); if(rail) m.rail=true; sp.arms.push(m); } };
   for(const tok of s.toLowerCase().split(/\s+/)){
     if(tok.startsWith("a:")){ const v=parseFloat(tok.slice(2)); if(!isNaN(v)) sp.turn=Math.max(-160,Math.min(160,Math.round(v))); }
@@ -51,6 +51,7 @@ function parseSpec(s){
     else if(tok.startsWith("brgx:")){ const v=tok.slice(5); if(["water","rail","road"].includes(v)){ sp.brg=true; sp.brgx=v; } }
     else if(tok.startsWith("lift:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.lift=Math.max(-30,Math.min(30,v)); }
     else if(tok.startsWith("tilt:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.tilt=Math.max(-45,Math.min(45,v)); }
+    else if(tok.startsWith("col:")){ const v=tok.slice(4); if(/^[0-9a-f]{6}$/.test(v)) sp.col="#"+v; }
     else if(tok==="stop") sp.end=1;                 // flat bar (old "stop" spelling)
     else if(tok==="ball") sp.end=2;                 // round blob ending
     else if(tok.startsWith("bend:")){ const v=parseFloat(tok.slice(5)); if(!isNaN(v)) sp.bend=Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(v))); }   // chicane shift of the exit base
@@ -80,6 +81,7 @@ function specToString(sp){
   }
   if(sp.rb) toks.push(sp.rbu?"rbu":"rb");
   if(sp.dirt) toks.push("dirt");
+  if(sp.col) toks.push("col:"+sp.col.slice(1).toLowerCase());
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
   if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); if(sp.tilt) toks.push("tilt:"+Math.round(sp.tilt)); }
   for(const [k,t] of [["lc","lc"],["br","br"],["gate","gate"],["ford","ford"],["lx","lx"]]) if(sp[k]) toks.push(t);
@@ -652,7 +654,7 @@ function quickToElements(sp){
   const ds=sp.dirt?1:0;
   // VM style (cs:3): auto-pick the corner shape from the angle + draw purple.
   const vm = sp.cs===3;
-  const rc = vm ? "#7b2ff2" : undefined;
+  const rc = sp.col ? sp.col : (vm ? "#7b2ff2" : undefined);   // chosen colour wins; VM style keeps its purple
   const cs = vm ? (Math.abs(turn)>=90?0 : Math.abs(turn)<=45?2 : 1)
                 : (sp.cs===undefined?1:sp.cs);
   if(sp.rb){
@@ -669,7 +671,7 @@ function quickToElements(sp){
     const sgn=sp.rbu?1:-1, steps=Math.max(3,Math.round(arc/25));
     for(let i=0;i<steps;i++){
       const [ax,ay]=ray(180+sgn*arc*i/steps,rr), [bx,by]=ray(180+sgn*arc*(i+1)/steps,rr);
-      els.push({k:'l',p:[ax,ay,bx,by],w:9,ss:0,es:0,ds,col:rc});
+      els.push({k:'l',p:[ax,ay,bx,by],w:9,ss:0,es:0,col:rc});   // the travelled road stays solid — dirt shows on the unused half (the thin circle)
     }
     const [rx,ry]=ray(turn,rr), [ox,oy]=ray(turn,sp.end?52:68);
     pushExit(els,rx,ry,ox,oy,sp,ds,rc);
@@ -683,13 +685,19 @@ function quickToElements(sp){
     const shift=exitShift(sp), [bx0,by0]=exitBase(sp), [endx,endy]=exitTipPt(sp), es=endStyle(sp);
     if(sp.brg){                                    // bridged: entry up to the pivot, the tilted stem, then the corner
       const [px,py]=brgPivot();
-      els.push({k:'l',p:[EX,EY,px,py],w:9,ss:1,es:0,ds,col:rc});
       if(cs===0){
+        els.push({k:'l',p:[EX,EY,px,py],w:9,ss:1,es:0,ds,col:rc});
         els.push({k:'l',p:[px,py,bx0,by0],w:9,ss:0,es:0,ds,dof:ds?9.9:0,col:rc});
         els.push({k:'l',p:[bx0,by0,endx,endy],w:9,ss:0,es,ds,dof:ds?9.9:0,col:rc});
       } else {
+        /* curvy smooths the pivot too: a small curve through P, clear of the bracket */
+        const g=brgGeom(sp), [du,dv2]=stemDirOf(sp);
+        const j2=Math.max(4, Math.min(10, (g.uc-g.hh)-2));
+        const Pin=[px, py+j2], Pout=[px+du*j2, py+dv2*j2];
+        els.push({k:'l',p:[EX,EY,Pin[0],Pin[1]],w:9,ss:1,es:0,ds,col:rc});
+        els.push({k:'q',p:[Pin[0],Pin[1],px,py,Pout[0],Pout[1]],w:9,ss:0,es:0,ds,col:rc});
         const [A,C1,M,C2,B]=curveS(sp,turn,cs);
-        els.push({k:'l',p:[px,py,A[0],A[1]],w:9,ss:0,es:0,ds,dof:ds?9.9:0,col:rc});
+        els.push({k:'l',p:[Pout[0],Pout[1],A[0],A[1]],w:9,ss:0,es:0,ds,dof:ds?9.9:0,col:rc});
         els.push({k:'q',p:[A[0],A[1],C1[0],C1[1],M[0],M[1]],w:9,ss:0,es:0,ds,col:rc});
         els.push({k:'q',p:[M[0],M[1],C2[0],C2[1],B[0],B[1]],w:9,ss:0,es:0,ds,col:rc});
         els.push({k:'l',p:[B[0],B[1],endx,endy],w:9,ss:0,es,ds,col:rc});
