@@ -179,7 +179,6 @@
   .csrow { margin:7px 0 0; display:flex; align-items:center; gap:6px; flex-wrap:nowrap; }
   .csi { width:12px; height:12px; vertical-align:-2px; margin-right:4px; fill:none; stroke:currentColor;
     stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
-  #csseg button[data-cs="3"].on { background:var(--purple); color:#fff; }
   .modechip { font-size:9px; font-weight:800; letter-spacing:.5px; padding:2px 7px; border-radius:10px; background:#e7efe9; color:var(--green); }
   .modechip.draw { background:#fdf1dd; color:#a06407; }
   .hint { font-size:10.5px; color:var(--mut); margin-top:5px; line-height:1.45; }
@@ -719,7 +718,7 @@
         </div>
         <div class="csrow">
           <button id="colbox" title="colour of the main road"></button>
-          <span class="seg" id="csseg"><button data-cs="0" title="sharp corner"><svg class="csi" viewBox="0 0 12 12"><path d="M3 2 V9 H10"/></svg></button><button data-cs="1" title="curvy corner"><svg class="csi" viewBox="0 0 12 12"><path d="M3 2 Q3 9 10 9"/></svg></button></span>
+          <button class="tog ico" id="t_cs" title="corner: Curvy — click to swap"></button>
           <button class="tog ico" id="t_dirt" title="dirt / gravel road — the route and its side roads draw dashed"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg></button>
           <button class="tog ico" id="t_end" title="how the route line ends — click to cycle Arrow / Flat / Ball"></button>
           <span class="seg"><button id="armtype" title="what ＋ adds — click to swap between road and railway"><svg class="csi at" viewBox="0 0 14 14"><path d="M4 1.2 V12.8 M10 1.2 V12.8 M7 2.2 V4 M7 6.2 V8 M7 10.2 V12"/></svg></button><button id="addarm" title="add a side road — or double-click the tulip">＋</button></span>
@@ -741,7 +740,6 @@
           <button class="tog" id="t_rb" title="roundabout"><svg class="csi" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="3"/><path d="M6.5 1.1 V3.1 M1.1 6.5 H3.1 M6.5 9.9 V11.9 M9.9 6.5 H11.9"/></svg>Roundabout</button>
           <span class="seg" id="rbsize" style="display:none" title="small = solid mini-roundabout, large = full ring"><button id="rbs_s">Sm</button><button id="rbs_l">Lg</button></span>
           <span class="seg" id="rbdir" style="display:none"><button id="rb_eu">EU ↺</button><button id="rb_uk">UK ↻</button></span>
-          <button class="tog" id="t_gate" title="gate across the road"><svg class="csi" viewBox="0 0 13 13"><path d="M2.5 6.5 H10.5"/><circle cx="2.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="10.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>Gate</button>
         </div>
       </div>
       <div id="drawui" style="display:none">
@@ -914,7 +912,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 31 Jul · 4";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 31 Jul · 5";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2820,8 +2818,8 @@ function resetQuick(){                               // the "reset to quick" but
   cur.arms=cur.arms.map(m=>({...m}));
   els=null; esel=-1; mark(); setMode(false); syncQuick(); repaint();
 }
-const TOGGLES=["brg","gate","dirt"];   // simple on/off features (auto-wired to t_<key> buttons); route ending is a 3-way button, not a toggle
-const SYMLABEL={lc:"rail",br:"bridge",brg:"bridge",gate:"gate",lx:"crossing",stop:"stop",del:"del",dirt:"dirt road"};
+const TOGGLES=["brg","dirt"];   // simple on/off features (auto-wired to t_<key> buttons); route ending is a 3-way button, not a toggle
+const SYMLABEL={lc:"rail",br:"bridge",brg:"bridge",lx:"crossing",stop:"stop",del:"del",dirt:"dirt road"};
 // fuel + warn cycle through positions/severity; signs cycle a speed sequence
 const SIGN_SEQ=["","20","30","40","50","60","70","80","90","100","110","120","130","140","nat"];
 function signLabel(v){ return v==="nat"?"NSL":v; }
@@ -3022,8 +3020,7 @@ function syncQuick(){
   syncEndBtn();
   $("rb_eu").classList.toggle("on",cur.rb&&!cur.rbu);
   $("rb_uk").classList.toggle("on",cur.rb&&!!cur.rbu);
-  document.querySelectorAll("#csseg button").forEach(b=>
-    b.classList.toggle("on",+b.dataset.cs===(cur.cs===undefined?1:cur.cs)));
+  syncCsBtn();
   renderExtraTags();
   syncCorners();
 }
@@ -3113,8 +3110,16 @@ $("rbs_s").onclick=()=>{ if(!cur)return; cur.rbS=true; cur.rbu=false; mark(); sy
 $("rbs_l").onclick=()=>{ if(!cur)return; cur.rbS=false; mark(); syncQuick(); repaint(); };
 $("rb_eu").onclick=()=>{ cur.rbu=false; mark(); syncQuick(); repaint(); };
 $("rb_uk").onclick=()=>{ cur.rbu=true; mark(); syncQuick(); repaint(); };
-document.querySelectorAll("#csseg button").forEach(b=>
-  b.onclick=()=>{ cur.cs=+b.dataset.cs; mark(); syncQuick(); repaint(); });
+const CS_LOOK=[
+  { name:"Sharp", icon:'<svg class="csi" viewBox="0 0 12 12"><path d="M3 2 V9 H10"/></svg>' },
+  { name:"Curvy", icon:'<svg class="csi" viewBox="0 0 12 12"><path d="M3 2 Q3 9 10 9"/></svg>' }];
+function syncCsBtn(){
+  const b=$("t_cs"); if(!b||!cur) return;
+  const c=(cur.cs===undefined?1:cur.cs)===0?0:1, L=CS_LOOK[c];
+  b.innerHTML=L.icon; b.title="corner: "+L.name+" — click to swap";
+}
+$("t_cs").onclick=()=>{ if(!cur)return; cur.cs=((cur.cs===undefined?1:cur.cs)===0)?1:0; mark(); syncQuick(); repaint(); };
+
 /* touching any quick control on a blank tulip brings it to life (capture-phase, so it fires
    before the control's own handler writes the spec) */
 ["pointerdown","input"].forEach(function(ev){

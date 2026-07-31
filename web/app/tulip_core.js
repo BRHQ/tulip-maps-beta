@@ -153,7 +153,6 @@ function specFromText(text){
   if(sp.brg){ if(/water|river|stream|canal/.test(t)) sp.brgx="water";
     else if(/rail|track/.test(t)) sp.brgx="rail";
     else if(/\bflyover\b|motorway|over the road|over road/.test(t)) sp.brgx="road"; }
-  sp.gate=/\bgate\b/.test(t);
   sp.f=FUEL.some(k=>t.includes(k))?1:0;
   sp.warn=WARN.test(t)?1:0;
   if(t.includes("stop at hotel")||t.startsWith("stop ")||t.includes("finish")) sp.end=1;
@@ -676,10 +675,13 @@ function quickToElements(sp){
     }
     /* the unused half of the ring — its own thin arc, so nothing hides
        under the travelled road (dirt dashes both, as driven) */
-    const rem=360-arc, rsteps=Math.max(2,Math.round(rem/25));
-    for(let i=0;i<rsteps;i++){
-      const [ax,ay]=ray(180+sgn*(arc+rem*i/rsteps),rr), [bx,by]=ray(180+sgn*(arc+rem*(i+1)/rsteps),rr);
-      els.push({k:'l',p:[ax,ay,bx,by],w:4,ss:0,es:0,ds});
+    const inset=Math.min(9,(360-arc)/3), rem=360-arc-2*inset;
+    if(rem>4){
+      const rsteps=Math.max(2,Math.round(rem/25));
+      for(let i=0;i<rsteps;i++){
+        const [ax,ay]=ray(180+sgn*(arc+inset+rem*i/rsteps),rr), [bx,by]=ray(180+sgn*(arc+inset+rem*(i+1)/rsteps),rr);
+        els.push({k:'l',p:[ax,ay,bx,by],w:4,ss:0,es:0,ds});
+      }
     }
     const [rx,ry]=ray(turn,rr), [ox,oy]=ray(turn,sp.end?52:68);
     pushExit(els,rx,ry,ox,oy,sp,ds,rc);
@@ -778,7 +780,7 @@ function quickToElements(sp){
        solid mini-roundabout blob ON the road — at the corner when sharp, on
        the curve's midpoint when curvy */
     const bp = cs===0 ? [CXX,CYY] : curveS(sp,turn,cs)[2];
-    els.push({k:'c',p:[bp[0],bp[1],8.5],fill:1,col:rc});
+    els.push({k:'c',p:[bp[0],bp[1],10.5],fill:1,col:rc});
   }
   if(sp.gate){
     /* gate: a bar across the road on the approach, a post at each end */
