@@ -714,6 +714,7 @@
         </div>
         <div class="csrow">
           <button class="tog" id="t_rb"><svg class="csi" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="3"/><path d="M6.5 1.1 V3.1 M1.1 6.5 H3.1 M6.5 9.9 V11.9 M9.9 6.5 H11.9"/></svg>Roundabout</button>
+          <button class="tog" id="t_brg" title="bridge — the marks appear across the route line"><svg class="csi" viewBox="0 0 13 13"><path d="M6.5 1.5 V11.5 M2.2 3.2 H4 M4 3.2 V9.8 M4 9.8 H2.2 M10.8 3.2 H9 M9 3.2 V9.8 M9 9.8 H10.8"/></svg>Bridge</button>
           <span class="seg" id="rbdir" style="display:none"><button id="rb_eu">EU ↺</button><button id="rb_uk">UK ↻</button></span>
         </div>
       </div>
@@ -887,7 +888,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 30 Jul · 2";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 30 Jul · 3";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2787,8 +2788,8 @@ function resetQuick(){                               // the "reset to quick" but
   cur.arms=cur.arms.map(m=>({...m}));
   els=null; esel=-1; mark(); setMode(false); syncQuick(); repaint();
 }
-const TOGGLES=[];   // route ending is a 3-way button (Flat/Ball/Arrow), not a toggle
-const SYMLABEL={lc:"rail",br:"bridge",stop:"stop",del:"del",dirt:"dirt"};
+const TOGGLES=["brg"];   // simple on/off features (auto-wired to t_<key> buttons); route ending is a 3-way button, not a toggle
+const SYMLABEL={lc:"rail",br:"bridge",brg:"bridge",stop:"stop",del:"del",dirt:"dirt"};
 // fuel + warn cycle through positions/severity; signs cycle a speed sequence
 const SIGN_SEQ=["","20","30","40","50","60","70","80","90","100","110","120","130","140","nat"];
 function signLabel(v){ return v==="nat"?"NSL":v; }

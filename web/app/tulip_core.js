@@ -28,7 +28,7 @@ function parseSpec(s){
   if(!s||!s.trim()) return null;
   s=s.trim();
   if(s==="d"||s.startsWith("d ")) return {draw:parseDraw(s)};
-  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
+  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
   const addArm=(a,off,len)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); sp.arms.push(m); } };
   for(const tok of s.toLowerCase().split(/\s+/)){
     if(tok.startsWith("a:")){ const v=parseFloat(tok.slice(2)); if(!isNaN(v)) sp.turn=Math.max(-160,Math.min(160,Math.round(v))); }
@@ -44,7 +44,7 @@ function parseSpec(s){
     else if(tok==="al") addArm(-90,0);
     else if(tok==="aa") addArm(0,0);
     else if(tok==="ar") addArm(90,0);
-    else if(["rb","rbu","dirt","lc","br"].includes(tok)) sp[tok]=true;
+    else if(["rb","rbu","dirt","lc","br","brg"].includes(tok)) sp[tok]=true;
     else if(tok==="stop") sp.end=1;                 // flat bar (old "stop" spelling)
     else if(tok==="ball") sp.end=2;                 // round blob ending
     else if(tok.startsWith("bend:")){ const v=parseFloat(tok.slice(5)); if(!isNaN(v)) sp.bend=Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(v))); }   // chicane shift of the exit base
@@ -75,7 +75,7 @@ function specToString(sp){
   if(sp.rb) toks.push(sp.rbu?"rbu":"rb");
   if(sp.dirt) toks.push("dirt");
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
-  for(const [k,t] of [["lc","lc"],["br","br"]]) if(sp[k]) toks.push(t);
+  for(const [k,t] of [["lc","lc"],["br","br"],["brg","brg"]]) if(sp[k]) toks.push(t);
   if(sp.end===1) toks.push("stop"); else if(sp.end===2) toks.push("ball");
   if(sp.bend) toks.push("bend:"+Math.round(sp.bend));
   if(sp.f===1) toks.push("f"); else if(sp.f===2) toks.push("f2");
@@ -629,6 +629,18 @@ function quickToElements(sp){
       els.push({k:'q',p:[M[0],M[1],C2[0],C2[1],B[0],B[1]],w:9,ss:0,es:0,ds,col:rc});
       els.push({k:'l',p:[B[0],B[1],endx,endy],w:9,ss:0,es,ds,col:rc});
     }
+  }
+  if(sp.brg){
+    /* bridge: ]|[ — a bracket either side of the entry stem, caps turned away
+       from the road. The stem is vertical at EX in every case (roundabouts
+       included), so the marks sit at a fixed height above the entry. */
+    const yc=127, hh=12, dx=14, cap=6, bw=3.5;
+    els.push({k:'l',p:[EX-dx-cap,yc-hh,EX-dx,yc-hh],w:bw,ss:0,es:0},
+             {k:'l',p:[EX-dx,yc-hh,EX-dx,yc+hh],w:bw,ss:0,es:0},
+             {k:'l',p:[EX-dx,yc+hh,EX-dx-cap,yc+hh],w:bw,ss:0,es:0},
+             {k:'l',p:[EX+dx+cap,yc-hh,EX+dx,yc-hh],w:bw,ss:0,es:0},
+             {k:'l',p:[EX+dx,yc-hh,EX+dx,yc+hh],w:bw,ss:0,es:0},
+             {k:'l',p:[EX+dx,yc+hh,EX+dx+cap,yc+hh],w:bw,ss:0,es:0});
   }
   if(sp.lc) els.push({k:'s',name:'lc',p:[CXX,CYY+40],sc:1});
   if(sp.br) els.push({k:'s',name:'br',p:[TW-25,28],sc:1});
