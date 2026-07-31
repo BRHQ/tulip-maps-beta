@@ -897,7 +897,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 30 Jul · 5";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 30 Jul · 6";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2679,14 +2679,14 @@ function drawExitHandle(ctx){
   const [ex,ey]=exitTip(cur);
   ctx.fillStyle="rgba(255,255,255,.4)"; ctx.strokeStyle="#1f9d57"; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(ex,ey,5,0,7); ctx.fill(); ctx.stroke();
-  if(!cur.rb && !cur.brg){                                       // green centre dot — grab it and jog the exit left/right (not on roundabouts or bridges)
+  if(!cur.rb){                                                   // green centre dot — jogs the exit sideways; on a BRIDGE it slides the bend up/down the route instead
     const [bx,by]=exitBendPt(cur);
     ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.arc(bx,by,4.6,0,7); ctx.fill(); ctx.stroke();
   }
 }
 function exitHit(sp,x,y){ const [ex,ey]=exitTip(sp); return (x-ex)**2+(y-ey)**2 < 64; }   // r8
-function bendHit(sp,x,y){ if(sp.rb||sp.brg) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
+function bendHit(sp,x,y){ if(sp.rb) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
 function bendFromPoint(sp,x,y){ return Math.round(x-CXX); }      // jog: horizontal distance from the junction (left/right only)
 function segDist(x,y,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy||1; let t=((x-ax)*dx+(y-ay)*dy)/L2; t=t<0?0:t>1?1:t; return Math.hypot(x-(ax+t*dx), y-(ay+t*dy)); }
 function routeHit(sp,x,y){                                       // anywhere on the thick main route — click it to select
@@ -3022,9 +3022,10 @@ for(const k of TOGGLES) $("t_"+k).onclick=()=>{ if(!cur)return; cur[k]=!cur[k]; 
 $("t_brg").onclick=()=>{ if(!cur)return;
   cur.brg=!cur.brg;
   if(cur.brg){ if(cur.bend) cur.bend=0;
+    cur.lift=0;
     if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135);
     cur.rb=false; cur.rbu=false; cur.ford=false; cur.lx=false; }   // the centre holds ONE thing
-  else { cur.brgL=false; cur.brgx=""; }
+  else { cur.brgL=false; cur.brgx=""; cur.lift=0; }
   mark(); syncQuick(); repaint(); };
 $("t_ford").onclick=()=>{ if(!cur)return; cur.ford=!cur.ford;
   if(cur.ford){ cur.rb=false; cur.rbu=false; cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; }
@@ -3485,8 +3486,11 @@ function quickDown(ev){
 function quickMove(ev){
   const [x,y]=canvasPt(ev);
   if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
-  if(armDrag.mode==='exit'){ const bx=CXX+(cur.rb?0:Math.max(-30,Math.min(30,cur.bend||0))); const mxa=cur.brg?135:160; cur.turn=Math.max(-mxa,Math.min(mxa,snapAngle(Math.atan2(x-bx, CYY-y)*180/Math.PI))); repaint(); return; }   // main arrow → the exit angle (about the shifted base)
-  if(armDrag.mode==='bend'){ cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y))); repaint(); return; }   // green centre dot — jog the exit left/right, a little
+  if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur); const mxa=cur.brg?135:160; cur.turn=Math.max(-mxa,Math.min(mxa,snapAngle(Math.atan2(x-pbx, pby-y)*180/Math.PI))); repaint(); return; }   // main arrow → the exit angle (about the true corner, lifted or jogged)
+  if(armDrag.mode==='bend'){
+    if(cur.brg) cur.lift=Math.max(-30,Math.min(30,Math.round(CYY-y)));       // bridge: slide where the bend starts, up/down the route
+    else cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y)));         // normal: jog the exit left/right, a little
+    repaint(); return; }
   const m=cur.arms[armDrag.i]; if(!m){ armDrag=null; return; }
   if(armDrag.mode==='tip'){ const g=armGeom(cur,m);              // attached end holds still (a ring point on a roundabout)
     m.a=Math.max(-170,Math.min(170,snapAngle(Math.atan2(x-g.px, g.py-y)*180/Math.PI)));

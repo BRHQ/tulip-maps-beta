@@ -28,7 +28,7 @@ function parseSpec(s){
   if(!s||!s.trim()) return null;
   s=s.trim();
   if(s==="d"||s.startsWith("d ")) return {draw:parseDraw(s)};
-  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
+  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
   const addArm=(a,off,len)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); sp.arms.push(m); } };
   for(const tok of s.toLowerCase().split(/\s+/)){
     if(tok.startsWith("a:")){ const v=parseFloat(tok.slice(2)); if(!isNaN(v)) sp.turn=Math.max(-160,Math.min(160,Math.round(v))); }
@@ -47,6 +47,7 @@ function parseSpec(s){
     else if(["rb","rbu","dirt","lc","br","brg","gate","ford","lx"].includes(tok)) sp[tok]=true;
     else if(tok==="brgl"){ sp.brg=true; sp.brgL=true; }
     else if(tok.startsWith("brgx:")){ const v=tok.slice(5); if(["water","rail","road"].includes(v)){ sp.brg=true; sp.brgx=v; } }
+    else if(tok.startsWith("lift:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.lift=Math.max(-30,Math.min(30,v)); }
     else if(tok==="stop") sp.end=1;                 // flat bar (old "stop" spelling)
     else if(tok==="ball") sp.end=2;                 // round blob ending
     else if(tok.startsWith("bend:")){ const v=parseFloat(tok.slice(5)); if(!isNaN(v)) sp.bend=Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(v))); }   // chicane shift of the exit base
@@ -77,7 +78,7 @@ function specToString(sp){
   if(sp.rb) toks.push(sp.rbu?"rbu":"rb");
   if(sp.dirt) toks.push("dirt");
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
-  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); }
+  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); if(sp.lift) toks.push("lift:"+Math.round(sp.lift)); }
   for(const [k,t] of [["lc","lc"],["br","br"],["gate","gate"],["ford","ford"],["lx","lx"]]) if(sp[k]) toks.push(t);
   if(sp.end===1) toks.push("stop"); else if(sp.end===2) toks.push("ball");
   if(sp.bend) toks.push("bend:"+Math.round(sp.bend));
@@ -472,7 +473,9 @@ function drawElements(ctx,els){
       endcap(ctx,x2,y2,Math.atan2(x2-cx,cy-y2)*180/Math.PI,e.es,e.w);
     } else if(e.k==='c'){ const [cx,cy,r]=e.p;
       if(e.fill){ ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill(); }
-      else { ctx.fillStyle="#fff"; ctx.lineWidth=e.w||6; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill(); ctx.stroke(); }
+      else { ctx.fillStyle="#fff"; ctx.lineWidth=e.w||6;
+        if(e.ds) ctx.setLineDash([(e.w||6)*1.1,(e.w||6)*1.5]);
+        ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); }
     } else if(e.k==='b'){ const [x,y,w,h]=e.p; ctx.lineWidth=e.w||4; ctx.strokeRect(x,y,w,h); }
     else if(e.k==='s'){ drawStamp(ctx,e.name,e.p[0],e.p[1],e.sc||1); }
     else if(e.k==='t'){ ctx.fillStyle=INKC; ctx.font=`700 ${e.sz||18}px Helvetica`;
@@ -495,14 +498,15 @@ function armAttach(off,turn,cs,sp){
      When the exit is jogged sideways, the jog counts as part of the distance along
      the route, so a side road slides entry → jog → exit without jumping. */
   const q = sp || {turn:turn}, s = exitShift(q);
+  const byB = exitBase(q)[1];                              // the corner's y — rides the bridge lift
   if(cs===0 || cs===undefined){                           // sharp: entry -> jog -> exit, the jog counting as distance
     const as=Math.abs(s), sg=s<0?-1:1;
-    if(off<=0) return [CXX, Math.min(145, CYY-off)];      // back down the entry stem
-    if(off<=as) return [CXX+sg*off, CYY];                 // along the sideways jog
-    return ray(turn, Math.min(50, off-as), CXX+s, CYY);   // out along the (shifted) exit stem
+    if(off<=0) return [CXX, Math.min(145, byB-off)];      // back down the entry stem
+    if(off<=as) return [CXX+sg*off, byB];                 // along the sideways jog
+    return ray(turn, Math.min(50, off-as), CXX+s, byB);   // out along the (shifted) exit stem
   }
   const j=cs===2?44:30, [bx0,by0]=exitBase(q);            // where the curve starts/ends (must match the drawing)
-  if(off<=-j) return [CXX, Math.min(145, CYY-off)];       // deep on the straight entry stem
+  if(off<=-j) return [CXX, Math.min(145, byB-off)];       // deep on the straight entry stem
   if(off>= j) return ray(turn, Math.min(50, off), bx0, by0);   // out on the straight (shifted) exit stem
   const [A,C1,M,C2,B]=curveS(q,turn,cs);                  // riding the S through the corner
   let t=(off+j)/(2*j), P0,P1,P2;                          // -j..+j  ->  0..1 along the curve
@@ -520,7 +524,11 @@ function exitShift(sp){ return (sp.rb||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min
 function exitBase(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
   if(sp.rb) return ray(turn,17);
-  return [CXX+exitShift(sp), CYY];
+  /* with a bridge, the green dot slides the START OF THE BEND up and down the
+     route instead of jogging it sideways — up toward the bridge end = shorter
+     exit stem (the tip's keep-on-canvas clamp does the shortening). */
+  const lift = sp.brg ? Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.lift||0))) : 0;
+  return [CXX+exitShift(sp), CYY-lift];
 }
 /* every symbol currently sitting in a corner — the arrow must not run underneath one */
 function symbolSpots(sp){
@@ -559,9 +567,9 @@ function exitTipPt(sp){
    exactly the sweep it always did — nothing jumps when the jog starts. */
 function curveS(sp,turn,cs){
   const j=cs===2?44:30, [bx0,by0]=exitBase(sp);
-  const A=[CXX,CYY+j], B=ray(turn,j,bx0,by0);
+  const A=[CXX,by0+j], B=ray(turn,j,bx0,by0);
   const ux=Math.sin(turn*Math.PI/180), uy=-Math.cos(turn*Math.PI/180);
-  const C1=[CXX, CYY+j/2], C2=[B[0]-ux*j/2, B[1]-uy*j/2];
+  const C1=[CXX, by0+j/2], C2=[B[0]-ux*j/2, B[1]-uy*j/2];
   return [A, C1, [(C1[0]+C2[0])/2,(C1[1]+C2[1])/2], C2, B];
 }
 /* the straight exit stem [base → tip] */
@@ -606,7 +614,7 @@ function quickToElements(sp){
                 : (sp.cs===undefined?1:sp.cs);
   if(sp.rb){
     const rr=17;
-    els.push({k:'c',p:[CXX,CYY,rr],fill:0,w:4,col:rc});
+    els.push({k:'c',p:[CXX,CYY,rr],fill:0,w:4,ds,col:rc});
     for(const m of sp.arms){                              // side roads on the roundabout — attach along entry stem / ring / exit stem via `off`
       const [px,py]=armAttachRB(m.off,turn), [ax,ay]=ray(m.a,m.len||38,px,py);
       els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
@@ -617,7 +625,7 @@ function quickToElements(sp){
     const sgn=sp.rbu?1:-1, steps=Math.max(3,Math.round(arc/25));
     for(let i=0;i<steps;i++){
       const [ax,ay]=ray(180+sgn*arc*i/steps,rr), [bx,by]=ray(180+sgn*arc*(i+1)/steps,rr);
-      els.push({k:'l',p:[ax,ay,bx,by],w:9,ss:0,es:0,col:rc});
+      els.push({k:'l',p:[ax,ay,bx,by],w:9,ss:0,es:0,ds,col:rc});
     }
     const [rx,ry]=ray(turn,rr), [ox,oy]=ray(turn,sp.end?52:68);
     pushExit(els,rx,ry,ox,oy,sp,ds,rc);
@@ -629,10 +637,10 @@ function quickToElements(sp){
     }
     const shift=exitShift(sp), [bx0,by0]=exitBase(sp), [endx,endy]=exitTipPt(sp), es=endStyle(sp);
     if(cs===0){                                    // sharp: hard corners — entry up, sideways jog, exit up
-      els.push({k:'l',p:[EX,EY,CXX,CYY],w:9,ss:1,es:0,ds,col:rc});
+      els.push({k:'l',p:[EX,EY,CXX,by0],w:9,ss:1,es:0,ds,col:rc});
       // dirt roads: the pieces after the corner begin with a GAP in the dash,
       // so two dash-ends never fuse into a blob at the elbow
-      if(shift) els.push({k:'l',p:[CXX,CYY,bx0,by0],w:9,ss:0,es:0,ds,dof:ds?9.9:0,col:rc});
+      if(shift) els.push({k:'l',p:[CXX,by0,bx0,by0],w:9,ss:0,es:0,ds,dof:ds?9.9:0,col:rc});
       els.push({k:'l',p:[bx0,by0,endx,endy],w:9,ss:0,es,ds,dof:ds?9.9:0,col:rc});
     } else {                                       // curvy: ONE generous corner, split into a smooth S
       const [A,C1,M,C2,B]=curveS(sp,turn,cs);      // at zero jog this is the identical curve, so nothing jumps
