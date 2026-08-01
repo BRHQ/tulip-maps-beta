@@ -862,6 +862,10 @@
       <span class="seg" id="rb_type"><button data-v="tulip">Tulip</button><button data-v="classic">Classic</button><button data-v="raid">Raid</button></span>
       <div class="field" id="rb_badgerow">Header badge <span style="font-weight:400;color:var(--mut)">— the yellow box ("Day 1", "VM"…)</span></div>
       <input type="text" id="rb_badge" maxlength="10">
+      <div class="field" id="rb_motorow1" style="display:none">Tulip side</div>
+      <span class="seg" id="rb_mototulip" style="display:none"><button data-v="left">Left</button><button data-v="right">Right</button></span>
+      <div class="field" id="rb_motorow2" style="display:none">Notes</div>
+      <span class="seg" id="rb_motonotes" style="display:none"><button data-v="under">Under</button><button data-v="beside">Beside</button></span>
       <div class="field" id="rb_themerow">Style</div>
       <span class="seg" id="rb_theme"><button data-v="dark">1 · Stage Dark</button><button data-v="green">2 · VM Green</button></span>
       <div class="field">Tulip size</div>
@@ -973,7 +977,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 31 Jul · 10";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 31 Jul · 11";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -4501,7 +4505,7 @@ document.addEventListener("keydown",e=>{
 const RB_COLS_ALL=[["inter","INTER"],["total","TOTAL"],["togo","TO GO"],["tulip","TULIP"],
   ["direction","DIRECTIONS"],["info","TOWN / SIGN"],["gps","GPS"],["wp","WP"]];
 const RB_COLW={inter:50,total:52,togo:56,gps:74,info:92,wp:49};
-const RB_DEF={title:"Grand Prix of South America",type:"tulip",page:"a4",theme:"dark",rowsPP:12,tulip:"normal",togoIn:0,wpIn:0,gpsIn:0,badge:"Day 1",scope:"day",
+const RB_DEF={title:"Grand Prix of South America",type:"tulip",page:"a4",theme:"dark",rowsPP:12,tulip:"normal",togoIn:0,wpIn:0,gpsIn:0,badge:"Day 1",motoTulip:"right",motoNotes:"under",scope:"day",
               caps:"",
               cols:[{k:"inter",on:1},{k:"total",on:1},{k:"togo",on:0},{k:"tulip",on:1},
                     {k:"direction",on:1},{k:"info",on:1},{k:"gps",on:0},{k:"wp",on:1}]};
@@ -4554,18 +4558,20 @@ function buildRoadbook(o,previewOnly,onlyPage){
   const { jsPDF } = window.jspdf;
   const a5=o.page==="a5";
   const doc=new jsPDF({unit:"pt",format:a5?"a5":"a4"});
-  const W=a5?419.53:595.28,H=a5?595.28:841.89,M=a5?18:26,NR=rbRowsFor(o);
+  const W=a5?419.53:595.28,H=a5?595.28:841.89,NR=rbRowsFor(o);
+  const S=W/595.28, M=26*S;                       // A5 is a photographic reduction of A4
+  const FS=n=>doc.setFontSize(n*S);
   const classic=o.type==="classic", raid=o.type==="raid";
   const dark=o.theme!=="green";
   const BANDC=classic||raid?[255,255,255]:(dark?[28,28,33]:[20,61,46]);
   const SUBC=classic||raid?[19,19,21]:(dark?[245,166,35]:[142,183,146]);
   const INK=[19,19,21], GREY=[115,118,124];
-  const BAND=classic||raid?58:64, HEAD=96;
+  const BAND=(classic||raid?58:64)*S, HEAD=96*S;
   /* the enabled columns, in order; DIRECTIONS flexes, everything else fixed */
-  const cols=rbEnabledCols(o);
+  const cols=rbEnabledCols(o); cols.forEach(c=>c.w*=S);
   let fixed=cols.filter(c=>c.k!=="direction").reduce((a,c)=>a+c.w,0);
   const hasDir=cols.some(c=>c.k==="direction");
-  const scale=hasDir?Math.min(1,(W-2*M-90)/Math.max(1,fixed)):(W-2*M)/Math.max(1,fixed);
+  const scale=hasDir?Math.min(1,(W-2*M-90*S)/Math.max(1,fixed)):(W-2*M)/Math.max(1,fixed);
   cols.forEach(c=>{ if(c.k!=="direction") c.w*=scale; });
   fixed=cols.filter(c=>c.k!=="direction").reduce((a,c)=>a+c.w,0);
   cols.forEach(c=>{ if(c.k==="direction") c.w=W-2*M-fixed; });
@@ -4586,28 +4592,28 @@ function buildRoadbook(o,previewOnly,onlyPage){
     for(let pg=pgFrom;pg<pgTo;pg++){
       if(!firstPage)doc.addPage(); firstPage=false;
       if(classic||raid){
-        doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(17);
-        doc.text(o.title||"Roadbook",M,26);
-        doc.setFont("helvetica","normal"); doc.setFontSize(10);
-        doc.text((day.sub||"route").toUpperCase()+"   ·   "+total.toFixed(1)+" km",M,43);
-        doc.setDrawColor(...INK); doc.setLineWidth(1.4); doc.line(M-4,BAND-8,W-M+4,BAND-8);
-        doc.setLineWidth(.5); doc.line(M-4,BAND-4,W-M+4,BAND-4);
+        doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(17);
+        doc.text(o.title||"Roadbook",M,26*S);
+        doc.setFont("helvetica","normal"); FS(10);
+        doc.text((day.sub||"route").toUpperCase()+"   ·   "+total.toFixed(1)+" km",M,43*S);
+        doc.setDrawColor(...INK); doc.setLineWidth(1.4); doc.line(M-4,BAND-8*S,W-M+4,BAND-8*S);
+        doc.setLineWidth(.5); doc.line(M-4,BAND-4*S,W-M+4,BAND-4*S);
       } else {
         doc.setFillColor(...BANDC); doc.rect(0,0,W,BAND,"F");
-        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(19);
-        doc.text(o.title||"Roadbook",M,30);
-        doc.setTextColor(...SUBC); doc.setFontSize(11);
-        doc.text((day.sub||"route").toUpperCase()+"   ·   "+total.toFixed(1)+" km",M,50);
-        doc.setFillColor(245,166,35); doc.roundedRect(W-M-64,17,64,30,6,6,"F");
-        doc.setTextColor(28,28,33); doc.setFontSize(11.5);
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); FS(19);
+        doc.text(o.title||"Roadbook",M,30*S);
+        doc.setTextColor(...SUBC); FS(11);
+        doc.text((day.sub||"route").toUpperCase()+"   ·   "+total.toFixed(1)+" km",M,50*S);
+        doc.setFillColor(245,166,35); doc.roundedRect(W-M-64*S,17*S,64*S,30*S,6*S,6*S,"F");
+        doc.setTextColor(28,28,33); FS(11.5);
         let badge=(o.badge!=null?o.badge:"Day 1");
         if(/^day\s*\d*$/i.test(badge.trim())&&days.length>1) badge="Day "+(days.indexOf(day)+1);
-        doc.text(badge.slice(0,10)||"VM",W-M-32,36,{align:"center"});
+        doc.text(badge.slice(0,10)||"VM",W-M-32*S,36*S,{align:"center"});
       }
-      doc.setTextColor(...GREY); doc.setFontSize(8); doc.setFont("helvetica","bold");
-      caps.forEach((l,i)=>{ if(cols[i].w>0) doc.text(l,XS[i]+cols[i].w/2,HEAD-10,{align:"center"}); });
+      doc.setTextColor(...GREY); FS(8); doc.setFont("helvetica","bold");
+      caps.forEach((l,i)=>{ if(cols[i].w>0) doc.text(l,XS[i]+cols[i].w/2,HEAD-10*S,{align:"center"}); });
       doc.setFont("helvetica","normal");
-      doc.text("pg "+(pg+1)+"/"+allPages,W-M,HEAD-24,{align:"right"});
+      doc.text("pg "+(pg+1)+"/"+allPages,W-M,HEAD-24*S,{align:"right"});
       const chunk=ordered.slice(pg*NR,(pg+1)*NR);
       chunk.forEach((r,i)=>{
         const top=HEAD+i*ROW_H, mid=top+ROW_H/2;
@@ -4616,56 +4622,56 @@ function buildRoadbook(o,previewOnly,onlyPage){
         cols.forEach((c,ci)=>{
           const X=XS[ci], CW=c.w;
           if(c.k==="inter"&&r.inter_km){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
-            doc.setFontSize(raid?16:14); doc.text(String(r.inter_km),X+CW/2,mid+4,{align:"center"}); }
+            FS(raid?16:14); doc.text(String(r.inter_km),X+CW/2,mid+4*S,{align:"center"}); }
           else if(c.k==="total"){ const tk=parseFloat(r.total_km);
             if(!isNaN(tk)){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
               const two=!!o.togoIn;
-              doc.setFontSize(raid?14:11); doc.text(tk.toFixed(2),X+CW/2,mid+(two?-2:3),{align:"center"});
-              if(two){ doc.setTextColor(...GREY); doc.setFontSize(raid?10:8.5);
-                doc.text((total-tk).toFixed(1),X+CW/2,mid+(raid?11:10),{align:"center"}); } } }
+              FS(raid?14:11); doc.text(tk.toFixed(2),X+CW/2,mid+(two?-2:3)*S,{align:"center"});
+              if(two){ doc.setTextColor(...GREY); FS(raid?10:8.5);
+                doc.text((total-tk).toFixed(1),X+CW/2,mid+(raid?11:10)*S,{align:"center"}); } } }
           else if(c.k==="togo"){ const tk=parseFloat(r.total_km);
             if(!isNaN(tk)){ doc.setTextColor(...GREY); doc.setFont("helvetica","bold");
-              doc.setFontSize(raid?13:10.5); doc.text((total-tk).toFixed(1),X+CW/2,mid+3,{align:"center"}); } }
+              FS(raid?13:10.5); doc.text((total-tk).toFixed(1),X+CW/2,mid+3*S,{align:"center"}); } }
           else if(c.k==="tulip"&&CW>0){
             cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,564,480); cctx.setTransform(3,0,0,3,0,0);
             const sp=parseSpec(r.tulip)||specFromText(r.direction||"");
             if(sp.draw)drawElements(cctx,sp.draw); else drawQuick(cctx,sp);
-            const th=Math.min(ROW_H-8,(CW-10)*160/188), tw=th*188/160;
+            const th=Math.min(ROW_H-8*S,(CW-10*S)*160/188), tw=th*188/160;
             doc.addImage(cvs.toDataURL("image/png"),"PNG",X+(CW-tw)/2,mid-th/2,tw,th);
-            if(o.wpIn){ doc.setFillColor(255,255,255); doc.rect(X+3,top+ROW_H-19,26,16,"F");
-              doc.setDrawColor(...INK); doc.setLineWidth(.9); doc.rect(X+3,top+ROW_H-19,26,16);
-              doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(9.5);
-              doc.text(String(r.wp),X+16,top+ROW_H-7,{align:"center"}); }
+            if(o.wpIn){ doc.setFillColor(255,255,255); doc.rect(X+3*S,top+ROW_H-19*S,26*S,16*S,"F");
+              doc.setDrawColor(...INK); doc.setLineWidth(.9); doc.rect(X+3*S,top+ROW_H-19*S,26*S,16*S);
+              doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(9.5);
+              doc.text(String(r.wp),X+16*S,top+ROW_H-7*S,{align:"center"}); }
           }
           else if(c.k==="direction"){
-            if(r.direction){ doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(13.5);
-              const lines=doc.splitTextToSize(r.direction,CW-18);
-              const startY=mid+4-(lines.length-1)*7.5;
-              lines.forEach((ln,j)=>doc.text(ln,X+10,startY+j*15)); }
+            if(r.direction){ doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(13.5);
+              const lines=doc.splitTextToSize(r.direction,CW-18*S);
+              const startY=mid+4*S-(lines.length-1)*7.5*S;
+              lines.forEach((ln,j)=>doc.text(ln,X+10*S,startY+j*15*S)); }
             const foot=[r.street,(r.flag?"["+r.flag+"]":"")].filter(Boolean).join("  ·  ");
-            if(foot){ doc.setFont("helvetica","italic"); doc.setFontSize(7.5); doc.setTextColor(...GREY);
-              doc.text(foot.slice(0,70),X+10,top+ROW_H-5); }
+            if(foot){ doc.setFont("helvetica","italic"); FS(7.5); doc.setTextColor(...GREY);
+              doc.text(foot.slice(0,70),X+10*S,top+ROW_H-5*S); }
           }
           else if(c.k==="info"){
-            if(r.info){ doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(...GREY);
-              doc.splitTextToSize(r.info,CW-8).forEach((ln,j)=>
-                doc.text(ln,X+CW/2,mid-2+j*11,{align:"center"})); }
+            if(r.info){ doc.setFont("helvetica","normal"); FS(9.5); doc.setTextColor(...GREY);
+              doc.splitTextToSize(r.info,CW-8*S).forEach((ln,j)=>
+                doc.text(ln,X+CW/2,mid-2*S+j*11*S,{align:"center"})); }
             if(o.gpsIn){ const w=rbWpFor(r);
-              if(w){ doc.setFont("helvetica","normal"); doc.setFontSize(6); doc.setTextColor(...GREY);
-                doc.text(w.lat.toFixed(5)+"  "+w.lon.toFixed(5),X+CW/2,top+ROW_H-5,{align:"center"}); } } }
+              if(w){ doc.setFont("helvetica","normal"); FS(6); doc.setTextColor(...GREY);
+                doc.text(w.lat.toFixed(5)+"  "+w.lon.toFixed(5),X+CW/2,top+ROW_H-5*S,{align:"center"}); } } }
           else if(c.k==="gps"){ const w=rbWpFor(r);
-            if(w){ doc.setFont("helvetica","normal"); doc.setFontSize(6.8); doc.setTextColor(...GREY);
-              doc.text(w.lat.toFixed(5),X+CW/2,mid-1,{align:"center"});
-              doc.text(w.lon.toFixed(5),X+CW/2,mid+7,{align:"center"}); } }
+            if(w){ doc.setFont("helvetica","normal"); FS(6.8); doc.setTextColor(...GREY);
+              doc.text(w.lat.toFixed(5),X+CW/2,mid-1*S,{align:"center"});
+              doc.text(w.lon.toFixed(5),X+CW/2,mid+7*S,{align:"center"}); } }
           else if(c.k==="wp"){
             if(classic||raid){ doc.setDrawColor(...INK); doc.setLineWidth(1.2);
-              doc.rect(X+7,mid-11,CW-16,22);
-              doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(12);
-              doc.text(String(r.wp),X+7+(CW-16)/2,mid+4,{align:"center"});
+              doc.rect(X+7*S,mid-11*S,CW-16*S,22*S);
+              doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(12);
+              doc.text(String(r.wp),X+7*S+(CW-16*S)/2,mid+4*S,{align:"center"});
             } else {
-              doc.setFillColor(...BANDC); doc.roundedRect(X+6,mid-11,CW-16,22,5,5,"F");
-              doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(12);
-              doc.text(String(r.wp),X+6+(CW-16)/2,mid+4,{align:"center"});
+              doc.setFillColor(...BANDC); doc.roundedRect(X+6*S,mid-11*S,CW-16*S,22*S,5*S,5*S,"F");
+              doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); FS(12);
+              doc.text(String(r.wp),X+6*S+(CW-16*S)/2,mid+4*S,{align:"center"});
             }
           }
         });
@@ -4673,8 +4679,8 @@ function buildRoadbook(o,previewOnly,onlyPage){
       });
       if(!classic&&!raid){ doc.setDrawColor(...SUBC); doc.setLineWidth(2);
         const gy=HEAD+chunk.length*ROW_H+2; doc.line(M-4,gy,W-M+4,gy); }
-      doc.setFont("helvetica","normal"); doc.setFontSize(6.2); doc.setTextColor(...GREY);
-      doc.text("© Tulip Maps — tulipmaps.com",W/2,H-8,{align:"center"});
+      doc.setFont("helvetica","normal"); FS(6.2); doc.setTextColor(...GREY);
+      doc.text("© Tulip Maps — tulipmaps.com",W/2,H-8*S,{align:"center"});
     }
   });
   return doc;
@@ -4707,27 +4713,43 @@ function buildMotoRoll(o,previewOnly,onlyPage){
       if(!firstPage)doc.addPage([RW,RH]); firstPage=false;
       doc.setTextColor(...GREY); doc.setFont("helvetica","bold"); doc.setFontSize(6.5);
       doc.text((o.title||"Roadbook")+" · "+(day.sub||"")+" · strip "+(pg+1)+"/"+allPages, RW/2, M+2, {align:"center"});
+      const on=k=>(o.cols||RB_DEF.cols).some(c=>c.k===k&&c.on);
+      const tulRight=(o.motoTulip||"right")!=="left";
+      const notesBeside=(o.motoNotes||"under")==="beside";
       const chunk=ordered.slice(pg*perPage,(pg+1)*perPage);
       chunk.forEach((r,i)=>{
         const top=M+8+i*CH;
         doc.setDrawColor(...INK); doc.setLineWidth(1); doc.line(M,top,RW-M,top);
         const tk=parseFloat(r.total_km);
+        const numX=tulRight?M+2:RW-M-46;              // numbers sit opposite the tulip
         doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(15);
-        if(!isNaN(tk)) doc.text(tk.toFixed(2),M+2,top+18);
+        if(on("total")&&!isNaN(tk)) doc.text(tk.toFixed(2),numX,top+18);
         doc.setTextColor(...GREY); doc.setFontSize(9);
-        if(r.inter_km) doc.text(String(r.inter_km),M+2,top+30);
-        if(!isNaN(tk)){ doc.setFontSize(7.5); doc.text("togo "+(total-tk).toFixed(1),M+2,top+41); }
-        doc.setDrawColor(...INK); doc.setLineWidth(.8); doc.circle(M+11,top+CH-14,8);
-        doc.setTextColor(...INK); doc.setFontSize(8.5); doc.setFont("helvetica","bold");
-        doc.text(String(r.wp),M+11,top+CH-11,{align:"center"});
-        const sp=parseSpec(r.tulip)||specFromText(r.direction||"");
-        cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,564,480); cctx.setTransform(3,0,0,3,0,0);
-        if(sp.draw)drawElements(cctx,sp.draw); else drawQuick(cctx,sp);
-        const th=Math.min(CH-34,86), tw=th*188/160;
-        doc.addImage(cvs.toDataURL("image/png"),"PNG",RW-M-tw-2,top+4,tw,th);
-        if(r.direction){ doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(8.5);
-          const lines=doc.splitTextToSize(r.direction,RW-2*M-58).slice(0,2);
-          lines.forEach((ln,j)=>doc.text(ln,M+52,top+CH-22+j*10)); }
+        if(on("inter")&&r.inter_km) doc.text(String(r.inter_km),numX,top+30);
+        if(on("togo")&&!isNaN(tk)){ doc.setFontSize(7.5); doc.text("togo "+(total-tk).toFixed(1),numX,top+41); }
+        if(on("gps")){ const w=rbWpFor(r);
+          if(w){ doc.setFontSize(5.8); doc.text(w.lat.toFixed(4),numX,top+50); doc.text(w.lon.toFixed(4),numX,top+57); } }
+        if(on("wp")){ const wx=tulRight?M+11:RW-M-11;
+          doc.setDrawColor(...INK); doc.setLineWidth(.8); doc.circle(wx,top+CH-14,8);
+          doc.setTextColor(...INK); doc.setFontSize(8.5); doc.setFont("helvetica","bold");
+          doc.text(String(r.wp),wx,top+CH-11,{align:"center"}); }
+        let tw2=0;
+        if(on("tulip")){
+          const sp=parseSpec(r.tulip)||specFromText(r.direction||"");
+          cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,564,480); cctx.setTransform(3,0,0,3,0,0);
+          if(sp.draw)drawElements(cctx,sp.draw); else drawQuick(cctx,sp);
+          const th=Math.min(notesBeside?CH-14:CH-34,86); tw2=th*188/160;
+          doc.addImage(cvs.toDataURL("image/png"),"PNG",tulRight?RW-M-tw2-2:M+2,top+4,tw2,th);
+        }
+        if(on("direction")&&r.direction){ doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(8.5);
+          if(notesBeside){
+            const nx=tulRight?M+50:M+tw2+8;
+            const lines=doc.splitTextToSize(r.direction,RW-2*M-tw2-56).slice(0,4);
+            lines.forEach((ln,j)=>doc.text(ln,nx,top+16+j*10));
+          } else {
+            const lines=doc.splitTextToSize(r.direction,RW-2*M-58).slice(0,2);
+            lines.forEach((ln,j)=>doc.text(ln,tulRight?M+52:M+2,top+CH-22+j*10));
+          } }
       });
       doc.setDrawColor(...GREY); doc.setLineWidth(.5);
       doc.setLineDashPattern([3,3],0);
@@ -4807,10 +4829,24 @@ function rbRowsSync(){
 }
 function rbTypeSync(){
   const moto=rbOpts.page==="moto", tul=rbOpts.type==="tulip";
-  $("rb_themerow").style.display=tul?"block":"none";
-  $("rb_theme").style.display=tul?"inline-flex":"none";
-  $("rb_colshead").style.display=moto?"none":"block";
-  $("rb_cols").style.display=moto?"none":"flex";
+  $("rb_themerow").style.display=tul&&!moto?"block":"none";
+  $("rb_theme").style.display=tul&&!moto?"inline-flex":"none";
+  $("rb_colshead").style.display="block";
+  $("rb_cols").style.display="flex";
+  ["rb_motorow1","rb_motorow2"].forEach(id=>$(id).style.display=moto?"block":"none");
+  ["rb_mototulip","rb_motonotes"].forEach(id=>$(id).style.display=moto?"inline-flex":"none");
+  if(moto){ rbSeg("rb_mototulip","motoTulip"); rbSeg("rb_motonotes","motoNotes"); }
+}
+function rbFits(cols){
+  /* would this column set stay readable on the chosen page? fixed columns at
+     full width + DIRECTIONS' minimum must fit inside the margins */
+  const W=rbOpts.page==="a5"?419.53:595.28, S=W/595.28, M=26*S;
+  const tulW=({none:0,small:70,normal:100,large:150})[rbOpts.tulip]??100;
+  const on=cols.filter(c=>c.on&&!(c.k==="tulip"&&!tulW)
+    &&!(c.k==="togo"&&rbOpts.togoIn)&&!(c.k==="wp"&&rbOpts.wpIn)&&!(c.k==="gps"&&rbOpts.gpsIn));
+  const fixed=on.filter(c=>c.k!=="direction").reduce((a,c)=>a+(c.k==="tulip"?tulW:(RB_COLW[c.k]||60))*S,0);
+  const dir=on.some(c=>c.k==="direction")?150*S:0;   // DIRECTIONS must keep enough width to read
+  return fixed*0.95+dir<=W-2*M;
 }
 let rbDragIdx=null;
 function rbColsUI(){
@@ -4829,7 +4865,10 @@ function rbColsUI(){
     grip.title="drag to reorder — top of this list is the left of the page";
     const tick=document.createElement("button"); tick.className="rc-k"; tick.textContent=c.on?"☑":"☐";
     tick.title="show / hide this column";
-    tick.onclick=()=>{ c.on=c.on?0:1; rbColsUI(); rbPreview(); };
+    tick.onclick=()=>{
+      if(!c.on){ const trial=rbOpts.cols.map(x=>x===c?{...x,on:1}:x);
+        if(!rbFits(trial)){ toast("No room left on this page at this tulip size — turn something off (or shrink the tulips) first.",5000); return; } }
+      c.on=c.on?0:1; rbColsUI(); rbPreview(); };
     const lab=RB_COLS_ALL.find(x=>x[0]===c.k)[1];
     const ti=document.createElement("input"); ti.className="rc-i"; ti.value=c.t||lab;
     ti.title="the printed column title — edit it";
