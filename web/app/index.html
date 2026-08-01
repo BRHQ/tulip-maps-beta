@@ -390,7 +390,9 @@
   #rbprev { flex:1; border:0; background:#8a8f8a; }
   #wpcard { height:auto; overflow:hidden; resize:none; }   /* fits its content — never scrolls, never resizes */
   .wpnamebox { flex:1; min-width:0; font:inherit; font-size:13px; padding:5px 9px; border:1px solid var(--hair); border-radius:7px; }
-  .wpfield { margin-top:6px; }   /* stacked inputs now carry their own heading as placeholder */
+  .wpfield { margin-top:6px; }
+  .wprowflex { display:flex; gap:6px; align-items:center; }
+  .wprowflex .wpfield { flex:1; width:auto; }   /* stacked inputs now carry their own heading as placeholder */
   #tulipcard { height:auto; overflow:visible; }
   #wplist { max-height:300px; overflow-y:auto; }   /* WP list never grows unbounded */
   #automodal { display:none; position:fixed; inset:0; z-index:3200; background:rgba(12,18,14,.55);
@@ -595,9 +597,10 @@
   .mpanel { background:rgba(251,247,238,.97); border-radius:14px;
     box-shadow:0 12px 30px rgba(20,61,46,.18); }
   .mph { background:transparent; border-bottom:1px solid rgba(20,61,46,.14);
-    border-radius:14px 14px 0 0; font-family:'Fraunces',Georgia,serif;
-    font-size:14.5px; font-weight:600; letter-spacing:0; text-transform:none;
-    color:var(--green); padding:6px 9px 5px 12px; }
+    border-radius:14px 14px 0 0; font-size:11.5px; font-weight:700; letter-spacing:0;
+    text-transform:none; color:var(--char); padding:2px 8px 2px 10px; min-height:24px; }
+  .mph .rs-hbtn, .mph .rs-x { font-size:10.5px; padding:2px 8px; border:1px solid var(--hair);
+    background:var(--card); border-radius:6px; line-height:1.4; }
   .mpgrip { color:rgba(20,61,46,.32); }
   .lyrfly, .stylefly, #ctx { background:#FBF7EE; border:1px solid var(--hair);
     box-shadow:0 12px 30px rgba(20,61,46,.2); }
@@ -671,6 +674,7 @@
 <body>
 <header>
   <button class="btn ghost" id="menubtn" title="Menu">☰ Menu</button>
+  <button class="btn ghost" id="viewsbtn" title="show / hide the floating boxes">Views</button>
   <div class="tm-brand">
     <svg class="tm-bloom" viewBox="30 40 60 100" aria-hidden="true"><path class="p1" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)"/><path class="p3" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)"/><path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/></svg>
     <h1>Tulip <b>Maps</b></h1>
@@ -706,10 +710,13 @@
         <span class="wpnum" id="wpnum">—</span>
         <button class="navbtn wide" id="nextbtn" title="next waypoint">▶</button>
         <input type="text" id="wpname" class="wpnamebox" placeholder="name">
-        <button class="navbtn" id="wpauto" title="fill Town + Street from the map (nearest place & road)">⌖</button>
+        <button class="navbtn" id="wpgps" title="put this waypoint's GPS position into the name">🌐</button>
       </div>
       <input type="text" id="dirtext" class="writebox wpfield" placeholder="Directions">
-      <input type="text" id="infotext" class="writebox wpfield" placeholder="Town">
+      <div class="wprowflex">
+        <input type="text" id="infotext" class="writebox wpfield" placeholder="Town">
+        <button class="navbtn" id="wpauto" title="fill Town + Street from the map (nearest place & road)">⌖</button>
+      </div>
       <input type="text" id="streettext" class="writebox wpfield" placeholder="Street">
       <div class="hint" id="norow" style="display:none">No notes row for this waypoint — tulip editing unavailable.</div>
     </div>
@@ -938,7 +945,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 31 Jul · 6";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 31 Jul · 7";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1331,6 +1338,7 @@ function mpWatch(){                        // keep the no-overlap layout honest 
   const el=sc.getContainer(); el.classList.add("vm-scale");
   map.getContainer().appendChild(el);
   const knob=document.createElement("div"); knob.className="vm-scale-rot"; knob.title="drag to tilt the scale along a road"; el.appendChild(knob);
+  try{ L.DomEvent.disableClickPropagation(el); }catch(_){}   // moving/tilting the scale must never click the map (it was dropping routing points)
   let st={x:null,y:null,rot:0}; try{ const s=JSON.parse(localStorage.getItem("vmstudio_scalepos")); if(s) st=Object.assign(st,s); }catch(_){}
   function apply(){
     if(st.x==null){ el.style.left="50%"; el.style.top="10px"; el.style.marginLeft=(-el.offsetWidth/2)+"px"; }
@@ -1795,6 +1803,7 @@ function jumpToWp(w){             // select the waypoint AND move the map so you
   if(!w.deleted) map.setView([w.lat,w.lon], Math.max(map.getZoom(),16), {animate:true});
 }
 function showRecon(){
+  try{ window.setPanelVisible&&window.setPanelVisible("reconcard",true); }catch(_){}
   const res=reconcile();
   const box=$("reconlist"); box.innerHTML="";
   const all=[...res.conflict.map(it=>[it,"conflict","CONFLICT"]), ...res.check.map(it=>[it,"check","CHECK"])];
@@ -2227,6 +2236,12 @@ $("dirtext").oninput=()=>liveWrite();
 $("infotext").oninput=()=>liveWrite();
 $("streettext").oninput=()=>liveWrite();
 $("wpauto").onclick=autoName;
+$("wpgps").onclick=()=>{
+  if(selWp<0||!wps[selWp]||wps[selWp].deleted) return;
+  const w=wps[selWp];
+  $("wpname").value=w.lat.toFixed(5)+", "+w.lon.toFixed(5);
+  liveWrite();
+};
 // reverse-geocode the selected waypoint → fill Info (nearest place) + Street (road). Free OSM Nominatim.
 async function lookupPlace(w){                     // position → {place, road}; shared by the one-off button and the bulk fill
   let place="", road="";
@@ -3200,6 +3215,10 @@ function syncCsBtn(){
   b.innerHTML=L.icon; b.title="corner: "+L.name+" — click to swap";
 }
 $("t_cs").onclick=()=>{ if(!cur)return; cur.cs=((cur.cs===undefined?1:cur.cs)===0)?1:0; mark(); syncQuick(); repaint(); };
+/* both cycling buttons show their icons from the very first paint — before
+   any waypoint is selected, syncQuick hasn't run and they'd sit empty */
+if($("t_cs")&&!$("t_cs").innerHTML) $("t_cs").innerHTML=CS_LOOK[1].icon;
+if($("t_end")&&!$("t_end").innerHTML) $("t_end").innerHTML=END_LOOK[0].icon;
 
 /* touching any quick control on a blank tulip brings it to life (capture-phase, so it fires
    before the control's own handler writes the spec) */
@@ -4607,6 +4626,7 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
   if(!localStorage.getItem("vmstudio_view")){                                  // default: only WP info, Tulip, Tulip Library (+ the Tools box) show
     ["listcard","statsbox","elevpanel","p-sv","trackcolor","reconcard"].forEach(function(id){ VIEW.panels[id]=false; });
   }
+  VIEW.panels.reconcard=false;                     // the check report only opens when asked
   function applyView(){
     for(var id in VIEW.panels){ var c=document.getElementById(id); if(c) c.classList.toggle("rs-off", VIEW.panels[id]===false); }
     try{ localStorage.setItem("vmstudio_view", JSON.stringify(VIEW)); }catch(_){}
@@ -4681,16 +4701,38 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
     var hasDoc=!!xmlDoc, hasTrack=hasDoc && typeof pts!=="undefined" && pts.length>2 && rows.length;
     var dim={ save:!hasDoc, export:!hasDoc, roadbook:!hasDoc, auto:!hasTrack, check:!hasTrack, renumber:!hasTrack };
     for(var a in dim){ var b=menu.querySelector('.rs-menu-item[data-act="'+a+'"]'); if(b) b.classList.toggle("dim", dim[a]); }
-    var pc=menu.querySelector("#rs-panels"); pc.innerHTML="";     // Views flyout — hover the Views row to reveal
+    fillPanelTicks(menu.querySelector("#rs-panels"));             // Views flyout — hover the Views row to reveal
+    buildRoutePrefs();
+  }
+  function fillPanelTicks(pc){
+    if(!pc) return; pc.innerHTML="";
     PANELS.slice().sort(function(a,b){ return a[1].localeCompare(b[1]); }).forEach(function(p){
       var on=VIEW.panels[p[0]]!==false;
       var row=document.createElement("button"); row.className="rs-tick"+(on?" on":"");
       row.innerHTML='<span class="tk">'+(on?"☑":"☐")+'</span>'+p[1];
-      row.onclick=function(){ VIEW.panels[p[0]]=!on; applyView(); syncMenu(); };
+      row.onclick=function(){ VIEW.panels[p[0]]=!on; applyView(); syncMenu();
+        fillPanelTicks(pc); var vb=document.getElementById("views-body");
+        if(vb&&vb!==pc) fillPanelTicks(vb); };
       pc.appendChild(row);
     });
-    buildRoutePrefs();
   }
+  var vmenu=document.createElement("div"); vmenu.id="views-menu";
+  vmenu.style.cssText="display:none;position:fixed;z-index:3000;background:var(--card);border:1px solid var(--hair);border-radius:9px;box-shadow:0 12px 30px -10px rgba(20,40,30,.4);min-width:190px;";
+  vmenu.innerHTML='<div class="rs-menu-tab">Views</div><div class="rs-menu-body" id="views-body"></div>';
+  document.body.appendChild(vmenu);
+  var viewsbtn=document.getElementById("viewsbtn");
+  viewsbtn.addEventListener("click",function(e){
+    e.stopPropagation();
+    if(vmenu.style.display==="block"){ vmenu.style.display="none"; return; }
+    var r=viewsbtn.getBoundingClientRect();
+    vmenu.style.left=r.left+"px"; vmenu.style.top=(r.bottom+6)+"px";
+    fillPanelTicks(document.getElementById("views-body"));
+    vmenu.style.display="block";
+  });
+  vmenu.addEventListener("click",function(e){ e.stopPropagation(); });
+  document.addEventListener("click",function(e){
+    if(vmenu.style.display==="block" && !vmenu.contains(e.target) && e.target!==viewsbtn) vmenu.style.display="none";
+  });
   function saveRoutePrefs(){ try{ localStorage.setItem("vmstudio_routeprefs",JSON.stringify(routePrefs)); }catch(_){} }
   function buildRoutePrefs(){
     var pc=menu.querySelector("#rs-routeprefs"); if(!pc) return; pc.innerHTML="";
