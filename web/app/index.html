@@ -977,7 +977,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 31 Jul · 11";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 1 Aug · 1";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2459,6 +2459,7 @@ function addWaypointAt(idx,tulipOverride){
   rows.splice(ri,0,nr);
   $("pdfbtn").style.display="inline-block";
   recompute(); renderList(); selectWp(ai);
+  return nr;                                    // the new notes row, for callers that fill it in
 }
 
 /* ---------- routing along real roads (OSRM public server) ---------- */
@@ -2551,6 +2552,16 @@ function tulipFromStep(st){
   return a===undefined ? "" : "a:"+a;
 }
 /* "Include waypoints": drop one at each action point the routing reported, nearest track vertex */
+function stepDirection(st){
+  const TXT={0:"Turn left",1:"Turn right",2:"Sharp left",3:"Sharp right",4:"Bear left",5:"Bear right",
+             9:"U-turn",12:"Keep left",13:"Keep right"};
+  let t;
+  if(st.type===7) t="Roundabout — "+(st.exit?st.exit+(["","st","nd","rd"][st.exit]||"th")+" exit":"take the exit");
+  else t=TXT[st.type];
+  if(!t) return "";
+  if(st.name && st.name!=="-") t+=" onto "+st.name;
+  return t;
+}
 function placeAutoWaypoints(list){
   let n=0; const used=[];
   for(const st of list){
@@ -2558,7 +2569,11 @@ function placeAutoWaypoints(list){
     if(idx<0 || !pts[idx]) continue;
     if(used.some(i=>Math.abs(i-idx)<3)) continue;                       // two steps on one corner → one waypoint
     if(wps.some(w=>!w.deleted && Math.abs(nearestVertex({lat:w.lat,lng:w.lon})-idx)<3)) continue;   // one's already there
-    addWaypointAt(idx, routePrefs.autoTulip ? tulipFromStep(st) : "");   // blank unless tulips are asked for
+    const row=addWaypointAt(idx, routePrefs.autoTulip ? tulipFromStep(st) : "");   // blank unless tulips are asked for
+    if(row && !row.direction){
+      row.direction=stepDirection(st);                                   // keep the instruction the routing reported
+      const de=$("dirtext"); if(de) de.value=row.direction;              // panel in step, so the next apply keeps it
+    }
     used.push(idx); n++;
   }
   return n;
