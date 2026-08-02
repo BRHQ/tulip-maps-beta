@@ -975,7 +975,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 2";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 3";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1896,16 +1896,26 @@ function redraw(){
       selected one stays the vibrant red it is now ── */
 let allTpOn=false; try{ allTpOn=localStorage.getItem("vmstudio_alltp")==="1"; }catch(_){}
 let allTpLayer=null;
+let allTpArr=[];
 function refreshAllTp(){
-  if(allTpLayer){ allTpLayer.remove(); allTpLayer=null; }
+  if(allTpLayer){ allTpLayer.remove(); allTpLayer=null; } allTpArr=[];
   if(!allTpOn || !pts || pts.length<2) return;
   if(!map.getPane("alltp")){ const p=map.createPane("alltp"); p.style.zIndex=450; p.style.pointerEvents="none"; }   // above the track line (400), below markers (600)
   const rend=L.canvas({padding:.3,pane:"alltp"});
   const g=L.layerGroup();
-  for(let i=0;i<pts.length;i++)
-    g.addLayer(L.circleMarker([pts[i].lat,pts[i].lon],
-      {renderer:rend,pane:"alltp",radius:6,color:"#fff",weight:1.5,fillColor:"#ff9aa2",fillOpacity:.9,interactive:false}));
+  for(let i=0;i<pts.length;i++){
+    const m=L.circleMarker([pts[i].lat,pts[i].lon],
+      {renderer:rend,pane:"alltp",radius:6,color:"#fff",weight:1.5,fillColor:"#ff9aa2",fillOpacity:.9,interactive:false});
+    if(i===vertexIdx) m.setStyle({opacity:0,fillOpacity:0});   // the selected point shows ONLY the vibrant red dot — never two dots
+    allTpArr[i]=m; g.addLayer(m);
+  }
   allTpLayer=g.addTo(map);
+}
+/* selection changed: swap which pale dot is hidden under the red one */
+function allTpSel(oldIdx,newIdx){
+  if(!allTpLayer) return;
+  if(oldIdx>=0&&allTpArr[oldIdx]) allTpArr[oldIdx].setStyle({opacity:1,fillOpacity:.9});
+  if(newIdx>=0&&allTpArr[newIdx]) allTpArr[newIdx].setStyle({opacity:0,fillOpacity:0});
 }
 window.setAllTp=function(on){ allTpOn=!!on; try{ localStorage.setItem("vmstudio_alltp",on?"1":"0"); }catch(_){ } refreshAllTp(); };
 /* ---------- colour the track by speed / altitude / slope ----------
@@ -2039,7 +2049,7 @@ function makeMarker(w){
   m.on("drag",()=>{        // a waypoint is pinned to a track point — snap to the nearest one
     const idx=nearestVertexInRange(m.getLatLng(),w._pn[0],w._pn[1]);
     m.setLatLng([pts[idx].lat,pts[idx].lon]);
-    if(vertexHandle && vertexIdx!==idx){ vertexIdx=idx; vertexHandle.setLatLng([pts[idx].lat,pts[idx].lon]); }   // red dot follows the waypoint
+    if(vertexHandle && vertexIdx!==idx){ allTpSel(vertexIdx,idx); vertexIdx=idx; vertexHandle.setLatLng([pts[idx].lat,pts[idx].lon]); }   // red dot follows the waypoint
   });
   m.on("dragend",()=>{
     const idx=nearestVertexInRange(m.getLatLng(),w._pn[0],w._pn[1]);
@@ -2370,6 +2380,22 @@ function nearestVertex(latlng){
   for(let i=0;i<pts.length;i++){ const d=hav({lat:latlng.lat,lon:latlng.lng},pts[i]); if(d<bd){bd=d;bi=i;} }
   return bi;
 }
+/* the SEGMENT under the cursor — for inserting points. The nearest VERTEX can
+   belong to the far side of a curve, or to the other pass where a route uses
+   the same road twice; inserting after it bent the track. */
+function nearestSegIdx(latlng){
+  let best=0,bd=1e15;
+  const k=Math.cos(latlng.lat*rad), mx=latlng.lng*k*111320, my=latlng.lat*110540;
+  for(let i=0;i<pts.length-1;i++){
+    const ax=pts[i].lon*k*111320, ay=pts[i].lat*110540;
+    const bx=pts[i+1].lon*k*111320, by=pts[i+1].lat*110540;
+    const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy||1;
+    let t=((mx-ax)*dx+(my-ay)*dy)/L2; t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(mx-(ax+t*dx),my-(ay+t*dy));
+    if(d<bd){ bd=d; best=i; }
+  }
+  return best;
+}
 function nearestVertexInRange(latlng,lo,hi){   // nearest track point whose distance-along is within (lo,hi)
   let bi=-1,bd=1e15;
   for(let i=0;i<pts.length;i++){ if(cum[i]<=lo||cum[i]>=hi) continue;
@@ -2403,13 +2429,14 @@ function showCtx(ev,items){
   box.style.display="block";
 }
 // The three route-building actions, identical on every right-click menu (Chris's ask).
-function ctxCore(idx, ll){
+function ctxCore(idx, ll, segIdx){
   if(!xmlDoc) return [
     ["➕ Add track points",()=>{ newRoute(); startAddPoints(ll); }],
     ["📍 Add waypoint here",()=>{ newRoute(); appendTrackPoint(ll); addWaypointAt(pts.length-1); }],
     ["🧭 Route from here",()=>{ newRoute(); appendTrackPoint(ll); startRouting(0); }]];
   if(idx!=null) return [
-    ["➕ Add track points",()=>insertTrackPointAfter(idx,ll||{lat:pts[idx].lat,lng:pts[idx].lon})],
+    /* insert into the CLICKED segment (segIdx) — the nearest vertex can sit on another pass */
+    ["➕ Add track points",()=>insertTrackPointAfter(segIdx!=null?segIdx:idx, ll||{lat:pts[idx].lat,lng:pts[idx].lon})],
     ["📍 Add waypoint here",()=>addWaypointAt(idx)],
     ["🧭 Route from here",()=>startRouting(idx)]];
   return [
@@ -2422,7 +2449,7 @@ function onLineContext(ev){
   L.DomEvent.stop(ev);
   ev.originalEvent.preventDefault();
   const idx=nearestVertex(ev.latlng);
-  const items=ctxCore(idx, ev.latlng);
+  const items=ctxCore(idx, ev.latlng, nearestSegIdx(ev.latlng));
   if(rangeB>=0 && vertexIdx>=0){
     const a=Math.min(vertexIdx,rangeB), b=Math.max(vertexIdx,rangeB);
     items.push("---", [`✂ Cut this section (${((cum[b]-cum[a])/1000).toFixed(2)} km)`,()=>cutRange()]);
@@ -2733,16 +2760,17 @@ function onLineClick(ev){
 }
 function onLineDblClick(ev){
   L.DomEvent.stop(ev);
-  const s=projParam(ev.latlng.lat,ev.latlng.lng);
-  let i=cum.findIndex(c=>c>=s); if(i<=0)i=1;
+  const i=nearestSegIdx(ev.latlng);            // insert INTO the clicked segment
   snapshot();
-  pts.splice(i,0,{lat:ev.latlng.lat,lon:ev.latlng.lng});
-  redraw(); selectVertex(i);
+  pts.splice(i+1,0,{lat:ev.latlng.lat,lon:ev.latlng.lng});
+  redraw(); selectVertex(i+1);
 }
 function selectVertex(idx){
   clearRange();
   if(vertexHandle) vertexHandle.remove();
+  const prevSel=vertexIdx;
   vertexIdx=idx;
+  allTpSel(prevSel,idx);                       // the pale dot under the selection hides — one dot, the vibrant one
   updateTpStats(idx);
   vertexHandle=L.marker([pts[idx].lat,pts[idx].lon],
     {draggable:true,zIndexOffset:1000,
@@ -2756,7 +2784,9 @@ function selectVertex(idx){
     const arr=pts.map(p=>[p.lat,p.lon]);
     line.setLatLngs(arr); casing.setLatLngs(arr); if(hitline) hitline.setLatLngs(arr);
   });
-  vertexHandle.on("dragend",()=>{ recompute(); renderList(); updateCutChip(); });
+  vertexHandle.on("dragend",()=>{ recompute(); renderList(); updateCutChip();
+    refreshAllTp();                                        // the pale dots move WITH the track — never left on the old line
+    if(typeof drawElevation==="function") drawElevation(); });
   vertexHandle.on("dblclick",()=>deleteTrackPoint(vertexIdx));
   vertexHandle.on("contextmenu",ev=>{
     L.DomEvent.stop(ev); ev.originalEvent.preventDefault();
@@ -2779,6 +2809,7 @@ function setRange(idx){
 function clearRange(){ rangeB=-1; if(rangeLine){rangeLine.remove();rangeLine=null;} }
 function clearTrackSel(){
   clearRange();
+  allTpSel(vertexIdx,-1);                      // deselected: its pale dot comes back
   if(vertexHandle){vertexHandle.remove();vertexHandle=null;} vertexIdx=-1;
   if(cutChipEl) cutChipEl.style.display="none";
 }
