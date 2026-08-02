@@ -401,8 +401,36 @@
   .wpbox { padding-right:28px; }
   #rbmodal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(12,18,14,.55);
     align-items:center; justify-content:center; }
-  #rbmodal .rbcard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
-    width:920px; max-width:95vw; height:660px; max-height:92vh; display:flex; overflow:hidden; }
+  #rbmodal .rbcard { background:#fff; border-radius:16px; box-shadow:0 18px 54px rgba(0,0,0,.45);
+    width:1180px; max-width:96vw; height:780px; max-height:94vh; display:flex;
+    flex-direction:column; overflow:hidden; }
+  /* --- the maker: numbered steps across the top, big page alongside --- */
+  #rbmodal .rbtop { display:flex; align-items:center; gap:12px; padding:14px 20px;
+    background:var(--green); color:#fff; }
+  #rbmodal .rbtop b { font-size:16px; font-weight:600; letter-spacing:.2px; }
+  #rbmodal .rbtop .grow { flex:1; }
+  #rbmodal .rbsteps { display:flex; border-bottom:1px solid var(--hair); background:#F3EFE5; flex:none; }
+  #rbmodal .rbstep { flex:1; padding:12px 8px; text-align:center; font-size:13px; font-weight:600;
+    color:var(--mut); border-right:1px solid var(--hair); cursor:pointer; position:relative;
+    background:none; font-family:inherit; }
+  #rbmodal .rbstep:last-child { border-right:none; }
+  #rbmodal .rbstep:hover { background:#EFEADF; }
+  #rbmodal .rbstep.on { background:#FBF7EE; color:var(--green); }
+  #rbmodal .rbstep.on:after { content:""; position:absolute; left:0; right:0; bottom:-1px;
+    height:3px; background:var(--amber); }
+  #rbmodal .rbstep b { display:block; font-size:17px; line-height:1.1; }
+  #rbmodal .rbbody { flex:1; display:flex; min-height:0; }
+  #rbmodal .rbpane { width:430px; flex:none; padding:18px 22px; overflow-y:auto;
+    border-right:1px solid var(--hair); }
+  #rbmodal .rbpane::-webkit-scrollbar { width:9px; }
+  #rbmodal .rbpane::-webkit-scrollbar-thumb { background:rgba(20,61,46,.18); border-radius:5px; }
+  #rbmodal .rbstage { flex:1; background:#E7E3D9; display:flex; align-items:stretch;
+    justify-content:center; padding:16px; min-width:0; }
+  #rbmodal .rbfoot { flex:none; display:flex; align-items:center; gap:10px;
+    padding:12px 20px; border-top:1px solid var(--hair); background:#FBF7EE; }
+  #rbmodal .rbfoot .grow { flex:1; }
+  #rbmodal .stepnote { font-size:12.5px; color:var(--mut); margin:0 0 14px; line-height:1.45; }
+  #rbmodal .rbpane .field:first-of-type { margin-top:0; }
   /* the Roadbook page box: resizable, and the page always fills the box's
      width (FitH below), so a box wider than it is tall shows a full-width
      page and scrolls down it rather than shrinking it to fit */
@@ -422,9 +450,9 @@
   .rc-s { font-size:9.5px; font-weight:700; border:1px solid var(--hair); border-radius:6px;
     background:#fff; color:var(--mut); cursor:pointer; padding:3px 6px; white-space:nowrap; }
   .rc-s.on { background:var(--green); border-color:var(--green); color:#fff; }
-  #rbmodal .rbside { width:290px; flex:none; padding:13px 16px; overflow-y:auto; border-right:1px solid var(--hair); }
   #rbmodal h3 { margin:0 0 4px; font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; }
-  #rbprev { flex:1; border:0; background:#8a8f8a; }
+  #rbprev { flex:1; border:0; background:#8a8f8a; border-radius:8px;
+    box-shadow:0 6px 20px rgba(20,61,46,.18); }
   #wpcard { height:auto; overflow:hidden; resize:none; }   /* fits its content — never scrolls, never resizes */
   .wpnamebox { flex:1; min-width:0; font:inherit; font-size:13px; padding:5px 9px; border:1px solid var(--hair); border-radius:7px; }
   .wpfield { margin-top:6px; }
@@ -890,9 +918,21 @@
 </div>
 <div id="rbmodal">
   <div class="rbcard">
-    <div class="rbside">
-      <h3>Roadbook maker</h3>
-      <div class="field">Event title</div><input type="text" id="rb_title">
+    <div class="rbtop"><b>📖 Roadbook Maker</b><span class="grow"></span>
+      <button class="btn" id="rb_dsave" style="background:rgba(255,255,255,.14)" title="save these layout choices as a small design file">💾 Save design</button>
+      <button class="btn" id="rb_dload" style="background:rgba(255,255,255,.14)" title="load a saved design file">📂 Load</button>
+      <button class="btn" id="rb_close" style="background:rgba(255,255,255,.14)">✕ Close</button></div>
+    <div class="rbsteps" id="rb_steps">
+      <button class="rbstep on" data-step="0"><b>1</b>The book</button>
+      <button class="rbstep" data-step="1"><b>2</b>Columns</button>
+      <button class="rbstep" data-step="2"><b>3</b>Extra pages</button>
+      <button class="rbstep" data-step="3"><b>4</b>Export</button>
+    </div>
+    <div class="rbbody">
+      <div class="rbpane">
+        <div class="rbstepbox" data-step="0">
+          <p class="stepnote">Name it, choose the paper and the look. Everything here changes the whole book.</p>
+          <div class="field">Event title</div><input type="text" id="rb_title">
       <div class="field">Route / subtitle</div><input type="text" id="rb_sub">
       <div id="rb_scoperow" style="display:none">
         <div class="field">Print</div>
@@ -917,7 +957,18 @@
       <div class="hint" id="rb_rowsnote" style="margin-top:2px"></div>
       <div class="field">Distances</div>
       <span class="seg" id="rb_units"><button data-v="km">km</button><button data-v="mi">miles</button><button data-v="both">both</button></span>
-      <div class="field">Front page</div>
+      
+        </div>
+        <div class="rbstepbox" data-step="1" style="display:none">
+          <p class="stepnote">Tick what prints, drag ⠿ to reorder (top of the list = left of the page), and edit any title.</p>
+          <div class="field" id="rb_colshead">Columns <span style="font-weight:400;color:var(--mut)">— tick on/off · drag ⠿ to reorder · titles editable</span></div>
+      <div id="rb_cols"></div>
+      <input type="file" id="rb_dfile" accept=".json,.tulipbook" style="display:none">
+      
+        </div>
+        <div class="rbstepbox" data-step="2" style="display:none">
+          <p class="stepnote">A map of the whole route as page one, and a height profile along the foot of every page.</p>
+          <div class="field">Front page</div>
       <div class="rbtickrow">
         <button class="rc-s" id="rb_mappage" title="start the book with a page showing the whole route on a map">🗺 Map page</button>
         <button class="rc-s" id="rb_mapelev" title="add the height profile as a bar along the bottom of the map page">⛰ Height profile</button>
@@ -932,16 +983,24 @@
       <div class="rbtickrow">
         <button class="rc-s" id="rb_pageelev" title="a thin height profile along the foot of every page, for that page's waypoints">⛰ Height profile strip</button>
       </div>
-      <div class="field" id="rb_colshead">Columns <span style="font-weight:400;color:var(--mut)">— tick on/off · drag ⠿ to reorder · titles editable</span></div>
-      <div id="rb_cols"></div>
-      <div class="rowbtns" style="margin-top:8px">
-        <button class="btn ghost2" id="rb_dsave" title="save these layout choices as a small design file">Save design</button>
-        <button class="btn ghost2" id="rb_dload" title="load a saved design file">Load design</button></div>
-      <input type="file" id="rb_dfile" accept=".json,.tulipbook" style="display:none">
-      <div class="rowbtns"><button class="btn" id="rb_export">Export PDF</button>
-        <button class="btn" id="rb_close" style="background:#f0f2f0">Close</button></div>
+      
+        </div>
+        <div class="rbstepbox" data-step="3" style="display:none">
+          <p class="stepnote">Check the pages alongside, then write the PDF. Everything you've set is remembered for next time.</p>
+          <div class="field">Ready</div>
+          <div class="hint" id="rb_summary" style="line-height:1.6"></div>
+        </div>
+      </div>
+      <div class="rbstage"><iframe id="rbprev"></iframe></div>
     </div>
-    <iframe id="rbprev"></iframe>
+    <div class="rbfoot">
+      <button class="btn" id="rb_back" style="background:#f0f2f0">‹ Back</button>
+      <span class="grow"></span>
+      <span class="hint" id="rb_steplbl" style="margin:0"></span>
+      <span class="grow"></span>
+      <button class="btn" id="rb_next">Next ›</button>
+      <button class="btn green" id="rb_export" style="display:none">⤓ Export PDF</button>
+    </div>
   </div>
 </div>
 <div id="mrmodal">
@@ -1035,7 +1094,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 14";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 15";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -5609,6 +5668,7 @@ $("pdfbtn").onclick=()=>{
   if(!multi) rbOpts.scope="day";
   if(multi) rbSeg("rb_scope","scope");
   $("rbmodal").style.display="flex";
+  rbGoStep(0);                       // always open on step 1
   rbPreview();
 };
 $("rb_title").oninput=rbPreview; $("rb_sub").oninput=rbPreview;
@@ -5636,6 +5696,40 @@ $("rb_dfile").onchange=e=>{
   }).catch(err=>toast("Couldn't load that design: "+err.message,5000));
   e.target.value="";
 };
+/* ---- the maker's four steps: one group of controls at a time ---- */
+let rbStep=0;
+const RB_STEPNAMES=["The book","Columns","Extra pages","Export"];
+function rbGoStep(n){
+  rbStep=Math.max(0,Math.min(3,n));
+  document.querySelectorAll("#rbmodal .rbstepbox").forEach(b=>{
+    b.style.display = (+b.dataset.step===rbStep) ? "block" : "none"; });
+  document.querySelectorAll("#rbmodal .rbstep").forEach(b=>{
+    b.classList.toggle("on", +b.dataset.step===rbStep); });
+  $("rb_back").style.visibility = rbStep===0 ? "hidden" : "visible";
+  $("rb_next").style.display    = rbStep===3 ? "none" : "inline-block";
+  $("rb_export").style.display  = rbStep===3 ? "inline-block" : "none";
+  $("rb_next").textContent = "Next: "+RB_STEPNAMES[Math.min(3,rbStep+1)]+" ›";
+  $("rb_steplbl").textContent = "Step "+(rbStep+1)+" of 4 — "+RB_STEPNAMES[rbStep];
+  if(rbStep===3) rbSummary();
+}
+function rbSummary(){
+  const el=$("rb_summary"); if(!el) return;
+  const on=rbEnabledCols(rbOpts).map(c=>c.t||(RB_COLS_ALL.find(x=>x[0]===c.k)||[])[1]||c.k);
+  const pages=(()=>{ try{ return buildRoadbook({...rbOpts,sub:baseName||"route"},false).getNumberOfPages(); }catch(_){ return "—"; } })();
+  el.innerHTML=
+    "<b>"+(rbOpts.title||"Roadbook")+"</b> · "+(baseName||"route")+"<br>"+
+    ({a4:"A4",a5:"A5",moto:"Moto roll"}[rbOpts.page]||rbOpts.page)+" · "+
+    ({tulip:"Tulip",classic:"Classic",raid:"Raid"}[rbOpts.type]||rbOpts.type)+" · "+
+    rbOpts.rowsPP+" rows a page · tulips "+rbOpts.tulip+"<br>"+
+    "Distances in "+({km:"kilometres",mi:"miles",both:"kilometres and miles"}[rbUnits(rbOpts)])+"<br>"+
+    "Columns: "+(on.join(", ")||"none")+"<br>"+
+    (rbOpts.mapPage?"Map page first"+(rbOpts.mapElev?" with the height profile":"")+"<br>":"")+
+    (rbOpts.pageElev?"Height profile on every page<br>":"")+
+    "<b>"+pages+"</b> page"+(pages===1?"":"s")+" in total";
+}
+document.querySelectorAll("#rbmodal .rbstep").forEach(b=>{ b.onclick=()=>rbGoStep(+b.dataset.step); });
+$("rb_next").onclick=()=>rbGoStep(rbStep+1);
+$("rb_back").onclick=()=>rbGoStep(rbStep-1);
 $("rb_close").onclick=()=>{ $("rbmodal").style.display="none"; };
 $("rbmodal").onclick=e=>{ if(e.target.id==="rbmodal") $("rbmodal").style.display="none"; };
 $("rb_export").onclick=async ()=>{
