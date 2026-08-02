@@ -915,10 +915,22 @@
       <div class="field">Rows per page</div>
       <span class="seg" id="rb_rowseg"><button data-v="6">6</button><button data-v="12">12</button><button data-v="24">24</button></span>
       <div class="hint" id="rb_rowsnote" style="margin-top:2px"></div>
+      <div class="field">Distances</div>
+      <span class="seg" id="rb_units"><button data-v="km">km</button><button data-v="mi">miles</button><button data-v="both">both</button></span>
       <div class="field">Front page</div>
       <div class="rbtickrow">
         <button class="rc-s" id="rb_mappage" title="start the book with a page showing the whole route on a map">🗺 Map page</button>
         <button class="rc-s" id="rb_mapelev" title="add the height profile as a bar along the bottom of the map page">⛰ Height profile</button>
+      </div>
+      <div class="rbtickrow" id="rb_maprow2" style="display:none;align-items:center">
+        <span style="font-size:11.5px;color:var(--mut)">show</span>
+        <span class="seg" id="rb_mapmarks"><button data-v="wp">waypoints</button><button data-v="dist">distance</button></span>
+        <input type="number" id="rb_mapstep" min="1" max="50" step="1" style="width:52px" title="how often to mark the distance">
+        <span style="font-size:11.5px;color:var(--mut)" id="rb_mapstepu">km</span>
+      </div>
+      <div class="field">Every page</div>
+      <div class="rbtickrow">
+        <button class="rc-s" id="rb_pageelev" title="a thin height profile along the foot of every page, for that page's waypoints">⛰ Height profile strip</button>
       </div>
       <div class="field" id="rb_colshead">Columns <span style="font-weight:400;color:var(--mut)">— tick on/off · drag ⠿ to reorder · titles editable</span></div>
       <div id="rb_cols"></div>
@@ -1023,7 +1035,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 13";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 14";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -4904,7 +4916,7 @@ const RB_COLS_ALL=[["inter","INTER"],["total","TOTAL"],["togo","TO GO"],["tulip"
   ["climb","CLIMB"],["gps","GPS"],["wp","WP"]];
 const RB_COLW={inter:50,total:52,togo:56,gps:74,info:92,street:92,height:52,climb:58,wp:49};
 const RB_DEF={title:"Grand Prix of South America",type:"tulip",page:"a4",theme:"dark",rowsPP:12,tulip:"normal",togoIn:0,wpIn:0,gpsIn:0,streetIn:1,badge:"Day 1",motoTulip:"right",motoNotes:"under",scope:"day",
-              caps:"", mapPage:0, mapElev:1,
+              caps:"", mapPage:0, mapElev:1, mapMarks:"wp", mapDistKm:5, pageElev:0, units:"km",
               cols:[{k:"inter",on:1},{k:"total",on:1},{k:"togo",on:0},{k:"tulip",on:1},
                     {k:"direction",on:1},{k:"info",on:1},{k:"street",on:0},{k:"height",on:0},
                     {k:"climb",on:0},{k:"gps",on:0},{k:"wp",on:1}]};
@@ -4942,7 +4954,7 @@ function rbTileUrl(z,x,y){
 function lon2x(lon,z){ return (lon+180)/360*Math.pow(2,z); }
 function lat2y(lat,z){ const r=lat*Math.PI/180;
   return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z); }
-async function rbMapCanvas(wpx,hpx){
+async function rbMapCanvas(wpx,hpx,marks,stepUnits,unit){
   if(!pts.length) return null;
   let n=90,s=-90,w=180,e=-180;
   for(const p of pts){ n=Math.max(n===90?-90:n,p.lat); s=Math.min(s===-90?90:s,p.lat); w=Math.min(w,p.lon); e=Math.max(e,p.lon); }
@@ -4977,13 +4989,27 @@ async function rbMapCanvas(wpx,hpx){
   pts.forEach((p,i)=>{ const [X,Y]=PX(p); i?cx.lineTo(X,Y):cx.moveTo(X,Y); }); cx.stroke();
   cx.strokeStyle="#7b2ff2"; cx.lineWidth=5; cx.beginPath();
   pts.forEach((p,i)=>{ const [X,Y]=PX(p); i?cx.lineTo(X,Y):cx.moveTo(X,Y); }); cx.stroke();
-  wps.filter(w=>!w.deleted).forEach(w=>{
-    const [X,Y]=PX({lat:w.lat,lon:w.lon});
-    cx.fillStyle="#143d2e"; cx.strokeStyle="#fff"; cx.lineWidth=2.5;
-    cx.beginPath(); cx.arc(X,Y,11,0,7); cx.fill(); cx.stroke();
-    cx.fillStyle="#fff"; cx.font="bold 12px Helvetica"; cx.textAlign="center"; cx.textBaseline="middle";
-    cx.fillText(String(w.name).slice(0,3),X,Y+.5);
-  });
+  cx.textAlign="center"; cx.textBaseline="middle";
+  if(marks==="dist"){
+    /* a pip every so many km/miles along the route, instead of the waypoints */
+    const stepKm=Math.max(.5,+stepUnits||5)*(unit==="mi"?1.609344:1);
+    const tot=(cum[cum.length-1]||0)/1000;
+    for(let d=stepKm, n=1; d<tot; d+=stepKm, n++){
+      const [la,lo]=pointAt(d*1000); const [X,Y]=PX({lat:la,lon:lo});
+      cx.fillStyle="#e1694f"; cx.strokeStyle="#fff"; cx.lineWidth=2.5;
+      cx.beginPath(); cx.arc(X,Y,9,0,7); cx.fill(); cx.stroke();
+      cx.fillStyle="#fff"; cx.font="bold 10px Helvetica";
+      cx.fillText(String(Math.round(n*(+stepUnits||5))),X,Y+.5);
+    }
+  } else {
+    wps.filter(w=>!w.deleted).forEach(w=>{
+      const [X,Y]=PX({lat:w.lat,lon:w.lon});
+      cx.fillStyle="#143d2e"; cx.strokeStyle="#fff"; cx.lineWidth=2.5;
+      cx.beginPath(); cx.arc(X,Y,11,0,7); cx.fill(); cx.stroke();
+      cx.fillStyle="#fff"; cx.font="bold 12px Helvetica";
+      cx.fillText(String(w.name).slice(0,3),X,Y+.5);
+    });
+  }
   return cv;
 }
 function rbElevStrip(wpx,hpx){                   // the height profile as a wide, short bar
@@ -5000,10 +5026,10 @@ function rbElevStrip(wpx,hpx){                   // the height profile as a wide
   c.beginPath();
   pts.forEach((p,i)=>{ const X=(cum[i]/tot)*wpx, Y=hpx-8-((p.ele||0)-lo)/rng*(hpx-22); i?c.lineTo(X,Y):c.moveTo(X,Y); });
   c.strokeStyle="#143d2e"; c.lineWidth=2; c.stroke();
-  wps.filter(w=>!w.deleted).forEach(w=>{         // a tick per waypoint along the bar
+  wps.filter(w=>!w.deleted).forEach(w=>{         // a coloured line at every waypoint
     const X=((w.pos||0)/tot)*wpx;
-    c.strokeStyle="rgba(20,61,46,.35)"; c.lineWidth=1;
-    c.beginPath(); c.moveTo(X,hpx-8); c.lineTo(X,10); c.stroke();
+    c.strokeStyle="#e1694f"; c.lineWidth=1.4;
+    c.beginPath(); c.moveTo(X,hpx-8); c.lineTo(X,6); c.stroke();
   });
   c.fillStyle="#5e6e64"; c.font="bold 11px Helvetica"; c.textAlign="left"; c.textBaseline="top";
   c.fillText(`${Math.round(lo)}–${Math.round(hi)} m`,6,4);
@@ -5014,16 +5040,46 @@ function rbElevStrip(wpx,hpx){                   // the height profile as a wide
 let rbMapCache={img:null,elev:null,key:""};
 async function rbPrepMap(o){
   if(!o.mapPage || !pts.length){ rbMapCache={img:null,elev:null,key:""}; return; }
-  const key=[o.page,o.mapElev,pts.length,baseName,(pts[0]||{}).lat,(pts[pts.length-1]||{}).lat].join("|");
+  const key=[o.page,o.mapElev,o.mapMarks,o.mapDistKm,rbUnits(o),pts.length,baseName,(pts[0]||{}).lat,(pts[pts.length-1]||{}).lat].join("|");
   if(rbMapCache.key===key && rbMapCache.img) return;                   // already drawn for this route
   const a5=o.page==="a5";
   const wpx=a5?900:1240, hpx=a5?1150:1560;                             // ~150dpi of the printable area
   const elevH=o.mapElev?Math.round(hpx*0.13):0;
-  const cv=await rbMapCanvas(wpx,hpx-elevH-40);
+  const cv=await rbMapCanvas(wpx,hpx-elevH-40,o.mapMarks,o.mapDistKm,rbUnits(o));
   rbMapCache={ img:cv?cv.toDataURL("image/jpeg",0.86):null,
                imgW:cv?cv.width:0, imgH:cv?cv.height:0,
                elev:o.mapElev?(rbElevStrip(wpx,elevH||1)||null):null, key };
   if(rbMapCache.elev) rbMapCache.elev=rbMapCache.elev.toDataURL("image/png");
+}
+/* a thin profile of only the stretch this page covers, waypoints marked */
+function rbPageElevStrip(fromPos,toPos,chunk,o){
+  if(!pts.some(p=>p.ele)) return null;
+  const a=Math.max(0,Math.min(fromPos,toPos)), b=Math.max(fromPos,toPos);
+  if(b-a<1) return null;
+  const wpx=1100, hpx=110;
+  const cv=document.createElement("canvas"); cv.width=wpx; cv.height=hpx;
+  const c=cv.getContext("2d");
+  c.clearRect(0,0,wpx,hpx);
+  const idx=[]; for(let i=0;i<pts.length;i++){ if(cum[i]>=a&&cum[i]<=b) idx.push(i); }
+  if(idx.length<2) return null;
+  const el=idx.map(i=>pts[i].ele||0), lo=Math.min(...el), hi=Math.max(...el), rng=(hi-lo)||1;
+  const X=i=>((cum[i]-a)/(b-a))*wpx, Y=i=>hpx-14-((pts[i].ele||0)-lo)/rng*(hpx-34);
+  c.beginPath(); c.moveTo(0,hpx-14);
+  idx.forEach(i=>c.lineTo(X(i),Y(i))); c.lineTo(wpx,hpx-14); c.closePath();
+  c.fillStyle="rgba(20,61,46,.14)"; c.fill();
+  c.beginPath(); idx.forEach((i,n)=>n?c.lineTo(X(i),Y(i)):c.moveTo(X(i),Y(i)));
+  c.strokeStyle="#143d2e"; c.lineWidth=2; c.stroke();
+  chunk.forEach(r=>{                       // a coloured line at each waypoint on this page
+    const w=rbWpFor(r); if(!w) return;
+    const x=((w.pos-a)/(b-a))*wpx; if(x<0||x>wpx) return;
+    c.strokeStyle="#e1694f"; c.lineWidth=1.6;
+    c.beginPath(); c.moveTo(x,hpx-14); c.lineTo(x,8); c.stroke();
+    c.fillStyle="#8a3b2c"; c.font="bold 15px Helvetica"; c.textAlign="center"; c.textBaseline="top";
+    c.fillText(String(r.wp),x,hpx-13);
+  });
+  c.fillStyle="#5e6e64"; c.font="bold 15px Helvetica"; c.textAlign="left"; c.textBaseline="top";
+  c.fillText(rbHeightTxt(lo,o)+" \u2013 "+rbHeightTxt(hi,o),4,2);
+  return cv.toDataURL("image/png");
 }
 function rbEnabledCols(o){
   const tulW=({none:0,small:70,normal:100,large:150})[o.tulip]??100;
@@ -5033,6 +5089,27 @@ function rbEnabledCols(o){
   return (o.cols||RB_DEF.cols).filter(c=>c.on&&!(c.k==="tulip"&&!tulW)
       &&!(c.k==="togo"&&hideTogo)&&!(c.k==="wp"&&hideWp)&&!(c.k==="gps"&&hideGps))
     .map(c=>({k:c.k, t:c.t, w:c.k==="tulip"?tulW:(RB_COLW[c.k]||60)}));
+}
+/* ---- units: kilometres, miles, or both ---- */
+function rbUnits(o){ return (o&&o.units)||"km"; }
+function rbDistTxt(km,o,dp){                       // one distance, in the chosen unit(s)
+  if(km==null||isNaN(km)) return "";
+  const u=rbUnits(o), d=dp==null?2:dp, mi=km*0.621371;
+  if(u==="mi") return mi.toFixed(d);
+  if(u==="both") return km.toFixed(d)+" / "+mi.toFixed(d);
+  return km.toFixed(d);
+}
+function rbDistUnitLabel(o){ const u=rbUnits(o); return u==="mi"?"mi":u==="both"?"km / mi":"km"; }
+function rbHeightTxt(m,o){                         // heights follow the distance unit
+  if(m==null||isNaN(m)) return "";
+  const u=rbUnits(o), ft=Math.round(m*3.28084);
+  if(u==="mi") return ft+" ft";
+  if(u==="both") return Math.round(m)+" m / "+ft+" ft";
+  return Math.round(m)+" m";
+}
+function rbClimbTxt(m,o){                          // just the number, unit implied by the arrow
+  if(m==null||isNaN(m)) return "";
+  return rbUnits(o)==="mi" ? String(Math.round(m*3.28084)) : String(Math.round(m));
 }
 function rbFillDistances(){
   if(!pts.length) return;
@@ -5045,20 +5122,25 @@ function rbFillDistances(){
     r.total_km=km.toFixed(2);
     r.inter_km=(km-prev).toFixed(2);
     prev=km;
-    /* height at the waypoint, and how much up / down there is from the
-       waypoint before it — the bikers' numbers */
-    if(haveEle){
-      const idx=nearestVertex({lat:w.lat,lng:w.lon});
-      r.height_m=Math.round(pts[idx]&&pts[idx].ele||0);
+    if(haveEle) r.height_m=Math.round((pts[nearestVertex({lat:w.lat,lng:w.lon})]||{}).ele||0);
+  });
+  /* how much up and down there is from each waypoint TO THE NEXT one —
+     what a biker wants to know before setting off on the leg */
+  if(haveEle){
+    const idxOf=w=>nearestVertex({lat:w.lat,lng:w.lon});
+    alive.forEach((w,n)=>{
+      const r=rowFor(w); if(!r) return;
+      const nx=alive[n+1];
+      if(!nx){ r.climb_up=null; r.climb_dn=null; return; }
+      const a=idxOf(w), b=idxOf(nx);
       let up=0,dn=0;
-      for(let i=Math.min(prevIdx,idx)+1;i<=Math.max(prevIdx,idx);i++){
+      for(let i=Math.min(a,b)+1;i<=Math.max(a,b);i++){
         const d=(pts[i].ele||0)-(pts[i-1].ele||0);
         if(d>0) up+=d; else dn-=d;
       }
       r.climb_up=Math.round(up); r.climb_dn=Math.round(dn);
-      prevIdx=idx;
-    }
-  });
+    });
+  }
 }
 function buildRoadbook(o,previewOnly,onlyPage){
   if(o.type==="moto") return buildMotoRoll(o,previewOnly,onlyPage);
@@ -5085,7 +5167,10 @@ function buildRoadbook(o,previewOnly,onlyPage){
   cols.forEach(c=>{ if(c.k==="direction") c.w=W-2*M-fixed; });
   const XS=[M]; cols.forEach(c=>XS.push(XS[XS.length-1]+c.w));
   const caps=cols.map(c=>c.t||RB_COLS_ALL.find(x=>x[0]===c.k)[1]);
-  const ROW_H=(H-HEAD-M)/NR;
+  /* the optional thin height-profile strip along the foot of every page takes
+     its space from the rows, so nothing overflows the paper */
+  const PELEV=(o.pageElev && pts.some(p=>p.ele)) ? Math.max(26*S, H*0.055) : 0;
+  const ROW_H=(H-HEAD-M-PELEV)/NR;
   const cvs=document.createElement("canvas"); cvs.width=564; cvs.height=480;
   const cctx=cvs.getContext("2d");
   const days=(o.scope==="rally"&&!previewOnly)?rbGatherDays()
@@ -5102,7 +5187,7 @@ function buildRoadbook(o,previewOnly,onlyPage){
     doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(17);
     doc.text(o.title||"Roadbook",M,26*S);
     doc.setFont("helvetica","normal"); FS(10); doc.setTextColor(...GREY);
-    doc.text(((o.sub||baseName||"route")+"   \u00b7   "+((cum[cum.length-1]||0)/1000).toFixed(1)+" km").toUpperCase(),M,43*S);
+    doc.text(((o.sub||baseName||"route")+"   \u00b7   "+rbDistTxt((cum[cum.length-1]||0)/1000,o,1)+" "+rbDistUnitLabel(o)).toUpperCase(),M,43*S);
     doc.addImage(rbMapCache.img,"JPEG",dx,top,dw,dh);
     doc.setDrawColor(...GREY); doc.setLineWidth(.6); doc.rect(dx,top,dw,dh);
     if(rbMapCache.elev) doc.addImage(rbMapCache.elev,"PNG",M,H-M-elevH,availW,elevH);
@@ -5122,7 +5207,7 @@ function buildRoadbook(o,previewOnly,onlyPage){
         doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(17);
         doc.text(o.title||"Roadbook",M,26*S);
         doc.setFont("helvetica","normal"); FS(10);
-        doc.text((day.sub||"route").toUpperCase()+"   ·   "+total.toFixed(1)+" km",M,43*S);
+        doc.text((day.sub||"route").toUpperCase()+"   \u00b7   "+rbDistTxt(total,o,1)+" "+rbDistUnitLabel(o),M,43*S);
         doc.setDrawColor(...INK); doc.setLineWidth(1.4); doc.line(M-4,BAND-8*S,W-M+4,BAND-8*S);
         doc.setLineWidth(.5); doc.line(M-4,BAND-4*S,W-M+4,BAND-4*S);
       } else {
@@ -5130,7 +5215,7 @@ function buildRoadbook(o,previewOnly,onlyPage){
         doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); FS(19);
         doc.text(o.title||"Roadbook",M,30*S);
         doc.setTextColor(...SUBC); FS(11);
-        doc.text((day.sub||"route").toUpperCase()+"   ·   "+total.toFixed(1)+" km",M,50*S);
+        doc.text((day.sub||"route").toUpperCase()+"   \u00b7   "+rbDistTxt(total,o,1)+" "+rbDistUnitLabel(o),M,50*S);
         doc.setFillColor(245,166,35); doc.roundedRect(W-M-64*S,17*S,64*S,30*S,6*S,6*S,"F");
         doc.setTextColor(28,28,33); FS(11.5);
         let badge=(o.badge!=null?o.badge:"Day 1");
@@ -5155,16 +5240,16 @@ function buildRoadbook(o,previewOnly,onlyPage){
         cols.forEach((c,ci)=>{
           const X=XS[ci], CW=c.w;
           if(c.k==="inter"&&r.inter_km){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
-            FS(raid?16:14); doc.text(String(r.inter_km),X+CW/2,mid+4*S,{align:"center"}); }
+            FS(raid?16:14); doc.text(rbDistTxt(parseFloat(r.inter_km),o),X+CW/2,mid+4*S,{align:"center"}); }
           else if(c.k==="total"){ const tk=parseFloat(r.total_km);
             if(!isNaN(tk)){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
               const two=!!o.togoIn;
-              FS(raid?14:11); doc.text(tk.toFixed(2),X+CW/2,mid+(two?-2:3)*S,{align:"center"});
+              FS(raid?14:11); doc.text(rbDistTxt(tk,o),X+CW/2,mid+(two?-2:3)*S,{align:"center"});
               if(two){ doc.setTextColor(...GREY); FS(raid?10:8.5);
-                doc.text((total-tk).toFixed(1),X+CW/2,mid+(raid?11:10)*S,{align:"center"}); } } }
+                doc.text(rbDistTxt(total-tk,o,1),X+CW/2,mid+(raid?11:10)*S,{align:"center"}); } } }
           else if(c.k==="togo"){ const tk=parseFloat(r.total_km);
             if(!isNaN(tk)){ doc.setTextColor(...GREY); doc.setFont("helvetica","bold");
-              FS(raid?13:10.5); doc.text((total-tk).toFixed(1),X+CW/2,mid+3*S,{align:"center"}); } }
+              FS(raid?13:10.5); doc.text(rbDistTxt(total-tk,o,1),X+CW/2,mid+3*S,{align:"center"}); } }
           else if(c.k==="tulip"&&CW>0){
             cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,564,480); cctx.setTransform(3,0,0,3,0,0);
             const sp=parseSpec(r.tulip)||specFromText(r.direction||"");
@@ -5209,11 +5294,11 @@ function buildRoadbook(o,previewOnly,onlyPage){
                 doc.text(ln,X+CW/2,mid-2*S+j*11*S,{align:"center"})); } }
           else if(c.k==="height"){
             if(r.height_m!=null){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
-              FS(raid?13:10.5); doc.text(r.height_m+" m",X+CW/2,mid+3*S,{align:"center"}); } }
-          else if(c.k==="climb"){        // up / down since the waypoint before
-            if(r.climb_up!=null){ doc.setFont("helvetica","bold"); FS(raid?11:9);
-              doc.setTextColor(...INK);  doc.text("▲"+r.climb_up,X+CW/2,mid-2*S,{align:"center"});
-              doc.setTextColor(...GREY); doc.text("▼"+r.climb_dn,X+CW/2,mid+9*S,{align:"center"}); } }
+              FS(raid?13:10.5); doc.text(rbHeightTxt(r.height_m,o),X+CW/2,mid+3*S,{align:"center"}); } }
+          else if(c.k==="climb"){        // up / down on the leg TO THE NEXT waypoint
+            if(r.climb_up!=null){ doc.setFont("helvetica","bold"); FS(raid?11.5:9.5);
+              doc.setTextColor(22,122,58);  doc.text("\u25b2 "+rbClimbTxt(r.climb_up,o),X+CW/2,mid-2*S,{align:"center"});
+              doc.setTextColor(184,42,32);  doc.text("\u25bc "+rbClimbTxt(r.climb_dn,o),X+CW/2,mid+9*S,{align:"center"}); } }
           else if(c.k==="gps"){ const w=rbWpFor(r);
             if(w){ doc.setFont("helvetica","normal"); FS(6.8); doc.setTextColor(...GREY);
               doc.text(w.lat.toFixed(5),X+CW/2,mid-1*S,{align:"center"});
@@ -5234,8 +5319,14 @@ function buildRoadbook(o,previewOnly,onlyPage){
       });
       if(!classic&&!raid){ doc.setDrawColor(...SUBC); doc.setLineWidth(2);
         const gy=HEAD+chunk.length*ROW_H+2; doc.line(M-4,gy,W-M+4,gy); }
+      /* the thin height profile for JUST this page's waypoints, along the foot */
+      if(PELEV && chunk.length){
+        const first=rbWpFor(chunk[0]), last=rbWpFor(chunk[chunk.length-1]);
+        const img=rbPageElevStrip(first?first.pos:0, last?last.pos:0, chunk, o);
+        if(img) doc.addImage(img,"PNG",M,H-M-PELEV+2*S,W-2*M,PELEV-6*S);
+      }
       doc.setFont("helvetica","normal"); FS(6.2); doc.setTextColor(...GREY);
-      doc.text("© Tulip Maps — tulipmaps.com",W/2,H-8*S,{align:"center"});
+      doc.text("\u00a9 Tulip Maps \u2014 tulipmaps.com",W/2,H-8*S,{align:"center"});
     }
   });
   return doc;
@@ -5333,11 +5424,12 @@ function rbLivePageOf(){
    The waypoint you're on is washed pale yellow and the box jumps to its page.
    Redrawing every page is heavy, so it only rebuilds when something that
    changes the PRINT changes; picking another waypoint just re-aims it. */
-let rbLiveKey="";
+let rbLiveKey="", rbLiveAim=0;
 function rbLiveSig(){                                  // what the printed pages depend on
+  const hiPage=rbLivePageOf();                 // the highlight only counts when it lands on another page
   return JSON.stringify([rbOpts,
     rows.map(r=>[r.wp,r.tulip,r.direction,r.info,r.street,r.total_km,r.inter_km,r.height_m,r.climb_up]),
-    baseName]);
+    baseName,hiPage]);
 }
 function rbLiveUpdate(force){
   const card=$("rblivecard");
@@ -5349,9 +5441,16 @@ function rbLiveUpdate(force){
     rbFillDistances();
     const hi=(selWp>=0&&wps[selWp]&&!wps[selWp].deleted)?((rowFor(wps[selWp])||{}).wp):null;
     const pg=rbLivePageOf()+((rbOpts.mapPage&&rbMapCache.img)?1:0)+1;   // 1-based, after any map page
-    const sig=rbLiveSig()+"|"+hi;
-    if(!force && sig===rbLiveKey && rbLiveUrl){                          // nothing printed changed - just re-aim
-      $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH&page="+pg; return;
+    /* Only the CONTENT decides whether to redraw. Stepping to another waypoint
+       on the same page leaves the box completely alone — it used to redraw and
+       re-scroll on every arrow press, which kept yanking the view. The
+       highlight catches up when you land on a different page, edit something,
+       or press the redraw button. */
+    const sig=rbLiveSig();
+    const samePage = rbLiveAim===pg;
+    if(!force && sig===rbLiveKey && rbLiveUrl && samePage) return;       // nothing to do — hold still
+    if(!force && sig===rbLiveKey && rbLiveUrl && !samePage){             // same book, new page → just aim
+      rbLiveAim=pg; $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH&page="+pg; return;
     }
     try{
       const o={...rbOpts,sub:baseName||"route",hiWp:hi};
@@ -5359,7 +5458,7 @@ function rbLiveUpdate(force){
       const doc=buildRoadbook(o,false);                                  // every page, not just one
       if(rbLiveUrl) URL.revokeObjectURL(rbLiveUrl);
       rbLiveUrl=doc.output("bloburl");                                   // blob, not a data: URI - browsers reliably render these in a frame
-      rbLiveKey=sig;
+      rbLiveKey=sig; rbLiveAim=pg;
       $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH&page="+pg;
     }catch(e){ toast("Couldn't draw the roadbook: "+(e&&e.message||e),5000); }
   },force?0:500);
@@ -5386,6 +5485,7 @@ function rbSeg(id,key,num){
     b.classList.toggle("on",String(rbOpts[key])===b.dataset.v);
     b.onclick=()=>{ rbOpts[key]=num?+b.dataset.v:b.dataset.v; rbSeg(id,key,num);
                     if(key==="tulip") rbRowsSync();
+                    if(key==="units"||key==="mapMarks"){ rbMapCache.key=""; rbTypeSync(); }
                     if(key==="type"){ if(b.dataset.v==="raid"&&rbOpts.tulip!=="large"){ rbOpts.tulip="large"; rbSeg("rb_tulip","tulip"); rbRowsSync(); } rbTypeSync(); }
                     if(key==="page") rbTypeSync();
                     rbPreview(); };
@@ -5412,12 +5512,24 @@ function rbTypeSync(){
   ["rb_motorow1","rb_motorow2"].forEach(id=>$(id).style.display=moto?"block":"none");
   ["rb_mototulip","rb_motonotes"].forEach(id=>$(id).style.display=moto?"inline-flex":"none");
   if(moto){ rbSeg("rb_mototulip","motoTulip"); rbSeg("rb_motonotes","motoNotes"); }
-  const mp=$("rb_mappage"), me=$("rb_mapelev");
+  const mp=$("rb_mappage"), me=$("rb_mapelev"), pe=$("rb_pageelev");
   if(mp){ mp.classList.toggle("on",!!rbOpts.mapPage);
           mp.onclick=()=>{ rbOpts.mapPage=rbOpts.mapPage?0:1; rbTypeSync(); rbPreview(); }; }
   if(me){ me.classList.toggle("on",!!rbOpts.mapElev);
           me.style.opacity=rbOpts.mapPage?1:.4;
           me.onclick=()=>{ if(!rbOpts.mapPage) return; rbOpts.mapElev=rbOpts.mapElev?0:1; rbMapCache.key=""; rbTypeSync(); rbPreview(); }; }
+  if(pe){ pe.classList.toggle("on",!!rbOpts.pageElev);
+          pe.onclick=()=>{ rbOpts.pageElev=rbOpts.pageElev?0:1; rbTypeSync(); rbPreview(); }; }
+  const mr2=$("rb_maprow2");
+  if(mr2){ mr2.style.display=rbOpts.mapPage?"flex":"none";
+    rbSeg("rb_mapmarks","mapMarks");
+    const st=$("rb_mapstep"); if(st){ st.value=rbOpts.mapDistKm||5;
+      st.style.display=rbOpts.mapMarks==="dist"?"inline-block":"none";
+      st.onchange=()=>{ rbOpts.mapDistKm=Math.max(1,Math.min(50,+st.value||5)); rbMapCache.key=""; rbPreview(); }; }
+    const su=$("rb_mapstepu"); if(su){ su.textContent=rbUnits(rbOpts)==="mi"?"miles":"km";
+      su.style.display=rbOpts.mapMarks==="dist"?"inline":"none"; }
+  }
+  rbSeg("rb_units","units");
 }
 function rbFits(cols){
   /* would this column set stay readable on the chosen page? fixed columns at
