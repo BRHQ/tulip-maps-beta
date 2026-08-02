@@ -80,7 +80,7 @@ function specToString(sp){
     else if(!m.rail&&!m.off&&dl&&m.a===90) toks.push("ar");
     else { let t="arm:"+m.a; if(m.off||!dl) t+="@"+(m.off||0); if(!dl) t+="*"+Math.round(m.len); if(m.rail) t+="r"; toks.push(t); }
   }
-  if(sp.rb) toks.push(sp.rbS?"rbs":(sp.rbu?"rbu":"rb"));
+  if(sp.rb){ toks.push(sp.rbS?"rbs":(sp.rbu?"rbu":"rb")); if(!sp.rbS&&sp.tilt) toks.push("tilt:"+Math.round(sp.tilt)); }
   if(sp.dirt) toks.push("dirt");
   if(sp.col) toks.push("col:"+sp.col.slice(1).toLowerCase());
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
@@ -541,6 +541,20 @@ function stemDirOf(sp){
   return [Math.sin(t), -Math.cos(t)];
 }
 function stemLen(){ return BRGSTEM; }
+/* the ROTATED roundabout: same idea as the bridge — the ring (and everything
+   attached to it) swings ±45° about the same low pivot, while the entry below
+   the pivot stays straight. Angles in the spec stay in the roundabout's own
+   frame; rbRot maps a point into its tilted position on the canvas. */
+function rbTiltDeg(sp){ return (sp.rb&&!sp.rbS) ? Math.max(-MAXTILT,Math.min(MAXTILT,Math.round(sp.tilt||0))) : 0; }
+function rbRot(sp,pt){
+  const t=rbTiltDeg(sp); if(!t) return pt;
+  const r=t*Math.PI/180, c=Math.cos(r), s=Math.sin(r),
+        px=CXX, py=CYY+30, dx=pt[0]-px, dy=pt[1]-py;
+  return [px+dx*c-dy*s, py+dx*s+dy*c];
+}
+/* which side-road attaches ride the tilt: the ring, the exit stem, and the short
+   entry stub above the pivot (off>193 = further down the fixed entry, stays put) */
+function rbArmRides(off){ return off<193; }
 function brgGeom(sp){
   /* bridge in the middle of the stem, small or full-size large */
   return {L:BRGSTEM, uc:BRGSTEM/2, hh:sp.brgL?20:12};
@@ -549,7 +563,7 @@ function exitShift(sp){ return (sp.rb||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min
 /* the exit base: where the exit stem starts — the junction centre, nudged sideways by the shift */
 function exitBase(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
-  if(sp.rb&&!sp.rbS) return ray(turn,17);
+  if(sp.rb&&!sp.rbS) return rbRot(sp, ray(turn,17));
   /* the green dot is a two-way handle: sideways = the chicane jog (bend),
      up/down = sliding WHERE THE BEND STARTS along the route (lift). On a
      bridge the sideways half is off; the lift works everywhere. The exit
@@ -576,7 +590,8 @@ function symbolSpots(sp){
    the jog. Pulled back if it would run off the canvas or under a corner symbol. */
 function exitTipPt(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn)), [bx,by]=exitBase(sp);
-  const dx=Math.sin(turn*Math.PI/180), dy=-Math.cos(turn*Math.PI/180);
+  const aa=turn+rbTiltDeg(sp);                                   // tilted roundabout: the exit stays radial in its frame
+  const dx=Math.sin(aa*Math.PI/180), dy=-Math.cos(aa*Math.PI/180);
   let len=sp.end?52:68;
   if(sp.brg) len=Math.max(12,len-30);   // the corner sits 30 past the centre — give it back, so the route stays the same overall length
   const pad=15;                                                  // keep the arrow head on the canvas
@@ -624,8 +639,10 @@ function armAttachRB(off,turn){
   if(off<-180) return ray(turn, 17+(-180-off));   // out along the exit stem
   return ray(off,17);                             // on the ring at angle `off`
 }
-function rbNearestOff(x,y,turn){                   // nearest point on that outline → its off code
-  let best=0,bd=1e9; const cons=(p,o)=>{ const d=(p[0]-x)**2+(p[1]-y)**2; if(d<bd){bd=d;best=o;} };
+function rbNearestOff(x,y,turn,sp){                // nearest point on that outline → its off code
+  let best=0,bd=1e9;
+  const cons=(p,o)=>{ if(sp&&rbArmRides(o)) p=rbRot(sp,p);       // sample the outline where it's actually drawn
+    const d=(p[0]-x)**2+(p[1]-y)**2; if(d<bd){bd=d;best=o;} };
   for(let a=-179;a<=180;a+=2) cons(ray(a,17),a);                 // the ring
   for(let r=19;r<=62;r+=2)   cons(ray(180,r),180+(r-17));        // entry stem (straight down)
   for(let r=19;r<=68;r+=2)   cons(ray(turn,r),-180-(r-17));      // exit stem (out along the turn)
@@ -633,7 +650,8 @@ function rbNearestOff(x,y,turn){                   // nearest point on that outl
 }
 /* where a side road's two ends sit: [px,py]=attached end, [tx,ty]=free end. */
 function armGeom(sp,m){ const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn)), cs=quickCS(sp);
-  if(sp.rb){ const [px,py]=armAttachRB(m.off,turn), [tx,ty]=ray(m.a,m.len||38,px,py); return {px,py,tx,ty}; }
+  if(sp.rb){ let p=armAttachRB(m.off,turn); if(rbArmRides(m.off)) p=rbRot(sp,p);
+    const [tx,ty]=ray(m.a,m.len||38,p[0],p[1]); return {px:p[0],py:p[1],tx,ty}; }
   const [px,py]=armAttach(m.off,turn,cs,sp), [tx,ty]=ray(m.a,m.len||38,px,py); return {px,py,tx,ty}; }
 /* how the route line ends: 0 arrow, 1 flat bar, 2 ball (endcap styles 2/3/1) */
 function endStyle(sp){ return sp.end===1?3 : sp.end===2?1 : 2; }
@@ -659,18 +677,23 @@ function quickToElements(sp){
   const cs = vm ? (Math.abs(turn)>=90?0 : Math.abs(turn)<=45?2 : 1)
                 : (sp.cs===undefined?1:sp.cs);
   if(sp.rb&&!sp.rbS){
-    const rr=17;
+    const rr=17, tlt=rbTiltDeg(sp);
     for(const m of sp.arms){                              // side roads on the roundabout — attach along entry stem / ring / exit stem via `off`
-      const [px,py]=armAttachRB(m.off,turn), [ax,ay]=ray(m.a,m.len||38,px,py);
+      let ap=armAttachRB(m.off,turn); if(rbArmRides(m.off)) ap=rbRot(sp,ap);
+      const [px,py]=ap, [ax,ay]=ray(m.a,m.len||38,px,py);
       if(m.rail) railSeg(px,py,ax,ay);
       else els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
     }
-    const [ex,ey]=ray(180,rr);
-    els.push({k:'l',p:[EX,EY,ex,ey],w:9,ss:1,es:0,ds,col:rc});
+    const [ex,ey]=rbRot(sp,ray(180,rr));
+    if(tlt){                                              // tilted: entry stays straight to the pivot, the stub above swings with the ring
+      const pvx=CXX, pvy=CYY+30;
+      els.push({k:'l',p:[EX,EY,pvx,pvy],w:9,ss:1,es:0,ds,col:rc});
+      els.push({k:'l',p:[pvx,pvy,ex,ey],w:9,ss:0,es:0,ds,col:rc});
+    } else els.push({k:'l',p:[EX,EY,ex,ey],w:9,ss:1,es:0,ds,col:rc});
     const arc=(((sp.rbu?turn+180:180-turn)%360)+360)%360||360;
     const sgn=sp.rbu?1:-1, steps=Math.max(3,Math.round(arc/25));
     for(let i=0;i<steps;i++){
-      const [ax,ay]=ray(180+sgn*arc*i/steps,rr), [bx,by]=ray(180+sgn*arc*(i+1)/steps,rr);
+      const [ax,ay]=rbRot(sp,ray(180+sgn*arc*i/steps,rr)), [bx,by]=rbRot(sp,ray(180+sgn*arc*(i+1)/steps,rr));
       els.push({k:'l',p:[ax,ay,bx,by],w:9,ss:0,es:0,ds,col:rc});
     }
     /* the unused half of the ring — its own thin arc, so nothing hides
@@ -679,11 +702,11 @@ function quickToElements(sp){
     if(rem>4){
       const rsteps=Math.max(2,Math.round(rem/25));
       for(let i=0;i<rsteps;i++){
-        const [ax,ay]=ray(180+sgn*(arc+inset+rem*i/rsteps),rr), [bx,by]=ray(180+sgn*(arc+inset+rem*(i+1)/rsteps),rr);
+        const [ax,ay]=rbRot(sp,ray(180+sgn*(arc+inset+rem*i/rsteps),rr)), [bx,by]=rbRot(sp,ray(180+sgn*(arc+inset+rem*(i+1)/rsteps),rr));
         els.push({k:'l',p:[ax,ay,bx,by],w:4,ss:0,es:0,ds});
       }
     }
-    const [rx,ry]=ray(turn,rr), [ox,oy]=ray(turn,sp.end?52:68);
+    const [rx,ry]=rbRot(sp,ray(turn,rr)), [ox,oy]=rbRot(sp,ray(turn,sp.end?52:68));
     pushExit(els,rx,ry,ox,oy,sp,ds,rc);
   } else {
     for(const m of sp.arms){                              // every side road always draws — never hidden by the main route

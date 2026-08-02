@@ -66,8 +66,6 @@
   .colmore { font-size:10.5px; font-weight:700; color:var(--mut); cursor:pointer; display:inline-flex; align-items:center; gap:3px; }
   .colmore input { width:22px; height:22px; border:none; padding:0; background:none; cursor:pointer; }
 
-  /* snap angle bar — the 7 presets are notches the handle sticks to */
-  .snapbar { margin:2px 0 10px; }
   .addrow { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:9px; }
   .addbtn { font-weight:700; }
   #addextra.on { background:var(--green); color:#fff; border-color:var(--green); }
@@ -75,18 +73,6 @@
   .xtag { background:#eef1ee; border:1px solid var(--hair); border-radius:20px; padding:3px 9px; font-size:11px; font-weight:600; color:var(--green); }
   .xtag .x { color:var(--mut); margin-left:2px; }
   .xtag.plain { color:var(--mut); }
-  /* main route bar — thin rail inset to the thumb's travel, soft detent ticks, ringed thumb */
-  .snaptrack { position:relative; height:26px; }
-  .snapline { position:absolute; left:8px; right:8px; top:11px; height:4px; background:#e0e5e0; border-radius:2px; }
-  #snapticks { position:absolute; left:0; right:0; top:0; height:26px; pointer-events:none; }
-  #snapticks .tk { position:absolute; top:8px; width:1.5px; height:10px; background:#cbd2cb; border-radius:1px; transform:translateX(-.75px); }
-  .snaptrack input[type=range] { position:absolute; left:0; top:0; width:100%; height:26px; margin:0; background:transparent; -webkit-appearance:none; appearance:none; cursor:pointer; }
-  .snaptrack input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; box-sizing:border-box; width:16px; height:16px; border-radius:50%;
-    background:var(--green); border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.26), 0 0 0 1px rgba(20,61,46,.18); cursor:grab; }
-  .snaptrack input[type=range]:active::-webkit-slider-thumb { cursor:grabbing; box-shadow:0 2px 7px rgba(0,0,0,.32), 0 0 0 1px rgba(20,61,46,.3); }
-  .snaptrack input[type=range]::-moz-range-thumb { box-sizing:border-box; width:16px; height:16px; border-radius:50%; background:var(--green); border:3px solid #fff; cursor:grab; }
-  .snaptrack input[type=range]::-webkit-slider-runnable-track { height:26px; background:transparent; }
-  .snaptrack input[type=range]::-moz-range-track { height:26px; background:transparent; }
   .toggles { display:flex; gap:4px; flex-wrap:wrap; }
   .seg { display:inline-flex; border:1px solid var(--hair); border-radius:8px; overflow:hidden; }
   .seg button { border:none; background:#f4f6f4; padding:6px 11px; font-size:11.5px; font-weight:600; color:var(--char);
@@ -103,10 +89,11 @@
   #cutchip .desel { background:#f0f2f0; border:1px solid var(--hair); border-radius:7px; padding:6px 10px; font-size:13px; color:var(--mut); line-height:1; }
   #mediabox { position:absolute; right:12px; bottom:12px; z-index:1002; width:250px; background:#fff;
     border:1px solid var(--hair); border-radius:12px; overflow:hidden; box-shadow:0 4px 18px rgba(0,0,0,.28); display:none; }
-  #mediabox .mbhead { display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid #eef1ee; }
-  #mediabox .mbnum { background:var(--green); color:#fff; font-weight:800; font-size:13px; border-radius:6px; padding:2px 8px; }
-  #mediabox .mbtown { font-weight:700; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  #mediabox .mbx { border:none; background:none; color:var(--mut); font-size:15px; cursor:pointer; padding:2px; line-height:1; }
+  #mediabox .mbhead { display:flex; align-items:center; gap:8px; padding:2px 9px; min-height:24px; border-bottom:1px solid #eef1ee; }
+  #mediabox .mbnum { background:var(--green); color:#fff; font-weight:800; font-size:11px; border-radius:6px; padding:1.5px 7px; }
+  #mediabox .mbtown { font-weight:700; font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #mediabox .mbx { font-size:10.5px; font-weight:700; border:1px solid var(--hair); background:var(--card,#fff);
+    color:var(--char,#333); border-radius:6px; padding:2px 8px; cursor:pointer; line-height:1.4; }
   #mediabox img.mbphoto { display:block; width:100%; height:150px; object-fit:cover; cursor:zoom-in; background:#e4ebe2; }
   #mediabox .mbaudio { display:flex; align-items:center; gap:9px; padding:9px 10px; }
   #mediabox .mbplay { width:32px; height:32px; border-radius:50%; border:none; background:var(--green); color:#fff;
@@ -138,8 +125,9 @@
   .btn.danger { background:#d9534f; color:#fff; }
   .btn.green { background:var(--green); color:#fff; }
   /* tulip card */
-  .canvaswrap { position:relative; margin-bottom:8px; }
-  #tulipcard canvas#big { display:block; width:100%; height:auto; aspect-ratio:602/512; background:#fafbfa; border:1px solid var(--hair); border-radius:9px; touch-action:none; }
+  .canvaswrap { position:relative; margin:-8px -12px 8px; }   /* bleed to the card's side edges and up under the header */
+  #tulipcard canvas#big { display:block; width:100%; height:auto; aspect-ratio:646/528; background:#fafbfa;
+    border:none; border-bottom:1px solid var(--hair); border-radius:0; touch-action:none; }
   /* click-a-corner symbol slots overlaid on the tulip picture */
   #corners { position:absolute; inset:0; pointer-events:none; z-index:2; display:none; }
   #corners .cbtn { position:absolute; padding:0; pointer-events:auto; cursor:pointer;
@@ -299,8 +287,11 @@
   #routebox { position:fixed; left:50%; transform:translateX(-50%); top:74px; z-index:1560;
     width:238px; background:var(--card,#fff); border:1px solid var(--hair); border-radius:12px;
     box-shadow:0 14px 34px rgba(20,61,46,.25); padding:9px 11px 11px; }
-  #routebox .rbx-head { display:flex; align-items:center; margin-bottom:4px; }
-  #routebox .rbx-t { flex:1; font-weight:800; font-size:11px; letter-spacing:.5px; text-transform:uppercase; color:var(--mut); }
+  #routebox .rbx-head { display:flex; align-items:center; gap:6px; margin:-9px -11px 8px; padding:2px 9px;
+    background:#f6f8f5; border-bottom:1px solid var(--hair); border-radius:12px 12px 0 0; }
+  #routebox .rbx-t { flex:1; font-weight:700; font-size:11.5px; color:var(--char); }
+  .rbx-head .rs-hbtn { flex:none; font-size:10.5px; font-weight:700; border:1px solid var(--hair);
+    background:var(--card); color:var(--char); border-radius:6px; padding:2px 8px; cursor:pointer; line-height:1.4; }
   #routebox .rbx-row { display:flex; gap:6px; margin-top:8px; }
   #routebox .rbx-row .btn { flex:1.3; padding:7px 4px; font-size:12.5px; }
   .rbx-b { flex:1; background:#fff; border:1px solid var(--hair); border-radius:8px; font-size:12px;
@@ -475,13 +466,18 @@
   #mrmodal .mrrow2 { display:flex; justify-content:flex-end; margin-top:10px; }
   #mrmodal .mrclose { background:#f0f2f0; border:1px solid var(--hair); border-radius:8px; padding:7px 15px;
     font-size:12.5px; font-weight:700; color:var(--char); cursor:pointer; }
-  #signmodal { display:none; position:fixed; inset:0; z-index:3200; background:rgba(12,18,14,.55);
-    align-items:center; justify-content:center; }
-  #signmodal .signcard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
-    width:560px; max-width:94vw; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; }
-  #signmodal .signhd { display:flex; align-items:center; gap:10px; padding:13px 16px; border-bottom:1px solid var(--hair); }
-  #signmodal .signhd b { font-size:15px; color:var(--char); }
+  /* the symbol picker is an overlay box like the others — no dimmed screen behind it */
+  #signmodal { display:none; position:fixed; left:50%; top:86px; transform:translateX(-50%); z-index:3200;
+    width:560px; max-width:94vw; }
+  #signmodal .signcard { background:var(--card,#fff); border:1px solid var(--hair); border-radius:14px;
+    box-shadow:0 12px 30px rgba(20,61,46,.25); max-height:74vh; display:flex; flex-direction:column; overflow:hidden; }
+  #signmodal .signhd { display:flex; align-items:center; gap:6px; padding:2px 9px; min-height:24px;
+    background:#f6f8f5; border-bottom:1px solid var(--hair); border-radius:14px 14px 0 0; cursor:grab; touch-action:none; }
+  #signmodal .signhd:active { cursor:grabbing; }
+  #signmodal .signhd b { font-size:11.5px; font-weight:700; color:var(--char); }
   #signmodal .signhd .grow { flex:1; }
+  #signmodal .signhd .rs-hbtn { flex:none; font-size:10.5px; font-weight:700; border:1px solid var(--hair);
+    background:var(--card); color:var(--char); border-radius:6px; padding:2px 8px; cursor:pointer; line-height:1.4; }
   #signmodal .signbody { padding:4px 14px 16px; overflow-y:auto; }
   #signmodal h4 { margin:14px 0 7px; font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; }
   .signgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(82px,1fr)); gap:8px; }
@@ -496,13 +492,14 @@
     background:var(--green); color:#fff; padding:11px 20px; border-radius:10px; font-weight:700;
     font-size:14px; box-shadow:0 6px 20px rgba(0,0,0,.35); display:none; }
   #trackcolor { position:absolute; z-index:1000; flex-direction:column;
-    display:none; gap:4px; background:rgba(255,255,255,.97); border-radius:10px; padding:3px 5px 6px;
-    box-shadow:0 3px 12px rgba(0,0,0,.3); }
+    display:none; background:rgba(251,247,238,.97); border:1px solid var(--hair); border-radius:14px; padding:0;
+    box-shadow:0 12px 30px rgba(20,61,46,.18); }
+  #trackcolor .tcbody { display:flex; flex-direction:column; gap:4px; padding:6px 8px 7px; }
   #trackcolor .tcrow { display:flex; gap:4px; }
-  #trackcolor button { border:none; background:#f0f2f0; border-radius:7px; padding:5px 11px; font:inherit;
+  #trackcolor .tcbody button { border:none; background:#f0f2f0; border-radius:7px; padding:5px 11px; font:inherit;
     font-size:12px; font-weight:700; color:var(--char); cursor:pointer; }
-  #trackcolor button.on { background:var(--green); color:#fff; }
-  #trackcolor button:disabled { opacity:.4; cursor:default; }
+  #trackcolor .tcbody button.on { background:var(--green); color:#fff; }
+  #trackcolor .tcbody button:disabled { opacity:.4; cursor:default; }
   #tclegend { display:none; align-items:center; justify-content:center; gap:7px; font-size:11px; margin-top:1px; }
   #tclegend b { color:var(--mut); font-size:9px; letter-spacing:.5px; }
   #tclegend .tcbar { width:64px; height:8px; border-radius:4px; display:inline-block; }
@@ -748,13 +745,6 @@
         <div id="degov">0°</div>
       </div>
       <div id="quickui">
-        <div class="snapbar">
-          <div class="snaptrack">
-            <div class="snapline"></div>
-            <div id="snapticks"></div>
-            <input type="range" id="angle" min="-160" max="160" step="5" value="0">
-          </div>
-        </div>
         <div class="csrow">
           <button id="colbox" title="colour of the main road"></button>
           <button class="tog ico" id="t_cs" title="corner: Curvy — click to swap"></button>
@@ -941,10 +931,10 @@
 </div>
 <div id="signmodal">
   <div class="signcard">
-    <div class="signhd">
+    <div class="signhd" id="signdrag">
       <b id="signtitle">Road signs</b><span class="grow"></span>
-      <button class="tog" id="signnone">✕ none</button>
-      <button class="tog" id="signclose">Close</button>
+      <button class="rs-hbtn" id="signnone">✕ none</button>
+      <button class="rs-hbtn rs-x" id="signclose" title="close">✕</button>
     </div>
     <div class="signbody" id="signbody"></div>
   </div>
@@ -971,13 +961,13 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js"></script>
+<script src="tulip_core.js?v=1aug1"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 1 Aug · 1";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 1 Aug · 2";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1667,6 +1657,11 @@ function toggleSearch(on){
   const sv=$("svbox"); if(!sv) return;
   sv.classList.add("mpanel");
   const head=document.createElement("div"); head.className="mph"; head.innerHTML='<span class="mpt">Street view</span>';
+  const svx=document.createElement("button"); svx.className="rs-hbtn rs-x"; svx.textContent="✕";
+  svx.title="close street view";
+  svx.addEventListener("pointerdown",e=>e.stopPropagation());
+  svx.onclick=e=>{ e.stopPropagation(); sv.style.display="none"; };
+  head.appendChild(svx);
   sv.insertBefore(head, sv.firstChild);
   const panel={el:sv,head,body:sv,id:"p-sv",title:"Street view",snapH:"right",snapV:"bottom",freeX:null,freeY:null};
   MP.list.push(panel); mpDrag(panel);
@@ -1886,8 +1881,24 @@ function redraw(){
   hitline.on("contextmenu",onLineContext);
   recompute(); renderList();
   applyTrackColor();
+  refreshAllTp();
   if(typeof drawElevation==="function") drawElevation();
 }
+/* ── Show all track points (Menu → Views): every point as a pale dot, the
+      selected one stays the vibrant red it is now ── */
+let allTpOn=false; try{ allTpOn=localStorage.getItem("vmstudio_alltp")==="1"; }catch(_){}
+let allTpLayer=null;
+function refreshAllTp(){
+  if(allTpLayer){ allTpLayer.remove(); allTpLayer=null; }
+  if(!allTpOn || !pts || pts.length<2) return;
+  const rend=L.canvas({padding:.3});
+  const g=L.layerGroup();
+  for(let i=0;i<pts.length;i++)
+    g.addLayer(L.circleMarker([pts[i].lat,pts[i].lon],
+      {renderer:rend,radius:6,color:"#fff",weight:1.5,fillColor:"#ff9aa2",fillOpacity:.9,interactive:false}));
+  allTpLayer=g.addTo(map);
+}
+window.setAllTp=function(on){ allTpOn=!!on; try{ localStorage.setItem("vmstudio_alltp",on?"1":"0"); }catch(_){ } refreshAllTp(); };
 /* ---------- colour the track by speed / altitude / slope ----------
    Same idea as the app: the recorded track carries a speed + altitude at every
    point, so we can recolour the line. Speed for every point is derived from
@@ -1951,7 +1962,7 @@ function drawColorLegend(lo,hi){
 }
 function buildTrackColorControl(){
   const box=document.createElement("div"); box.id="trackcolor"; box.style.display="none";
-  const head=document.createElement("div"); head.className="mph mph-grip"; head.innerHTML='<span class="mpt mpgrip">⠿</span>';
+  const head=document.createElement("div"); head.className="mph"; head.innerHTML='<span class="mpt">Track Filters</span>';
   const rowc=document.createElement("div"); rowc.className="tcrow";
   for(const [cm,lab] of [["line","Line"],["speed","Speed"],["alt","Alt"],["slope","Slope"]]){
     const b=document.createElement("button"); b.dataset.cm=cm; b.textContent=lab;
@@ -1959,7 +1970,8 @@ function buildTrackColorControl(){
     rowc.append(b);
   }
   const lg=document.createElement("div"); lg.id="tclegend"; lg.style.display="none";
-  box.append(head, rowc, lg);                       // grip on top, buttons in a row, legend beneath
+  const bodyw=document.createElement("div"); bodyw.className="tcbody"; bodyw.append(rowc, lg);
+  box.append(head, bodyw);                          // standard slim header, buttons + legend in the padded body
   map.getContainer().appendChild(box);
   L.DomEvent.disableClickPropagation(box);
   const panel={el:box, head, body:rowc, id:"p-trackcolor", title:"Track Filters",
@@ -2819,18 +2831,37 @@ function cutRange(){
 
 /* ---------- tulip panel ---------- */
 const SCALE=3.2;
+/* the canvas bleeds to the card edges: a margin of drawing space all round the
+   188×160 tulip frame, so the tulip itself stays the same size and position */
+const MU_X=7, MU_Y=5;                                  // extra units: each side / above
+const CANW=Math.round((TW+2*MU_X)*SCALE), CANH=Math.round((THh+MU_Y)*SCALE);   // 646×528
+$("big").width=CANW; $("big").height=CANH;
+$("big").style.aspectRatio=CANW+"/"+CANH;
 function mark(){ liveWrite(); }
 function repaint(){
   const ctx=$("big").getContext("2d");
-  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,602,512);
-  ctx.setTransform(SCALE,0,0,SCALE,0,0);
+  ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,CANW,CANH);
+  ctx.setTransform(SCALE,0,0,SCALE,MU_X*SCALE,MU_Y*SCALE);
   if(els&&snap){ ctx.strokeStyle="#e6eae6"; ctx.lineWidth=.4;
     for(let x=0;x<=TW;x+=GRID){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,THh); ctx.stroke(); }
     for(let y=0;y<=THh;y+=GRID){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(TW,y); ctx.stroke(); } }
   if(els){ drawElements(ctx,els); drawHandles(ctx); drawPathPreview(ctx); drawMagnet(ctx); }
-  else if(cur && !tulipBlank){ drawQuick(ctx,cur); drawArmHandles(ctx); drawExitHandle(ctx);
+  else if(cur && !tulipBlank){ drawQuickEd(ctx,cur); drawArmHandles(ctx); drawExitHandle(ctx);
     if(cornDrag) drawElements(ctx,[{k:'s',name:cornDrag.sym,p:[cornDrag.x,cornDrag.y],sc:1}]); }   // corner symbol following the cursor
   // when tulipBlank the canvas stays empty — the tulip appears the moment a control is touched
+}
+/* quick drawing on the ENLARGED editor canvas: symbols parked in a corner are
+   nudged out to the true canvas corners (the roadbook keeps them at its own
+   cell corners — each frame hugs its corners). Everything else is untouched. */
+function drawQuickEd(ctx,sp){
+  const q=quickToElements(sp);
+  for(const e of q){
+    if(e.k!=='s'||!e.p) continue;
+    const [x,y]=e.p;
+    if((x<44||x>TW-44)&&(y<44||y>THh-44))
+      e.p=[x+(x<TW/2?-MU_X:MU_X), y+(y<THh/2?-MU_Y:0)];
+  }
+  drawElements(ctx,q);
 }
 /* the main arrow (the exit) as a grab handle — a green ring at its tip, shown only when no side road is selected */
 function exitTip(sp){ return exitTipPt(sp); }                    // tip rides the shifted base, so it matches the drawing
@@ -2839,26 +2870,32 @@ function drawExitHandle(ctx){
   const [ex,ey]=exitTip(cur);
   ctx.fillStyle="rgba(255,255,255,.4)"; ctx.strokeStyle="#1f9d57"; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(ex,ey,5,0,7); ctx.fill(); ctx.stroke();
-  if(!cur.rb){                                                   // green centre dot — jogs the exit sideways; on a BRIDGE it slides the bend along the stem
+  if(!cur.rb && !cur.brg){                                       // green centre dot — jogs the exit sideways (plain line only)
     const [bx,by]=exitBendPt(cur);
     ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.arc(bx,by,4.6,0,7); ctx.fill(); ctx.stroke();
-    if(cur.brg){                                                 // the second, lower dot: tilts the stem (and the bridge with it)
-      const [tx,ty]=tiltDotPt(cur);
-      ctx.beginPath(); ctx.arc(tx,ty,4.6,0,7); ctx.fill(); ctx.stroke();
-    }
+  }
+  if(cur.brg || (cur.rb&&!cur.rbS)){                             // ONE dot mid-route: grab it to swing the stem+bridge / the roundabout ±45°
+    const [tx,ty]=tiltDotPt(cur);
+    ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
+    ctx.beginPath(); ctx.arc(tx,ty,4.6,0,7); ctx.fill(); ctx.stroke();
   }
 }
 function exitHit(sp,x,y){ const [ex,ey]=exitTip(sp); return (x-ex)**2+(y-ey)**2 < 64; }   // r8
-function tiltDotPt(sp){ return brgPivot(); }
-function tiltHit(sp,x,y){ if(!sp.brg) return false; const [tx,ty]=tiltDotPt(sp); return (x-tx)**2+(y-ty)**2 < 49; }
+function tiltDotPt(sp){
+  if(sp.rb&&!sp.rbS) return rbRot(sp,[CXX,CYY]);                 // ring centre, riding the tilt
+  const [px,py]=brgPivot(), [dx2,dy2]=stemDirOf(sp);
+  return [px+dx2*BRGSTEM/2, py+dy2*BRGSTEM/2];                   // stem centre — the middle of the route, under the bridge
+}
+function tiltHit(sp,x,y){ if(!(sp.brg||(sp.rb&&!sp.rbS))) return false; const [tx,ty]=tiltDotPt(sp); return (x-tx)**2+(y-ty)**2 < 49; }
 function bendHit(sp,x,y){ if(sp.rb||sp.brg) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
 function bendFromPoint(sp,x,y){ return Math.round(x-CXX); }      // jog: horizontal distance from the junction (left/right only)
 function segDist(x,y,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy||1; let t=((x-ax)*dx+(y-ay)*dy)/L2; t=t<0?0:t>1?1:t; return Math.hypot(x-(ax+t*dx), y-(ay+t*dy)); }
 function routeHit(sp,x,y){                                       // anywhere on the thick main route — click it to select
   const [bx0,by0]=exitBase(sp), [tx,ty]=exitTipPt(sp);
-  if(sp.rb){ const [ex,ey]=ray(180,17);
-    return segDist(x,y,EX,EY,ex,ey)<9 || segDist(x,y,bx0,by0,tx,ty)<9 || Math.abs(Math.hypot(x-CXX,y-CYY)-17)<9; }
+  if(sp.rb){ const [ex,ey]=rbRot(sp,ray(180,17)), [pvx,pvy]=brgPivot(), rc2=rbRot(sp,[CXX,CYY]);
+    return segDist(x,y,EX,EY,pvx,pvy)<9 || segDist(x,y,pvx,pvy,ex,ey)<9 ||
+           segDist(x,y,bx0,by0,tx,ty)<9 || Math.abs(Math.hypot(x-rc2[0],y-rc2[1])-17)<9; }
   return segDist(x,y,EX,EY,CXX,CYY)<9 || segDist(x,y,CXX,CYY,bx0,by0)<9 || segDist(x,y,bx0,by0,tx,ty)<9;
 }
 /* quick mode: grab-dots on the SELECTED side road — free end (solid) + attached end (ring, non-roundabout) */
@@ -3125,18 +3162,6 @@ function renderExtraTags(){
   if(cur.warn) chip(cur.warn===2?"danger":"warn",true,()=>{ cur.warn=0; mark(); syncQuick(); repaint(); });
   if(cur.sign) chip("sign "+signLabel(cur.sign),true,()=>{ cur.sign=""; mark(); syncQuick(); repaint(); });
 }
-const SNAP_ANGLES=[-135,-90,-45,0,45,90,135];
-function snapPct(a){ return (a+160)/320*100; }
-function nearestDetent(a){ let b=SNAP_ANGLES[0],bd=1e9;
-  for(const d of SNAP_ANGLES){ const dd=Math.abs(d-a); if(dd<bd){bd=dd;b=d;} } return {a:b}; }
-function buildSnapBar(){
-  const tk=$("snapticks");
-  if(!tk||tk.children.length) return;
-  for(const d of SNAP_ANGLES){
-    const frac=(d+160)/320;                          // match the thumb: inset by half its 16px width at each end
-    const t=document.createElement("div"); t.className="tk"; t.style.left="calc((100% - 16px) * "+frac+" + 8px)"; tk.append(t);
-  }
-}
 let degTimer=null;
 function showDeg(a){
   const el=$("degov"); if(!el) return;
@@ -3145,8 +3170,6 @@ function showDeg(a){
 }
 function syncQuick(){
   if(!cur)return;
-  const a=cur.turn==null?0:cur.turn;
-  $("angle").value=a;
   for(const k of TOGGLES) $("t_"+k).classList.toggle("on",!!cur[k]);
   $("t_rb").classList.toggle("on",!!cur.rb);
   // a roundabout has no sharp/curvy corner — swap that pair out for the EU/UK
@@ -3197,16 +3220,8 @@ $("addarm").onclick=()=>{
   cur.arms.push(m);
   armSel=cur.arms.length-1; hideHandles=false; mark(); syncQuick(); repaint();
 };
-$("angle").oninput=e=>{
-  if(!cur)return;
-  let a=parseInt(e.target.value);
-  if(cur.brg){ const lo=Math.max(-160,(cur.tilt||0)-135), hi=Math.min(160,(cur.tilt||0)+135);
-    if(a<lo){a=lo;e.target.value=a;} if(a>hi){a=hi;e.target.value=a;} }
-  const nd=nearestDetent(a);
-  if(Math.abs(nd.a-a)<=12){ a=nd.a; e.target.value=a; }   // notch magnet
-  cur.turn=a; showDeg(a); mark(); syncQuick(); repaint();
-};
-buildSnapBar();
+/* (the direction slider is gone — the green dots on the canvas set the angle;
+   the ° readout still pops up over the canvas while the arrow is dragged) */
 for(const k of TOGGLES) $("t_"+k).onclick=()=>{ if(!cur)return; cur[k]=!cur[k]; mark(); syncQuick(); repaint(); };
 /* the bridge needs more than a plain toggle: it owns the junction centre, so the
    chicane jog resets and the exit can't fold past 135° while it's on */
@@ -3214,7 +3229,7 @@ $("t_brg").onclick=()=>{ if(!cur)return;
   cur.brg=!cur.brg;
   if(cur.brg){ if(cur.bend) cur.bend=0;
     if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135);
-    cur.rb=false; cur.rbu=false; cur.lx=false; }   // the centre holds ONE thing
+    cur.rb=false; cur.rbu=false; cur.lx=false; cur.tilt=0; }   // the centre holds ONE thing — and starts flat
   else { cur.brgL=false; cur.brgx=""; cur.tilt=0; }
   mark(); syncQuick(); repaint(); };
 
@@ -3246,12 +3261,28 @@ $("signnone").onclick=()=>{
   }
   closeSignPicker();
 };
-$("signmodal").onclick=e=>{ if(e.target.id==="signmodal") closeSignPicker(); };
+/* the picker is a floating box now — drag it round by its header */
+(function(){
+  const box=$("signmodal"), head=$("signdrag"); if(!box||!head) return;
+  let d=null;
+  head.addEventListener("pointerdown",e=>{
+    if(e.target.closest("button")) return;
+    const r=box.getBoundingClientRect();
+    box.style.left=r.left+"px"; box.style.top=r.top+"px"; box.style.transform="none";
+    d={sx:e.clientX,sy:e.clientY,ox:r.left,oy:r.top};
+    try{head.setPointerCapture(e.pointerId);}catch(_){}
+    e.preventDefault();
+  });
+  head.addEventListener("pointermove",e=>{ if(!d) return;
+    box.style.left=Math.max(4,Math.min(innerWidth-80, d.ox+e.clientX-d.sx))+"px";
+    box.style.top =Math.max(4,Math.min(innerHeight-40, d.oy+e.clientY-d.sy))+"px"; });
+  head.addEventListener("pointerup",()=>{ d=null; });
+})();
 $("t_rb").onclick=()=>{ cur.rb=!cur.rb;
-  if(cur.rb){ cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; }
-  else { cur.rbu=false; cur.rbS=false; }
+  if(cur.rb){ cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; cur.tilt=0; }
+  else { cur.rbu=false; cur.rbS=false; cur.tilt=0; }
   mark(); syncQuick(); repaint(); };
-$("rbs_s").onclick=()=>{ if(!cur)return; cur.rbS=true; cur.rbu=false; mark(); syncQuick(); repaint(); };
+$("rbs_s").onclick=()=>{ if(!cur)return; cur.rbS=true; cur.rbu=false; cur.tilt=0; mark(); syncQuick(); repaint(); };
 $("rbs_l").onclick=()=>{ if(!cur)return; cur.rbS=false; mark(); syncQuick(); repaint(); };
 $("rb_eu").onclick=()=>{ cur.rbu=false; mark(); syncQuick(); repaint(); };
 $("rb_uk").onclick=()=>{ cur.rbu=true; mark(); syncQuick(); repaint(); };
@@ -3623,7 +3654,7 @@ $("etext").oninput=e=>{ if(esel>=0&&els[esel].k==='t'){ els[esel].text=e.target.
 let drag=null;
 function canvasPt(ev){
   const r=$("big").getBoundingClientRect();
-  return [(ev.clientX-r.left)*(602/r.width)/SCALE,(ev.clientY-r.top)*(512/r.height)/SCALE];
+  return [(ev.clientX-r.left)*(CANW/r.width)/SCALE-MU_X,(ev.clientY-r.top)*(CANH/r.height)/SCALE-MU_Y];
 }
 function distToEl(e,x,y){
   const seg=(x1,y1,x2,y2)=>{
@@ -3664,7 +3695,7 @@ function armHit(sp,x,y){
   return null;
 }
 function offFromPoint(sp,x,y){                                    // where to attach the road, from the cursor
-  if(sp.rb&&!sp.rbS) return rbNearestOff(x,y,armTurn(sp));        // large roundabout: entry stem / ring / exit stem
+  if(sp.rb&&!sp.rbS) return rbNearestOff(x,y,armTurn(sp),sp);     // large roundabout: entry stem / ring / exit stem (tilt-aware)
   const turn=armTurn(sp), cs=quickCS(sp); let best=0,bd=1e9;
   const top=55+Math.abs(exitShift(sp));                            // the jog adds length to slide along
   /* slide range reaches the start ball: on a bridge that's pivot→ball past the
@@ -3673,7 +3704,7 @@ function offFromPoint(sp,x,y){                                    // where to at
   for(let o=lo;o<=top;o++){ const [ax,ay]=armAttach(o,turn,cs,sp); const d=(ax-x)**2+(ay-y)**2; if(d<bd){bd=d;best=o;} }
   return best;
 }
-function cornerPos(){ return {tl:[26,24], tr:[TW-26,26], bl:[26,THh-28], br:[TW-26,THh-28]}; }
+function cornerPos(){ return {tl:[26-MU_X,24-MU_Y], tr:[TW-26+MU_X,26-MU_Y], bl:[26-MU_X,THh-28], br:[TW-26+MU_X,THh-28]}; }   // hugged out to the TRUE canvas corners
 function nearestCorner(x,y){ const P=cornerPos(); let best=null,bd=30*30;   // snap-in radius — near a corner, not the whole quadrant
   for(const k in P){ const d=(x-P[k][0])**2+(y-P[k][1])**2; if(d<bd){bd=d;best=k;} } return best; }
 function quickDown(ev){
@@ -3689,16 +3720,19 @@ function quickDown(ev){
 }
 function quickMove(ev){
   const [x,y]=canvasPt(ev);
-  if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
-  if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur); const lo=cur.brg?Math.max(-160,(cur.tilt||0)-135):-160, hi=cur.brg?Math.min(160,(cur.tilt||0)+135):160; cur.turn=Math.max(lo,Math.min(hi,snapAngle(Math.atan2(x-pbx, pby-y)*180/Math.PI))); repaint(); return; }   // main arrow → the exit angle (about the true corner, lifted or jogged)
+  if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)||tiltHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
+  if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur); const lo=cur.brg?Math.max(-160,(cur.tilt||0)-135):-160, hi=cur.brg?Math.min(160,(cur.tilt||0)+135):160;
+    let raw=Math.atan2(x-pbx, pby-y)*180/Math.PI;
+    if(cur.rb&&!cur.rbS) raw-=rbTiltDeg(cur);                                // tilted roundabout: store the angle in its own frame
+    cur.turn=Math.max(lo,Math.min(hi,snapAngle(raw))); showDeg(cur.turn); repaint(); return; }   // main arrow → the exit angle (about the true corner, lifted or jogged)
   if(armDrag.mode==='tilt'){
-    /* swing the stem about the pivot: dot sideways = stem (and bridge) angle */
+    /* swing about the pivot: dot sideways = stem+bridge / roundabout angle */
     const [px,py]=brgPivot();
     let th=Math.atan2(x-px, py-y)*180/Math.PI;
     if(Math.abs(th)<4) th=0;                                                 // gentle magnet at straight
     cur.tilt=Math.max(-45,Math.min(45,Math.round(th)));
-    /* keep the exit inside its 135°-of-the-stem window as the stem swings */
-    cur.turn=Math.max(Math.max(-160,cur.tilt-135),Math.min(Math.min(160,cur.tilt+135),cur.turn||0));
+    /* bridge only: keep the exit inside its 135°-of-the-stem window as the stem swings */
+    if(cur.brg) cur.turn=Math.max(Math.max(-160,cur.tilt-135),Math.min(Math.min(160,cur.tilt+135),cur.turn||0));
     repaint(); return; }
   if(armDrag.mode==='bend'){
     cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y)));              // the chicane jog — sideways only
@@ -3713,7 +3747,7 @@ function quickMove(ev){
 function quickUp(){ if(armDrag){ armDrag=null; $("big").style.cursor="grab"; mark(); syncQuick(); repaint(); } }
 function addArmAt(x,y){
   let off, ax, ay;
-  if(cur.rb){ off=rbNearestOff(x,y,armTurn(cur)); [ax,ay]=armAttachRB(off,armTurn(cur)); }
+  if(cur.rb){ off=rbNearestOff(x,y,armTurn(cur),cur); [ax,ay]=armAttachRB(off,armTurn(cur)); if(rbArmRides(off)) [ax,ay]=rbRot(cur,[ax,ay]); }
   else { off=offFromPoint(cur,x,y); [ax,ay]=armAttach(off,armTurn(cur),quickCS(cur),cur); }
   const a=Math.max(-170,Math.min(170,snapAngle(Math.atan2(x-ax, ay-y)*180/Math.PI)));
   const len=Math.max(30,Math.min(72,Math.round(Math.hypot(x-ax,y-ay))));
@@ -4778,7 +4812,7 @@ function buildMotoRoll(o,previewOnly,onlyPage){
 }
 let rbTimer=null, rbPrevUrl=null;
 /* ── the live page preview ── */
-let rbLiveTimer=null;
+let rbLiveTimer=null, rbLiveUrl=null;
 function rbLivePageOf(){
   if(selWp<0||!wps[selWp]||wps[selWp].deleted) return 0;
   const r=rowFor(wps[selWp]); if(!r) return 0;
@@ -4800,7 +4834,9 @@ function rbLiveUpdate(){
     try{
       const pg=rbLivePageOf();
       const doc=buildRoadbook({...rbOpts,sub:baseName||"route"},true,pg);
-      $("rbliveimg").src=doc.output("datauristring")+"#toolbar=0&view=Fit";
+      if(rbLiveUrl) URL.revokeObjectURL(rbLiveUrl);
+      rbLiveUrl=doc.output("bloburl");                     // blob, not a data: URI — browsers reliably render these in a frame
+      $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=Fit";
       $("rblivehint").textContent="page "+(pg+1)+" — where your selected waypoint prints";
     }catch(e){ $("rblivehint").textContent="couldn't draw the page: "+(e&&e.message||e); }
   },420);
@@ -5005,6 +5041,8 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
                            +'<button class="rs-hbtn" id="addtulip" type="button" title="add the tulip you\'re working on to My tulips" onclick="saveTulipToLib()">＋ add tulip</button>' :
       r.id==="reconcard" ? '<span class="t">Check tulips</span>'
                            +'<button class="rs-hbtn" id="recheckbtn" type="button" title="re-scan every tulip against the GPS track" onclick="showRecon()">↻ recheck</button>' :
+      r.id==="rblivecard"? '<span class="t">Roadbook</span>'
+                           +'<button class="rs-hbtn" type="button" title="redraw the page" onclick="rbLiveUpdate()">↻</button>' :
                            '<span class="t">'+r.title+'</span>';
     var h3=card.querySelector(":scope > h3"); if(h3) h3.remove();     // the drag header replaces the card's own title
     card.insertBefore(head, card.firstChild);
@@ -5124,6 +5162,15 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
         if(vb&&vb!==pc) fillPanelTicks(vb); };
       pc.appendChild(row);
     });
+    /* map extras live under the panel list */
+    var div=document.createElement("div"); div.className="rs-menu-div"; pc.appendChild(div);
+    var tp=document.createElement("button"); tp.className="rs-tick"+(allTpOn?" on":"");
+    tp.innerHTML='<span class="tk">'+(allTpOn?"☑":"☐")+'</span>Show all track points';
+    tp.onclick=function(){ setAllTp(!allTpOn);
+      fillPanelTicks(pc); var vb=document.getElementById("views-body");
+      if(vb&&vb!==pc) fillPanelTicks(vb);
+      var rp=menu.querySelector("#rs-panels"); if(rp&&rp!==pc) fillPanelTicks(rp); };
+    pc.appendChild(tp);
   }
   var vmenu=document.createElement("div"); vmenu.id="views-menu";
   vmenu.style.cssText="display:none;position:fixed;z-index:3000;background:var(--card);border:1px solid var(--hair);border-radius:9px;box-shadow:0 12px 30px -10px rgba(20,40,30,.4);min-width:190px;";
