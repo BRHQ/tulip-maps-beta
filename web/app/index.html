@@ -710,25 +710,9 @@
   .rs-float { padding-top:0; }
   .rs-float .rs-head { top:0; margin-top:0; }
 
-  /* ==== CURSOR: the boxes are NOT the map ====
-     cursor is an inherited property and every box lives inside the Leaflet
-     container, so the boxes were quietly inheriting the map's drag-hand.
-     Sweeping across a box then flipped hand → pointer → hand on every button:
-     the flicker. A box body is a normal arrow; only its header (a drag handle)
-     is a hand; controls keep their own pointer. */
-  .rs-float, .mpanel, #routebox, #signmodal, #mediabox, #cutchip, #ctx,
-  #rs-menu, #views-menu, .lyrfly, .stylefly, #searchbox, #trackcolor { cursor:default; }
-  .rs-float input, .rs-float textarea, .mpanel input, #routebox input { cursor:text; }
-  .rs-head, .mph, #routebox .rbx-head, #signmodal .signhd { cursor:grab; }
-  .rs-head:active, .mph:active, #signmodal .signhd:active { cursor:grabbing; }
-  /* The MAP SURFACE always shows the map's own hand: tiles, the drawing
-     canvases and any layer the base map adds are forbidden from setting a
-     cursor of their own, so it cannot flicker as the mouse crosses their
-     seams. Clickable things (the route line, pins) keep their pointer. */
-  .leaflet-tile-pane, .leaflet-tile-pane *,
-  .leaflet-pane > canvas, .leaflet-overlay-pane canvas,
-  .leaflet-pane > svg:not(.leaflet-interactive) { cursor:inherit !important; }
-  .leaflet-interactive, .leaflet-marker-icon { cursor:pointer !important; }
+  /* (no cursor rules here — the app leaves the cursor entirely to Leaflet and
+     the browser, exactly as it did before the track-dot work. Anything added
+     here reintroduces the flicker risk; don't.) */
 </style>
 </head>
 <body>
@@ -1016,7 +1000,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 9";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 10";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1944,10 +1928,10 @@ function redraw(){
 let allTpOn=false; try{ allTpOn=localStorage.getItem("vmstudio_alltp")==="1"; }catch(_){}
 let allTpLayer=null;
 let allTpArr=[];
-/* the same dot in two moods: selection just swaps the fill — the circle never
-   moves or gets replaced, so the centre stays exactly under the pointer */
+/* the pale dots are pure drawing. The point you've selected hides its pale dot
+   so the red marker on top is the only thing you see there — one dot, never two. */
 const TP_PALE={color:"#fff",weight:1.5,fillColor:"#ff9aa2",fillOpacity:.9,opacity:1};
-const TP_SEL ={color:"#fff",weight:2,  fillColor:"#ff1f30",fillOpacity:1, opacity:1};
+const TP_SEL ={opacity:0,fillOpacity:0};
 function refreshAllTp(){
   if(allTpLayer){ allTpLayer.remove(); allTpLayer=null; } allTpArr=[];
   if(!allTpOn || !pts || pts.length<2){ syncSelHandle(); return; }
@@ -1985,90 +1969,13 @@ function vertexMoveDone(){
   lastDragEnd=Date.now();
 }
 let lastDragEnd=0;
-/* click-and-hold ANY visible dot to move it — no select-first needed.
-   A plain click (no movement) just selects. The map only pans off the track.
-   Runs from a capture-phase listener, so Leaflet never starts a map pan. */
-function beginDotDrag(i,downEv){
-  selectVertex(i);                                     // selected the moment you touch it
-  let moved=false; const wpi=wpAtPoint(i);
-  const sx=downEv?downEv.clientX:0, sy=downEv?downEv.clientY:0;   // dead zone measures from the PRESS, not the first move
-  const move=e2=>{
-    if(e2.buttons===0){ up(); return; }                // button no longer down → the drag is over, whatever event got lost
-    if(!moved){
-      if(Math.abs(e2.clientX-sx)<3&&Math.abs(e2.clientY-sy)<3) return;   // 3px dead zone — a click stays a click
-      snapshot(); moved=true;
-    }
-    moveVertexTo(i,map.mouseEventToLatLng(e2),wpi);
-  };
-  const up=()=>{
-    window.removeEventListener("pointermove",move);
-    window.removeEventListener("pointerup",up);
-    window.removeEventListener("pointercancel",up);    // trackpads end presses with cancel — missing it left the
-    window.removeEventListener("blur",up);             // drag stuck, and the point followed the mouse forever
-    if(moved) vertexMoveDone();
-  };
-  window.addEventListener("pointermove",move);
-  window.addEventListener("pointerup",up);
-  window.addEventListener("pointercancel",up);
-  window.addEventListener("blur",up);
-}
-/* ---- the dots' input: capture-phase on the map container. The dot panes are
-   pointer-transparent, so the line, waypoints and boxes all keep their own
-   events — we only step in when the cursor is genuinely on a dot. ---- */
-function tpDotAt(cx,cy){                    // container px → index of the dot under the cursor, or -1
-  if(!allTpOn||!allTpLayer) return -1;
-  let bi=-1,bd=81;                          // 9px grab radius
-  for(let i=0;i<pts.length;i++){
-    const p=map.latLngToContainerPoint([pts[i].lat,pts[i].lon]);
-    const d=(p.x-cx)**2+(p.y-cy)**2; if(d<bd){bd=d;bi=i;}
-  }
-  return bi;
-}
-function tpTargetOk(e){                     // never steal events meant for pins, boxes or controls
-  const t=e.target;
-  if(!(t&&t.closest)) return false;
-  if(t.closest(".leaflet-marker-icon,.leaflet-marker-pane")) return false;
-  if(t.closest(".mpanel,.rs-float,#routebox,#cutchip,#ctx,#signmodal,.vm-scale,#corners,button,input,textarea,select")) return false;
-  return !!t.closest("#map");
-}
-function initTpInput(){
-  const mc=map.getContainer();
-  mc.addEventListener("pointerdown",e=>{
-    if(e.button!==0) return;
-    if(routing||measuring||pendingAction) return;
-    if(!tpTargetOk(e)) return;
-    const r=mc.getBoundingClientRect();
-    const i=tpDotAt(e.clientX-r.left,e.clientY-r.top);
-    if(i<0) return;
-    e.stopPropagation(); e.preventDefault();           // the map never sees it — no pan, no line click
-    beginDotDrag(i,e);
-  },true);
-  mc.addEventListener("contextmenu",e=>{
-    if(routing||measuring||pendingAction) return;
-    if(!tpTargetOk(e)) return;
-    const r=mc.getBoundingClientRect();
-    const i=tpDotAt(e.clientX-r.left,e.clientY-r.top);
-    if(i<0) return;
-    e.stopPropagation(); e.preventDefault();
-    const items=ctxCore(i,{lat:pts[i].lat,lng:pts[i].lon});
-    items.push("---",["🗑 Delete this track point",()=>deleteTrackPoint(i)]);
-    showCtx({originalEvent:e},items);
-  },true);
-  /* no cursor juggling here: the dots always sit on the line, and the wide
-     invisible click-line already shows the pointer hand over the whole track —
-     a second hand-setter at container level just strobed against it */
-}
-initTpInput();
-/* when the pale dots are showing, the SELECTED look and all the input come
-   from the recoloured dot itself — the marker leaves the map entirely, so
-   there is no invisible hover zone to touch the cursor. Without the dots,
-   the marker is the visible red dot exactly as before. */
-function syncSelHandle(){
-  if(!vertexHandle||vertexIdx<0) return;
-  const hasDot=!!(allTpOn&&allTpArr[vertexIdx]);
-  if(hasDot){ if(map.hasLayer(vertexHandle)) map.removeLayer(vertexHandle); }
-  else if(!map.hasLayer(vertexHandle)) vertexHandle.addTo(map);
-}
+/* NOTE (2 Aug): the dots are DRAWING ONLY — they take no mouse input at all.
+   The "click-and-hold any dot" version added capture-phase listeners and an
+   interactive canvas over the map; that's when waypoints stopped being
+   clickable and the cursor started flickering, so it's gone. Selecting and
+   dragging a point happens through the red marker, as it always did. Don't
+   reintroduce map-wide listeners here without testing the cursor first. */
+function syncSelHandle(){}                  /* nothing to sync — the marker is always the visible selection */
 window.setAllTp=function(on){ allTpOn=!!on; try{ localStorage.setItem("vmstudio_alltp",on?"1":"0"); }catch(_){ } refreshAllTp(); };
 /* ---------- colour the track by speed / altitude / slope ----------
    Same idea as the app: the recorded track carries a speed + altitude at every
