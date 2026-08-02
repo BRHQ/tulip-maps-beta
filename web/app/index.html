@@ -996,7 +996,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 4";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 5";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1324,7 +1324,13 @@ function mpRelayout(){
       let x=parseFloat(p.el.style.left)||0, y=parseFloat(p.el.style.top)||0;
       const rr=mpResolve(p.el,x,y,placed); if(rr.x!==x||rr.y!==y) mpFree(p.el,rr.x,rr.y);
       const r=p.el.getBoundingClientRect();
-      placed.push({x:r.left-mr.left, y:r.top-mr.top, w:r.width, h:r.height});
+      const fx=r.left-mr.left, fy=r.top-mr.top;
+      placed.push({x:fx, y:fy, w:r.width, h:r.height});
+      /* remember where it ACTUALLY ended up — without this, a nudged box kept
+         its old spot in the model and teleported back next relayout, then got
+         nudged somewhere new: the "previous box jumps about" Chris saw */
+      if(!p.snapH) p.freeX=fx;
+      if(!p.snapV) p.freeY=fy;
     }
     p.el.style.visibility="visible";              // free panels get placed even while hidden, so they show up right
   }
@@ -1925,25 +1931,17 @@ const TP_SEL ={color:"#fff",weight:2,  fillColor:"#ff1f30",fillOpacity:1, opacit
 function refreshAllTp(){
   if(allTpLayer){ allTpLayer.remove(); allTpLayer=null; } allTpArr=[];
   if(!allTpOn || !pts || pts.length<2){ syncSelHandle(); return; }
-  if(!map.getPane("alltp")){ const p=map.createPane("alltp"); p.style.zIndex=450; }   // above the track line (400), below markers (600)
-  allTpPointerState();
+  ensureTpPanes();
   const rend=L.canvas({padding:.3,pane:"alltp"});
   const g=L.layerGroup();
   for(let i=0;i<pts.length;i++){
     const m=L.circleMarker([pts[i].lat,pts[i].lon],
-      {renderer:rend,pane:"alltp",radius:6,interactive:true,bubblingMouseEvents:false,
+      {renderer:rend,pane:"alltp",radius:6,interactive:false,
        ...(i===vertexIdx?TP_SEL:TP_PALE)});
-    m.on("mousedown",ev=>beginDotDrag(m._tpIdx,ev));   // click = select · click-and-hold = move the point
-    m._tpIdx=i;
     allTpArr[i]=m; g.addLayer(m);
   }
   allTpLayer=g.addTo(map);
   syncSelHandle();
-}
-/* while routing or adding points, the dots stand aside so map clicks get through */
-function allTpPointerState(){
-  const p=map.getPane("alltp"); if(!p) return;
-  p.style.pointerEvents=(typeof routing!=="undefined"&&routing)?"none":"auto";
 }
 /* selection changed: recolour in place */
 function allTpSel(oldIdx,newIdx){
@@ -1968,26 +1966,76 @@ function vertexMoveDone(){
 }
 let lastDragEnd=0;
 /* click-and-hold ANY visible dot to move it — no select-first needed.
-   A plain click (no movement) just selects. The map only pans off the track. */
-function beginDotDrag(i,ev){
-  if(typeof routing!=="undefined"&&routing) return;
-  const oe=ev.originalEvent||ev;
-  if(oe.button!==undefined&&oe.button!==0) return;     // left button only — right-click keeps its menu
-  L.DomEvent.stop(oe);
+   A plain click (no movement) just selects. The map only pans off the track.
+   Runs from a capture-phase listener, so Leaflet never starts a map pan. */
+function beginDotDrag(i){
   selectVertex(i);                                     // selected the moment you touch it
   let moved=false; const wpi=wpAtPoint(i);
-  map.dragging.disable();
   const move=e2=>{
     if(!moved){ snapshot(); moved=true; }
     moveVertexTo(i,map.mouseEventToLatLng(e2),wpi);
   };
   const up=()=>{
-    document.removeEventListener("mousemove",move); document.removeEventListener("mouseup",up);
-    map.dragging.enable();
+    window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
     if(moved) vertexMoveDone();
   };
-  document.addEventListener("mousemove",move); document.addEventListener("mouseup",up);
+  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
 }
+/* ---- the dots' input: capture-phase on the map container. The dot panes are
+   pointer-transparent, so the line, waypoints and boxes all keep their own
+   events — we only step in when the cursor is genuinely on a dot. ---- */
+function tpDotAt(cx,cy){                    // container px → index of the dot under the cursor, or -1
+  if(!allTpOn||!allTpLayer) return -1;
+  let bi=-1,bd=81;                          // 9px grab radius
+  for(let i=0;i<pts.length;i++){
+    const p=map.latLngToContainerPoint([pts[i].lat,pts[i].lon]);
+    const d=(p.x-cx)**2+(p.y-cy)**2; if(d<bd){bd=d;bi=i;}
+  }
+  return bi;
+}
+function tpTargetOk(e){                     // never steal events meant for pins, boxes or controls
+  const t=e.target;
+  if(!(t&&t.closest)) return false;
+  if(t.closest(".leaflet-marker-icon,.leaflet-marker-pane")) return false;
+  if(t.closest(".mpanel,.rs-float,#routebox,#cutchip,#ctx,#signmodal,.vm-scale,#corners,button,input,textarea,select")) return false;
+  return !!t.closest("#map");
+}
+function initTpInput(){
+  const mc=map.getContainer(); let cursorOn=false, raf=0;
+  mc.addEventListener("pointerdown",e=>{
+    if(e.button!==0) return;
+    if(routing||measuring||pendingAction) return;
+    if(!tpTargetOk(e)) return;
+    const r=mc.getBoundingClientRect();
+    const i=tpDotAt(e.clientX-r.left,e.clientY-r.top);
+    if(i<0) return;
+    e.stopPropagation(); e.preventDefault();           // the map never sees it — no pan, no line click
+    beginDotDrag(i);
+  },true);
+  mc.addEventListener("contextmenu",e=>{
+    if(routing||measuring||pendingAction) return;
+    if(!tpTargetOk(e)) return;
+    const r=mc.getBoundingClientRect();
+    const i=tpDotAt(e.clientX-r.left,e.clientY-r.top);
+    if(i<0) return;
+    e.stopPropagation(); e.preventDefault();
+    const items=ctxCore(i,{lat:pts[i].lat,lng:pts[i].lon});
+    items.push("---",["🗑 Delete this track point",()=>deleteTrackPoint(i)]);
+    showCtx({originalEvent:e},items);
+  },true);
+  mc.addEventListener("pointermove",e=>{               // the hand knows a dot when it's over one
+    if(raf) return;
+    raf=requestAnimationFrame(()=>{ raf=0;
+      let hit=false;
+      if(allTpOn&&allTpLayer&&!routing&&tpTargetOk(e)){
+        const r=mc.getBoundingClientRect();
+        hit=tpDotAt(e.clientX-r.left,e.clientY-r.top)>=0;
+      }
+      if(hit!==cursorOn){ mc.style.cursor=hit?"pointer":""; cursorOn=hit; }
+    });
+  },true);
+}
+initTpInput();
 /* when the pale dots are showing, the SELECTED look comes from the recoloured
    dot itself — the draggable handle on top goes invisible (but still grabs).
    Without the dots, the handle is the visible red dot as before. */
@@ -2174,12 +2222,19 @@ function renumberWaypoints(silent){
 }
 const openWps=new Set();                     // wp names with the track-point sublist open
 let hoverDot=null;
-/* selection + hover visuals live ABOVE the pale show-all-track-points layer
-   (450) but below markers (600) — the vibrant dot must never hide under it */
-function selPane(){
-  if(!map.getPane("alltpsel")){ const p=map.createPane("alltpsel"); p.style.zIndex=470; p.style.pointerEvents="none"; }
-  return "alltpsel";
+/* The dot panes live INSIDE the same rotating container as the track line —
+   created loose they sat above the waypoint pins' container and swallowed
+   every click (the rotate plugin's transform makes each container a stacking
+   context, so pane z-indexes only interleave among siblings). Both panes are
+   strictly non-interactive: all dot input runs through the capture handlers. */
+function ensureTpPanes(){
+  if(!map.getPane("alltp")){
+    const host=map.getPane("overlayPane").parentNode;
+    const p=map.createPane("alltp",host);   p.style.zIndex=450; p.style.pointerEvents="none";
+    const s=map.createPane("alltpsel",host); s.style.zIndex=470; s.style.pointerEvents="none";
+  }
 }
+function selPane(){ ensureTpPanes(); return "alltpsel"; }
 function hoverPoint(idx,on){
   if(!on){ if(hoverDot){hoverDot.remove();hoverDot=null;} return; }
   if(!pts[idx])return;
@@ -2611,7 +2666,6 @@ let routing=null, routeLine=null;
 function startRouting(idx){
   clearTrackSel();
   routing={anchor:idx,coords:[[pts[idx].lat,pts[idx].lon]],busy:false};
-  allTpPointerState();
   showRouteBox();
   $("routehint").textContent="ROUTING · click along the roads · Enter or right‑click to finish · click the purple line to join · Esc cancels";
   $("routehint").style.display="block";
@@ -2624,7 +2678,6 @@ function startAddPoints(latlng){
   const coords = anchor>=0 ? [[pts[anchor].lat,pts[anchor].lon]] : [];
   coords.push([latlng.lat,latlng.lng]);
   routing={anchor,coords,busy:false,manual:true};
-  allTpPointerState();
   showRouteBox();
   $("routehint").textContent="ADDING TRACK POINTS · click to drop more · Enter or right‑click to save · Esc cancels";
   $("routehint").style.display="block";
@@ -2687,7 +2740,6 @@ function rbxUndo(){
 function cancelRouting(){
   hideRouteBox();
   routing=null;
-  allTpPointerState();
   if(routeLine){routeLine.remove();routeLine=null;}
   $("routehint").style.display="none";
 }
