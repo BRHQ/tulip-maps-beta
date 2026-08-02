@@ -996,7 +996,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 5";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 6";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2001,7 +2001,7 @@ function tpTargetOk(e){                     // never steal events meant for pins
   return !!t.closest("#map");
 }
 function initTpInput(){
-  const mc=map.getContainer(); let cursorOn=false, raf=0;
+  const mc=map.getContainer();
   mc.addEventListener("pointerdown",e=>{
     if(e.button!==0) return;
     if(routing||measuring||pendingAction) return;
@@ -2023,17 +2023,9 @@ function initTpInput(){
     items.push("---",["🗑 Delete this track point",()=>deleteTrackPoint(i)]);
     showCtx({originalEvent:e},items);
   },true);
-  mc.addEventListener("pointermove",e=>{               // the hand knows a dot when it's over one
-    if(raf) return;
-    raf=requestAnimationFrame(()=>{ raf=0;
-      let hit=false;
-      if(allTpOn&&allTpLayer&&!routing&&tpTargetOk(e)){
-        const r=mc.getBoundingClientRect();
-        hit=tpDotAt(e.clientX-r.left,e.clientY-r.top)>=0;
-      }
-      if(hit!==cursorOn){ mc.style.cursor=hit?"pointer":""; cursorOn=hit; }
-    });
-  },true);
+  /* no cursor juggling here: the dots always sit on the line, and the wide
+     invisible click-line already shows the pointer hand over the whole track —
+     a second hand-setter at container level just strobed against it */
 }
 initTpInput();
 /* when the pale dots are showing, the SELECTED look comes from the recoloured
