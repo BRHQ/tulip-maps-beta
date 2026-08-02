@@ -969,13 +969,13 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=2aug1"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="tulip_core.js?v=2aug2"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 1";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 2";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2079,12 +2079,18 @@ function renumberWaypoints(silent){
 }
 const openWps=new Set();                     // wp names with the track-point sublist open
 let hoverDot=null;
+/* selection + hover visuals live ABOVE the pale show-all-track-points layer
+   (450) but below markers (600) — the vibrant dot must never hide under it */
+function selPane(){
+  if(!map.getPane("alltpsel")){ const p=map.createPane("alltpsel"); p.style.zIndex=470; p.style.pointerEvents="none"; }
+  return "alltpsel";
+}
 function hoverPoint(idx,on){
   if(!on){ if(hoverDot){hoverDot.remove();hoverDot=null;} return; }
   if(!pts[idx])return;
   if(!hoverDot)
     hoverDot=L.circleMarker([pts[idx].lat,pts[idx].lon],
-      {radius:8,color:"#f5a623",weight:4,fillColor:"#fff",fillOpacity:1}).addTo(map);
+      {pane:selPane(),radius:8,color:"#f5a623",weight:4,fillColor:"#fff",fillOpacity:1}).addTo(map);
   else hoverDot.setLatLng([pts[idx].lat,pts[idx].lon]).addTo(map);
 }
 function hoverChip(w,on){
@@ -2740,7 +2746,7 @@ function selectVertex(idx){
   updateTpStats(idx);
   vertexHandle=L.marker([pts[idx].lat,pts[idx].lon],
     {draggable:true,zIndexOffset:1000,
-     icon:L.divIcon({className:"",html:'<div style="width:12px;height:12px;border-radius:50%;background:#ff1f30;box-shadow:0 0 4px rgba(0,0,0,.45)"></div>',iconSize:[12,12],iconAnchor:[6,6]})}).addTo(map);
+     icon:L.divIcon({className:"",html:'<div style="width:12px;height:12px;border-radius:50%;background:#ff1f30;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.45)"></div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map);
   vertexHandle.on("dragstart",()=>{ snapshot(); vertexHandle._wp=wpAtPoint(vertexIdx); });
   vertexHandle.on("drag",()=>{
     const ll=vertexHandle.getLatLng();
@@ -2766,7 +2772,7 @@ function setRange(idx){
   rangeB=idx;
   const a=Math.min(vertexIdx,rangeB), b=Math.max(vertexIdx,rangeB);
   if(rangeLine) rangeLine.remove();
-  rangeLine=L.polyline(pts.slice(a,b+1).map(p=>[p.lat,p.lon]),{color:"#d9534f",weight:7,opacity:.95}).addTo(map);
+  rangeLine=L.polyline(pts.slice(a,b+1).map(p=>[p.lat,p.lon]),{pane:selPane(),color:"#d9534f",weight:7,opacity:.95}).addTo(map);
   rangeLine.on("contextmenu",onLineContext);
   updateCutChip();
 }
@@ -2946,10 +2952,11 @@ function drawArmHandles(ctx){
   if(!cur||!cur.arms||armSel<0) return;
   const m=cur.arms[armSel]; if(!m) return;    // selected arm always shows its dots, even if it lines up with the exit
   const g=armGeom(cur,m);
-  /* one language everywhere: solid green dot = slide/position, green ring = the arrow end */
-  ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;   // attached end: slide handle
+  /* same language as the main road (solid = slide/position, ring = the arrow
+     end) but in BLUE, so side-road handles never read as the main route's */
+  ctx.fillStyle="#2f6fed"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;   // attached end: slide handle
   ctx.beginPath(); ctx.arc(g.px,g.py,4.6,0,7); ctx.fill(); ctx.stroke();
-  ctx.fillStyle="rgba(255,255,255,.4)"; ctx.strokeStyle="#1f9d57"; ctx.lineWidth=2;   // free end: angle(+length)
+  ctx.fillStyle="rgba(255,255,255,.4)"; ctx.strokeStyle="#2f6fed"; ctx.lineWidth=2;   // free end: angle(+length)
   ctx.beginPath(); ctx.arc(g.tx,g.ty,4.8,0,7); ctx.fill(); ctx.stroke();
 }
 /* ---- magnets: drag a road's end near another road and it clicks flush onto it ---- */

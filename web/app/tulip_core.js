@@ -633,7 +633,7 @@ function exitTipPt(sp){
   const dx=Math.sin(aa*Math.PI/180), dy=-Math.cos(aa*Math.PI/180);
   let len=sp.end?52:68;
   if(sp.brg) len=Math.max(12,len-30);   // the corner sits 30 past the centre — give it back, so the route stays the same overall length
-  if(bigRb) len=Math.max(10,len-(RBB-17));   // the stub already covered ring→bend; same overall reach as before
+  if(bigRb) len=Math.max(8,len-RBB);         // from the bend point out — the tip lands exactly on the drawn arrowhead
   const pad=15;                                                  // keep the arrow head on the canvas
   if(dx>1e-3) len=Math.min(len,(TW-pad-bx)/dx); else if(dx<-1e-3) len=Math.min(len,(pad-bx)/dx);
   if(dy>1e-3) len=Math.min(len,(THh-pad-by)/dy); else if(dy<-1e-3) len=Math.min(len,(pad-by)/dy);
@@ -728,8 +728,16 @@ function quickToElements(sp){
     const [ex,ey]=rbRot(sp,ray(180,rr));
     if(tlt){                                              // tilted: entry stays straight to the pivot, the stub above swings with the ring
       const pvx=CXX, pvy=CYY+30;
-      els.push({k:'l',p:[EX,EY,pvx,pvy],w:9,ss:1,es:0,ds,col:rc});
-      els.push({k:'l',p:[pvx,pvy,ex,ey],w:9,ss:0,es:0,ds,col:rc});
+      if(cs===0){                                         // sharp: a hard elbow at the pivot
+        els.push({k:'l',p:[EX,EY,pvx,pvy],w:9,ss:1,es:0,ds,col:rc});
+        els.push({k:'l',p:[pvx,pvy,ex,ey],w:9,ss:0,es:0,ds,col:rc});
+      } else {                                            // curvy: smooth through the pivot, same as the bridge
+        const j2=6, sL=Math.hypot(ex-pvx,ey-pvy)||1, sux=(ex-pvx)/sL, suy=(ey-pvy)/sL;
+        const Pin=[pvx,pvy+j2], Pout=[pvx+sux*j2, pvy+suy*j2];
+        els.push({k:'l',p:[EX,EY,Pin[0],Pin[1]],w:9,ss:1,es:0,ds,col:rc});
+        els.push({k:'q',p:[Pin[0],Pin[1],pvx,pvy,Pout[0],Pout[1]],w:9,ss:0,es:0,ds,col:rc});
+        els.push({k:'l',p:[Pout[0],Pout[1],ex,ey],w:9,ss:0,es:0,ds,col:rc});
+      }
     } else els.push({k:'l',p:[EX,EY,ex,ey],w:9,ss:1,es:0,ds,col:rc});
     const arc=(((sp.rbu?turn+180:180-turn)%360)+360)%360||360;
     const sgn=sp.rbu?1:-1, steps=Math.max(3,Math.round(arc/25));
@@ -748,25 +756,23 @@ function quickToElements(sp){
       }
     }
     /* the exit: a straight stub off the ring, then the arrowed end — which can
-       bend at RBB to its own direction (xb), like the corner on a bridge */
-    const xb=rbXb(sp), tipLen=(sp.end?52:68)-(RBB-17);
+       bend at RBB to its own direction (xb), like the corner on a bridge.
+       The drawn tip IS exitTipPt, so the green handle sits ON the arrowhead. */
+    const xb=rbXb(sp);
     const [rx,ry]=rbRot(sp,ray(turn,rr));
-    if(xb===turn){                                        // straight through the bend — one piece, the old drawing exactly
-      const [ox,oy]=rbRot(sp,ray(turn,sp.end?52:68));
-      pushExit(els,rx,ry,ox,oy,sp,ds,rc);
+    const Tp=exitTipPt(sp);                               // world; canvas- and symbol-clamped like every other mode
+    if(xb===turn){                                        // straight through the bend — one piece, the old drawing
+      pushExit(els,rx,ry,Tp[0],Tp[1],sp,ds,rc);
     } else {
-      const B0=ray(turn,RBB), xr=xb*Math.PI/180, ux=Math.sin(xr), uy=-Math.cos(xr);
-      const T0=[B0[0]+ux*tipLen, B0[1]+uy*tipLen];
+      const Bp=rbRot(sp,ray(turn,RBB));
+      const tipL=Math.hypot(Tp[0]-Bp[0],Tp[1]-Bp[1])||1;
       if(cs===0){                                         // sharp: hard elbow at the bend
-        const Bp=rbRot(sp,B0), Tp=rbRot(sp,T0);
         els.push({k:'l',p:[rx,ry,Bp[0],Bp[1]],w:9,ss:0,es:0,ds,col:rc});
         pushExit(els,Bp[0],Bp[1],Tp[0],Tp[1],sp,ds,rc);
       } else {                                            // curvy: a small curve through the bend
-        const j=Math.min(8,(RBB-17)-2,tipLen-2);
-        const tr2=turn*Math.PI/180;
-        const Bin=[B0[0]-Math.sin(tr2)*j, B0[1]+Math.cos(tr2)*j];
-        const Bout=[B0[0]+ux*j, B0[1]+uy*j];
-        const A2=rbRot(sp,Bin), Bp=rbRot(sp,B0), C2=rbRot(sp,Bout), Tp=rbRot(sp,T0);
+        const j=Math.max(2,Math.min(8,(RBB-17)-2,tipL-2));
+        const A2=rbRot(sp,ray(turn,RBB-j));
+        const C2=[Bp[0]+(Tp[0]-Bp[0])/tipL*j, Bp[1]+(Tp[1]-Bp[1])/tipL*j];
         els.push({k:'l',p:[rx,ry,A2[0],A2[1]],w:9,ss:0,es:0,ds,col:rc});
         els.push({k:'q',p:[A2[0],A2[1],Bp[0],Bp[1],C2[0],C2[1]],w:9,ss:0,es:0,ds,col:rc});
         pushExit(els,C2[0],C2[1],Tp[0],Tp[1],sp,ds,rc);
