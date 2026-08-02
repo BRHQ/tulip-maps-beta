@@ -996,7 +996,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 6";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 7";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1970,16 +1970,27 @@ let lastDragEnd=0;
    Runs from a capture-phase listener, so Leaflet never starts a map pan. */
 function beginDotDrag(i){
   selectVertex(i);                                     // selected the moment you touch it
-  let moved=false; const wpi=wpAtPoint(i);
+  let moved=false, sx=null, sy=null; const wpi=wpAtPoint(i);
   const move=e2=>{
-    if(!moved){ snapshot(); moved=true; }
+    if(e2.buttons===0){ up(); return; }                // button no longer down → the drag is over, whatever event got lost
+    if(sx==null){ sx=e2.clientX; sy=e2.clientY; }
+    if(!moved){
+      if(Math.abs(e2.clientX-sx)<3&&Math.abs(e2.clientY-sy)<3) return;   // 3px dead zone — a click stays a click
+      snapshot(); moved=true;
+    }
     moveVertexTo(i,map.mouseEventToLatLng(e2),wpi);
   };
   const up=()=>{
-    window.removeEventListener("pointermove",move); window.removeEventListener("pointerup",up);
+    window.removeEventListener("pointermove",move);
+    window.removeEventListener("pointerup",up);
+    window.removeEventListener("pointercancel",up);    // trackpads end presses with cancel — missing it left the
+    window.removeEventListener("blur",up);             // drag stuck, and the point followed the mouse forever
     if(moved) vertexMoveDone();
   };
-  window.addEventListener("pointermove",move); window.addEventListener("pointerup",up);
+  window.addEventListener("pointermove",move);
+  window.addEventListener("pointerup",up);
+  window.addEventListener("pointercancel",up);
+  window.addEventListener("blur",up);
 }
 /* ---- the dots' input: capture-phase on the map container. The dot panes are
    pointer-transparent, so the line, waypoints and boxes all keep their own
