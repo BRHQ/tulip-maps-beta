@@ -292,16 +292,24 @@
   #routebox .rbx-t { flex:1; font-weight:700; font-size:11.5px; color:var(--char); }
   .rbx-head .rs-hbtn { flex:none; font-size:10.5px; font-weight:700; border:1px solid var(--hair);
     background:var(--card); color:var(--char); border-radius:6px; padding:2px 8px; cursor:pointer; line-height:1.4; }
-  #routebox .rbx-row { display:flex; gap:6px; margin-top:8px; }
-  #routebox .rbx-row .btn { flex:1.3; padding:7px 4px; font-size:12.5px; }
+  #routebox .rbx-row { display:flex; gap:6px; margin-top:10px; }
+  #routebox .rbx-row .btn { flex:1.6; padding:9px 4px; font-size:13px; font-weight:800;
+    box-shadow:0 2px 8px rgba(20,61,46,.22); }
   .rbx-b { flex:1; background:#fff; border:1px solid var(--hair); border-radius:8px; font-size:12px;
-    font-weight:600; color:var(--char); cursor:pointer; padding:7px 4px; }
+    font-weight:700; color:var(--char); cursor:pointer; padding:9px 4px; }
   .rbx-b:hover { background:#F3ECDD; }
+  #rbx_cancel { color:#b3402f; border-color:rgba(179,64,47,.45); }
+  #rbx_cancel:hover { background:#FBEAE5; }
   #rbxprefs .rbx-seg { display:flex; border:1px solid var(--hair); border-radius:8px; overflow:hidden; margin-bottom:5px; }
-  #rbxprefs .rbx-seg button { flex:1; border:none; background:#fff; padding:5px 0; font-size:11.5px; font-weight:600; cursor:pointer; }
+  #rbxprefs .rbx-seg button { flex:1; border:none; background:#fff; padding:3px 0; font-size:10.5px; font-weight:700; cursor:pointer; }
   #rbxprefs .rbx-seg button.on { background:var(--green); color:#fff; }
+  #rbxprefs .rbx-grid { display:flex; gap:2px; margin-top:2px; }
+  #rbxprefs .rbx-col { flex:1; min-width:0; }
+  #rbxprefs .rbx-colhd { font-size:9px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+    color:var(--mut); padding:2px 2px 1px; }
   #rbxprefs .rbx-tick { display:block; width:100%; text-align:left; background:none; border:none;
-    font-size:11.5px; font-weight:600; color:var(--char); padding:3.5px 2px; cursor:pointer; }
+    font-size:10.5px; font-weight:600; color:var(--char); padding:3px 2px; cursor:pointer; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; }
   #rbxprefs .rbx-tick .tk { margin-right:6px; }
   #rbxprefs .rbx-tick.off { opacity:.4; }
   #routehint { position:absolute; left:50%; transform:translateX(-50%); top:12px; z-index:1002;
@@ -961,13 +969,13 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=1aug1"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="tulip_core.js?v=2aug1"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 1 Aug · 2";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 1";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1891,11 +1899,12 @@ let allTpLayer=null;
 function refreshAllTp(){
   if(allTpLayer){ allTpLayer.remove(); allTpLayer=null; }
   if(!allTpOn || !pts || pts.length<2) return;
-  const rend=L.canvas({padding:.3});
+  if(!map.getPane("alltp")){ const p=map.createPane("alltp"); p.style.zIndex=450; p.style.pointerEvents="none"; }   // above the track line (400), below markers (600)
+  const rend=L.canvas({padding:.3,pane:"alltp"});
   const g=L.layerGroup();
   for(let i=0;i<pts.length;i++)
     g.addLayer(L.circleMarker([pts[i].lat,pts[i].lon],
-      {renderer:rend,radius:6,color:"#fff",weight:1.5,fillColor:"#ff9aa2",fillOpacity:.9,interactive:false}));
+      {renderer:rend,pane:"alltp",radius:6,color:"#fff",weight:1.5,fillColor:"#ff9aa2",fillOpacity:.9,interactive:false}));
   allTpLayer=g.addTo(map);
 }
 window.setAllTp=function(on){ allTpOn=!!on; try{ localStorage.setItem("vmstudio_alltp",on?"1":"0"); }catch(_){ } refreshAllTp(); };
@@ -2505,26 +2514,31 @@ function buildRbx(){
   const pc=$("rbxprefs"); if(!pc) return; pc.innerHTML="";
   if(routing&&routing.manual) return;                       // manual points: no road preferences to pick
   const seg=document.createElement("div"); seg.className="rbx-seg";
-  [["recommended","Fastest"],["shortest","Shortest"]].forEach(o=>{
+  [["recommended","⚡ Fastest"],["shortest","📏 Shortest"]].forEach(o=>{
     const b=document.createElement("button"); b.textContent=o[1];
     if(routePrefs.preference===o[0]) b.className="on";
     b.onclick=()=>{ routePrefs.preference=o[0]; rbxSavePrefs(); buildRbx(); try{window._menuPrefsRefresh&&window._menuPrefsRefresh();}catch(_){} };
     seg.appendChild(b);
   });
   pc.appendChild(seg);
-  const tick=(label,on,dim,fn)=>{
+  /* two slim columns: what to AVOID, what to INCLUDE */
+  const grid=document.createElement("div"); grid.className="rbx-grid";
+  const colA=document.createElement("div"); colA.className="rbx-col"; colA.innerHTML='<div class="rbx-colhd">Avoid</div>';
+  const colI=document.createElement("div"); colI.className="rbx-col"; colI.innerHTML='<div class="rbx-colhd">Include</div>';
+  grid.append(colA,colI); pc.appendChild(grid);
+  const tick=(col,label,on,dim,fn)=>{
     const r=document.createElement("button"); r.className="rbx-tick"+(dim?" off":"");
     r.innerHTML='<span class="tk">'+(on?"☑":"☐")+'</span>'+label;
     r.onclick=()=>{ if(dim) return; fn(); rbxSavePrefs(); buildRbx(); try{window._menuPrefsRefresh&&window._menuPrefsRefresh();}catch(_){} };
-    pc.appendChild(r);
+    col.appendChild(r);
   };
-  [["highways","Avoid motorways"],["tollways","Avoid tolls"],["ferries","Avoid ferries"]].forEach(o=>{
+  [["highways","Motorways"],["tollways","Tolls"],["ferries","Ferries"]].forEach(o=>{
     const on=routePrefs.avoid.indexOf(o[0])>=0;
-    tick(o[1],on,false,()=>{ if(on) routePrefs.avoid=routePrefs.avoid.filter(x=>x!==o[0]); else routePrefs.avoid.push(o[0]); });
+    tick(colA,o[1],on,false,()=>{ if(on) routePrefs.avoid=routePrefs.avoid.filter(x=>x!==o[0]); else routePrefs.avoid.push(o[0]); });
   });
-  tick("Include waypoints",!!routePrefs.autoWp,false,()=>{ routePrefs.autoWp=!routePrefs.autoWp; if(!routePrefs.autoWp) routePrefs.autoTulip=false; });
-  tick("Include tulips",!!routePrefs.autoTulip,!routePrefs.autoWp,()=>{ routePrefs.autoTulip=!routePrefs.autoTulip; });
-  tick("Include town & street",!!routePrefs.autoNames,!routePrefs.autoWp,()=>{ routePrefs.autoNames=!routePrefs.autoNames; });
+  tick(colI,"Waypoints",!!routePrefs.autoWp,false,()=>{ routePrefs.autoWp=!routePrefs.autoWp; if(!routePrefs.autoWp) routePrefs.autoTulip=false; });
+  tick(colI,"Tulips",!!routePrefs.autoTulip,!routePrefs.autoWp,()=>{ routePrefs.autoTulip=!routePrefs.autoTulip; });
+  tick(colI,"Town & street",!!routePrefs.autoNames,!routePrefs.autoWp,()=>{ routePrefs.autoNames=!routePrefs.autoNames; });
 }
 function showRouteBox(){
   const b=$("routebox"); if(!b) return;
@@ -2632,11 +2646,30 @@ async function routeLeg(toLat,toLon){
       }
     }catch(e){ /* ORS unreachable / over quota → fall back to OSRM below */ }
   }
-  const url=`https://router.project-osrm.org/route/v1/driving/${fLon},${fLat};${toLon},${toLat}?overview=full&geometries=geojson`;
+  /* Backup road server (OSRM). It used to hand back only the line — so any ORS
+     hiccup meant "route drew, no waypoints appeared". Now we ask it for the
+     turn-by-turn steps too and translate them into the same action list. */
+  const url=`https://router.project-osrm.org/route/v1/driving/${fLon},${fLat};${toLon},${toLat}?overview=full&geometries=geojson&steps=true`;
   const res=await fetch(url);
   const data=await res.json();
   if(!data.routes||!data.routes.length) throw new Error("no route");
-  return data.routes[0].geometry.coordinates.map(([lo,la])=>[la,lo]);
+  const rt=data.routes[0];
+  if(routePrefs.autoWp && rt.legs){
+    const MOD={"left":0,"right":1,"sharp left":2,"sharp right":3,"slight left":4,"slight right":5};
+    routing.autoWps=routing.autoWps||[];
+    rt.legs.forEach(lg=>(lg.steps||[]).forEach(st=>{
+      const m=st.maneuver||{}; let type=null, exit;
+      if(m.type==="roundabout"||m.type==="rotary"||m.type==="roundabout turn"){ type=7; exit=m.exit; }
+      else if(m.modifier==="uturn") type=9;
+      else if(m.type==="turn"||m.type==="fork"||m.type==="end of road") type=MOD[m.modifier];
+      if(type==null||type===undefined) return;
+      const c=m.location;                                          // [lon,lat]
+      if(c) routing.autoWps.push({lat:c[1], lon:c[0], type, exit, name:st.name||""});
+    }));
+  }
+  if(!routing.osrmWarned){ routing.osrmWarned=true;
+    toast("Main road server didn't answer — used the backup. Route and waypoints are fine; prefs like avoid-motorways may not apply to this leg.",6000); }
+  return rt.geometry.coordinates.map(([lo,la])=>[la,lo]);
 }
 map.on("click",async ev=>{
   if(measuring){ addMeasurePoint(ev.latlng); return; }
@@ -2870,7 +2903,7 @@ function drawExitHandle(ctx){
   const [ex,ey]=exitTip(cur);
   ctx.fillStyle="rgba(255,255,255,.4)"; ctx.strokeStyle="#1f9d57"; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(ex,ey,5,0,7); ctx.fill(); ctx.stroke();
-  if(!cur.rb && !cur.brg){                                       // green centre dot — jogs the exit sideways (plain line only)
+  if(!(cur.rb&&!cur.rbS) && !cur.brg){                           // green centre dot — jogs the exit sideways (plain line + small roundabout)
     const [bx,by]=exitBendPt(cur);
     ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.arc(bx,by,4.6,0,7); ctx.fill(); ctx.stroke();
@@ -2880,7 +2913,14 @@ function drawExitHandle(ctx){
     ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.arc(tx,ty,4.6,0,7); ctx.fill(); ctx.stroke();
   }
+  if(cur.rb&&!cur.rbS){                                          // the exit's bend dot: drag it round the ring to move the exit
+    const [bx,by]=rbBendPt(cur);
+    ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
+    ctx.beginPath(); ctx.arc(bx,by,4.6,0,7); ctx.fill(); ctx.stroke();
+  }
 }
+function rbBendPt(sp){ const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn)); return rbRot(sp,ray(turn,RBB)); }
+function rbBendHit(sp,x,y){ if(!(sp.rb&&!sp.rbS)) return false; const [bx,by]=rbBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }
 function exitHit(sp,x,y){ const [ex,ey]=exitTip(sp); return (x-ex)**2+(y-ey)**2 < 64; }   // r8
 function tiltDotPt(sp){
   if(sp.rb&&!sp.rbS) return rbRot(sp,[CXX,CYY]);                 // ring centre, riding the tilt
@@ -2888,13 +2928,16 @@ function tiltDotPt(sp){
   return [px+dx2*BRGSTEM/2, py+dy2*BRGSTEM/2];                   // stem centre — the middle of the route, under the bridge
 }
 function tiltHit(sp,x,y){ if(!(sp.brg||(sp.rb&&!sp.rbS))) return false; const [tx,ty]=tiltDotPt(sp); return (x-tx)**2+(y-ty)**2 < 49; }
-function bendHit(sp,x,y){ if(sp.rb||sp.brg) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7
+function bendHit(sp,x,y){ if((sp.rb&&!sp.rbS)||sp.brg) return false; const [bx,by]=exitBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }   // r7 — small roundabouts keep the jog dot
 function bendFromPoint(sp,x,y){ return Math.round(x-CXX); }      // jog: horizontal distance from the junction (left/right only)
 function segDist(x,y,ax,ay,bx,by){ const dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy||1; let t=((x-ax)*dx+(y-ay)*dy)/L2; t=t<0?0:t>1?1:t; return Math.hypot(x-(ax+t*dx), y-(ay+t*dy)); }
 function routeHit(sp,x,y){                                       // anywhere on the thick main route — click it to select
   const [bx0,by0]=exitBase(sp), [tx,ty]=exitTipPt(sp);
   if(sp.rb){ const [ex,ey]=rbRot(sp,ray(180,17)), [pvx,pvy]=brgPivot(), rc2=rbRot(sp,[CXX,CYY]);
+    const turn2=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
+    const [sx2,sy2]=rbRot(sp,ray(turn2,17));                     // the exit's straight stub off the ring
     return segDist(x,y,EX,EY,pvx,pvy)<9 || segDist(x,y,pvx,pvy,ex,ey)<9 ||
+           segDist(x,y,sx2,sy2,bx0,by0)<9 ||
            segDist(x,y,bx0,by0,tx,ty)<9 || Math.abs(Math.hypot(x-rc2[0],y-rc2[1])-17)<9; }
   return segDist(x,y,EX,EY,CXX,CYY)<9 || segDist(x,y,CXX,CYY,bx0,by0)<9 || segDist(x,y,bx0,by0,tx,ty)<9;
 }
@@ -2903,10 +2946,11 @@ function drawArmHandles(ctx){
   if(!cur||!cur.arms||armSel<0) return;
   const m=cur.arms[armSel]; if(!m) return;    // selected arm always shows its dots, even if it lines up with the exit
   const g=armGeom(cur,m);
-  ctx.fillStyle="#fff"; ctx.strokeStyle="#2f6fed"; ctx.lineWidth=1.4;   // attached end: slide handle
-  ctx.beginPath(); ctx.arc(g.px,g.py,3.4,0,7); ctx.fill(); ctx.stroke();
-  ctx.fillStyle="#2f6fed"; ctx.beginPath(); ctx.arc(g.tx,g.ty,3.8,0,7); ctx.fill();   // free end: angle(+length)
-  ctx.strokeStyle="#fff"; ctx.lineWidth=1.4; ctx.stroke();
+  /* one language everywhere: solid green dot = slide/position, green ring = the arrow end */
+  ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;   // attached end: slide handle
+  ctx.beginPath(); ctx.arc(g.px,g.py,4.6,0,7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle="rgba(255,255,255,.4)"; ctx.strokeStyle="#1f9d57"; ctx.lineWidth=2;   // free end: angle(+length)
+  ctx.beginPath(); ctx.arc(g.tx,g.ty,4.8,0,7); ctx.fill(); ctx.stroke();
 }
 /* ---- magnets: drag a road's end near another road and it clicks flush onto it ---- */
 const MAG=7;                                   // how close before it grabs
@@ -3158,6 +3202,7 @@ function renderExtraTags(){
   const na=(cur.arms||[]).length;
   if(na) chip(na+(na>1?" side roads":" side road"),false,()=>openExtras(true));
   for(const k of TOGGLES) if(cur[k]) chip(SYMLABEL[k],true,()=>{ cur[k]=false; mark(); syncQuick(); repaint(); });
+  if(cur.wide) chip("wide road",true,()=>{ cur.wide=false; mark(); syncQuick(); repaint(); });
   if(cur.f) chip("fuel "+(cur.f===2?"↙":"↘"),true,()=>{ cur.f=0; mark(); syncQuick(); repaint(); });
   if(cur.warn) chip(cur.warn===2?"danger":"warn",true,()=>{ cur.warn=0; mark(); syncQuick(); repaint(); });
   if(cur.sign) chip("sign "+signLabel(cur.sign),true,()=>{ cur.sign=""; mark(); syncQuick(); repaint(); });
@@ -3171,6 +3216,17 @@ function showDeg(a){
 function syncQuick(){
   if(!cur)return;
   for(const k of TOGGLES) $("t_"+k).classList.toggle("on",!!cur[k]);
+  /* the road-style button cycles solid → dirt → wide; its face shows the state */
+  const td=$("t_dirt");
+  if(td){
+    td.classList.toggle("on",!!(cur.dirt||cur.wide));
+    td.innerHTML = cur.wide
+      ? '<svg class="csi" viewBox="0 0 13 13"><path d="M1.5 4.3 H11.5 M1.5 8.7 H11.5"/></svg>'
+      : '<svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg>';
+    td.title = cur.wide ? "wide road (two thin lines) — click for solid"
+             : cur.dirt ? "dirt road (dashed) — click for wide"
+                        : "road style — click to cycle solid / dirt / wide";
+  }
   $("t_rb").classList.toggle("on",!!cur.rb);
   // a roundabout has no sharp/curvy corner — swap that pair out for the EU/UK
   // direction picker so the row never wraps onto a second line
@@ -3223,14 +3279,20 @@ $("addarm").onclick=()=>{
 /* (the direction slider is gone — the green dots on the canvas set the angle;
    the ° readout still pops up over the canvas while the arrow is dragged) */
 for(const k of TOGGLES) $("t_"+k).onclick=()=>{ if(!cur)return; cur[k]=!cur[k]; mark(); syncQuick(); repaint(); };
+/* the road-style button is a 3-way cycle, not a plain toggle: solid → dirt → wide */
+$("t_dirt").onclick=()=>{ if(!cur)return;
+  if(!cur.dirt&&!cur.wide) cur.dirt=true;
+  else if(cur.dirt){ cur.dirt=false; cur.wide=true; }
+  else cur.wide=false;
+  mark(); syncQuick(); repaint(); };
 /* the bridge needs more than a plain toggle: it owns the junction centre, so the
    chicane jog resets and the exit can't fold past 135° while it's on */
 $("t_brg").onclick=()=>{ if(!cur)return;
-  cur.brg=!cur.brg;
-  if(cur.brg){ if(cur.bend) cur.bend=0;
-    if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135);
-    cur.rb=false; cur.rbu=false; cur.lx=false; cur.tilt=0; }   // the centre holds ONE thing — and starts flat
-  else { cur.brgL=false; cur.brgx=""; cur.tilt=0; }
+  rehomeArms(()=>{ cur.brg=!cur.brg;
+    if(cur.brg){ if(cur.bend) cur.bend=0;
+      if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135);
+      cur.rb=false; cur.rbu=false; cur.lx=false; cur.tilt=0; cur.xb=null; }   // the centre holds ONE thing — and starts flat
+    else { cur.brgL=false; cur.brgx=""; cur.tilt=0; } });
   mark(); syncQuick(); repaint(); };
 
 $("brg_s").onclick=()=>{ if(!cur)return; cur.brgL=false; mark(); syncQuick(); repaint(); };
@@ -3278,12 +3340,23 @@ $("signnone").onclick=()=>{
     box.style.top =Math.max(4,Math.min(innerHeight-40, d.oy+e.clientY-d.sy))+"px"; });
   head.addEventListener("pointerup",()=>{ d=null; });
 })();
-$("t_rb").onclick=()=>{ cur.rb=!cur.rb;
-  if(cur.rb){ cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; cur.tilt=0; }
-  else { cur.rbu=false; cur.rbS=false; cur.tilt=0; }
+/* switching mode (roundabout on/off, small/large, bridge) used to leave side
+   roads with offsets that meant something else — they'd jump. Keep each arm
+   where it's DRAWN: note its attach point, switch, then re-home it there. */
+function rehomeArms(mutate){
+  if(!cur){ return; }
+  if(!cur.arms||!cur.arms.length){ mutate(); return; }
+  const keep=cur.arms.map(m=>{ const g=armGeom(cur,m); return {m,px:g.px,py:g.py}; });
+  mutate();
+  for(const k of keep) k.m.off=offFromPoint(cur,k.px,k.py);
+}
+$("t_rb").onclick=()=>{ if(!cur)return;
+  rehomeArms(()=>{ cur.rb=!cur.rb;
+    if(cur.rb){ cur.brg=false; cur.brgL=false; cur.brgx=""; cur.lx=false; cur.tilt=0; cur.xb=null; }
+    else { cur.rbu=false; cur.rbS=false; cur.tilt=0; cur.xb=null; } });
   mark(); syncQuick(); repaint(); };
-$("rbs_s").onclick=()=>{ if(!cur)return; cur.rbS=true; cur.rbu=false; cur.tilt=0; mark(); syncQuick(); repaint(); };
-$("rbs_l").onclick=()=>{ if(!cur)return; cur.rbS=false; mark(); syncQuick(); repaint(); };
+$("rbs_s").onclick=()=>{ if(!cur)return; rehomeArms(()=>{ cur.rbS=true; cur.rbu=false; cur.tilt=0; cur.xb=null; }); mark(); syncQuick(); repaint(); };
+$("rbs_l").onclick=()=>{ if(!cur)return; rehomeArms(()=>{ cur.rbS=false; }); mark(); syncQuick(); repaint(); };
 $("rb_eu").onclick=()=>{ cur.rbu=false; mark(); syncQuick(); repaint(); };
 $("rb_uk").onclick=()=>{ cur.rbu=true; mark(); syncQuick(); repaint(); };
 const CS_LOOK=[
@@ -3712,7 +3785,8 @@ function quickDown(ev){
   const [x,y]=canvasPt(ev); const hit=armHit(cur,x,y);
   if(hit){ armSel=hit.i; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag=hit; $("big").style.cursor="grabbing"; repaint(); }
   else if(armSel<0 && exitHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'exit'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the main arrow (brings its ring back)
-  else if(armSel<0 && tiltHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'tilt'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the tilt dot (bridge)
+  else if(armSel<0 && rbBendHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'rbbend'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the roundabout exit's bend dot
+  else if(armSel<0 && tiltHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'tilt'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the tilt dot (bridge / roundabout)
   else if(armSel<0 && bendHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'bend'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the bend handle
   else if(routeHit(cur,x,y)){ armSel=-1; hideHandles=false; repaint(); }   // click the main route anywhere → select it, dots come back
   else if(armSel!==-1){ armSel=-1; repaint(); }                  // deselect the side road
@@ -3720,11 +3794,27 @@ function quickDown(ev){
 }
 function quickMove(ev){
   const [x,y]=canvasPt(ev);
-  if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)||tiltHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
-  if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur); const lo=cur.brg?Math.max(-160,(cur.tilt||0)-135):-160, hi=cur.brg?Math.min(160,(cur.tilt||0)+135):160;
+  if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)||tiltHit(cur,x,y)||rbBendHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
+  if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur);
     let raw=Math.atan2(x-pbx, pby-y)*180/Math.PI;
-    if(cur.rb&&!cur.rbS) raw-=rbTiltDeg(cur);                                // tilted roundabout: store the angle in its own frame
+    if(cur.rb&&!cur.rbS){                                                    // roundabout: the arrow bends the END of the exit, within 135° of the stub
+      raw-=rbTiltDeg(cur);
+      const t0=cur.turn==null?0:cur.turn;
+      let v=Math.max(t0-135,Math.min(t0+135,snapAngle(raw)));
+      cur.xb=(Math.round(v)===Math.round(t0))?null:Math.round(v);            // dead straight → keep the spec clean
+      showDeg(v); repaint(); return; }
+    const lo=cur.brg?Math.max(-160,(cur.tilt||0)-135):-160, hi=cur.brg?Math.min(160,(cur.tilt||0)+135):160;
     cur.turn=Math.max(lo,Math.min(hi,snapAngle(raw))); showDeg(cur.turn); repaint(); return; }   // main arrow → the exit angle (about the true corner, lifted or jogged)
+  if(armDrag.mode==='rbbend'){
+    /* slide the whole exit round the ring: un-tilt the pointer, angle about the centre */
+    const t=rbTiltDeg(cur)*Math.PI/180, [pvx,pvy]=brgPivot();
+    const rx0=pvx+(x-pvx)*Math.cos(-t)-(y-pvy)*Math.sin(-t);
+    const ry0=pvy+(x-pvx)*Math.sin(-t)+(y-pvy)*Math.cos(-t);
+    cur.turn=Math.max(-160,Math.min(160,snapAngle(Math.atan2(rx0-CXX, CYY-ry0)*180/Math.PI)));
+    if(cur.xb!=null){ const t0=cur.turn;                                     // the bent end stays inside its window
+      cur.xb=Math.max(t0-135,Math.min(t0+135,cur.xb));
+      if(Math.round(cur.xb)===Math.round(t0)) cur.xb=null; }
+    showDeg(cur.turn); repaint(); return; }
   if(armDrag.mode==='tilt'){
     /* swing about the pivot: dot sideways = stem+bridge / roundabout angle */
     const [px,py]=brgPivot();
@@ -3735,7 +3825,9 @@ function quickMove(ev){
     if(cur.brg) cur.turn=Math.max(Math.max(-160,cur.tilt-135),Math.min(Math.min(160,cur.tilt+135),cur.turn||0));
     repaint(); return; }
   if(armDrag.mode==='bend'){
-    cur.bend=Math.max(-30,Math.min(30,bendFromPoint(cur,x,y)));              // the chicane jog — sideways only
+    let bv=bendFromPoint(cur,x,y);
+    if(Math.abs(bv)<4) bv=0;                                                 // same gentle magnet at centre as the tilt dot
+    cur.bend=Math.max(-30,Math.min(30,bv));                                  // the chicane jog — sideways only
     repaint(); return; }
   const m=cur.arms[armDrag.i]; if(!m){ armDrag=null; return; }
   if(armDrag.mode==='tip'){ const g=armGeom(cur,m);              // attached end holds still (a ring point on a roundabout)
@@ -3747,7 +3839,7 @@ function quickMove(ev){
 function quickUp(){ if(armDrag){ armDrag=null; $("big").style.cursor="grab"; mark(); syncQuick(); repaint(); } }
 function addArmAt(x,y){
   let off, ax, ay;
-  if(cur.rb){ off=rbNearestOff(x,y,armTurn(cur),cur); [ax,ay]=armAttachRB(off,armTurn(cur)); if(rbArmRides(off)) [ax,ay]=rbRot(cur,[ax,ay]); }
+  if(cur.rb&&!cur.rbS){ off=rbNearestOff(x,y,armTurn(cur),cur); [ax,ay]=armAttachRB(off,armTurn(cur),cur); if(rbArmRides(off)) [ax,ay]=rbRot(cur,[ax,ay]); }
   else { off=offFromPoint(cur,x,y); [ax,ay]=armAttach(off,armTurn(cur),quickCS(cur),cur); }
   const a=Math.max(-170,Math.min(170,snapAngle(Math.atan2(x-ax, ay-y)*180/Math.PI)));
   const len=Math.max(30,Math.min(72,Math.round(Math.hypot(x-ax,y-ay))));
@@ -4687,10 +4779,19 @@ function buildRoadbook(o,previewOnly,onlyPage){
             if(sp.draw)drawElements(cctx,sp.draw); else drawQuick(cctx,sp);
             const th=Math.min(ROW_H-8*S,(CW-10*S)*160/188), tw=th*188/160;
             doc.addImage(cvs.toDataURL("image/png"),"PNG",X+(CW-tw)/2,mid-th/2,tw,th);
-            if(o.wpIn){ doc.setFillColor(255,255,255); doc.rect(X+3*S,top+ROW_H-19*S,26*S,16*S,"F");
-              doc.setDrawColor(...INK); doc.setLineWidth(.9); doc.rect(X+3*S,top+ROW_H-19*S,26*S,16*S);
+            if(o.wpIn){
+              /* the number chip dodges any symbol already parked in a corner:
+                 bottom-left first, then top-left, bottom-right, top-right */
+              const cn=sp.corners||{};
+              const busy={ bl:!!(cn.bl||sp.rsign||sp.f===2), tl:!!(cn.tl||sp.warn),
+                           br:!!(cn.br||sp.f===1),           tr:!!(cn.tr||sp.sign||sp.br) };
+              const k=["bl","tl","br","tr"].find(c=>!busy[c])||"bl";
+              const cx=(k==="br"||k==="tr") ? X+CW-29*S : X+3*S;
+              const cy=(k==="tl"||k==="tr") ? top+3*S   : top+ROW_H-19*S;
+              doc.setFillColor(255,255,255); doc.rect(cx,cy,26*S,16*S,"F");
+              doc.setDrawColor(...INK); doc.setLineWidth(.9); doc.rect(cx,cy,26*S,16*S);
               doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(9.5);
-              doc.text(String(r.wp),X+16*S,top+ROW_H-7*S,{align:"center"}); }
+              doc.text(String(r.wp),cx+13*S,cy+12*S,{align:"center"}); }
           }
           else if(c.k==="direction"){
             if(r.direction){ doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(13.5);

@@ -28,7 +28,7 @@ function parseSpec(s){
   if(!s||!s.trim()) return null;
   s=s.trim();
   if(s==="d"||s.startsWith("d ")) return {draw:parseDraw(s)};
-  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,tilt:0,col:"",rbS:false,gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
+  const sp={turn:null,arms:[],rb:false,rbu:false,dirt:false,wide:false,cs:1,lc:false,br:false,brg:false,brgL:false,brgx:"",lift:0,tilt:0,xb:null,col:"",rbS:false,gate:false,ford:false,lx:false,f:0,warn:0,sign:"",rsign:"",corners:{},end:0,del:false};
   const addArm=(a,off,len,rail)=>{ if(!sp.arms.some(x=>x.a===a&&x.off===off)){ const m={a,off}; if(len!=null&&!isNaN(len)&&Math.round(len)!==38) m.len=Math.max(12,Math.min(80,Math.round(len))); if(rail) m.rail=true; sp.arms.push(m); } };
   for(const tok of s.toLowerCase().split(/\s+/)){
     if(tok.startsWith("a:")){ const v=parseFloat(tok.slice(2)); if(!isNaN(v)) sp.turn=Math.max(-160,Math.min(160,Math.round(v))); }
@@ -47,11 +47,12 @@ function parseSpec(s){
     else if(tok==="aa") addArm(0,0);
     else if(tok==="ar") addArm(90,0);
     else if(tok==="rbs"){ sp.rb=true; sp.rbS=true; }
-    else if(["rb","rbu","dirt","lc","br","brg","gate","ford","lx"].includes(tok)) sp[tok]=true;
+    else if(["rb","rbu","dirt","wide","lc","br","brg","gate","ford","lx"].includes(tok)) sp[tok]=true;
     else if(tok==="brgl"){ sp.brg=true; sp.brgL=true; }
     else if(tok.startsWith("brgx:")){ const v=tok.slice(5); if(["water","rail","road"].includes(v)){ sp.brg=true; sp.brgx=v; } }
     else if(tok.startsWith("lift:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.lift=Math.max(-30,Math.min(30,v)); }
     else if(tok.startsWith("tilt:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.tilt=Math.max(-45,Math.min(45,v)); }
+    else if(tok.startsWith("xb:")){ const v=parseInt(tok.slice(3)); if(!isNaN(v)) sp.xb=Math.max(-179,Math.min(179,v)); }   // roundabout exit's bent final direction
     else if(tok.startsWith("col:")){ const v=tok.slice(4); if(/^[0-9a-f]{6}$/.test(v)) sp.col="#"+v; }
     else if(tok==="stop") sp.end=1;                 // flat bar (old "stop" spelling)
     else if(tok==="ball") sp.end=2;                 // round blob ending
@@ -80,8 +81,10 @@ function specToString(sp){
     else if(!m.rail&&!m.off&&dl&&m.a===90) toks.push("ar");
     else { let t="arm:"+m.a; if(m.off||!dl) t+="@"+(m.off||0); if(!dl) t+="*"+Math.round(m.len); if(m.rail) t+="r"; toks.push(t); }
   }
-  if(sp.rb){ toks.push(sp.rbS?"rbs":(sp.rbu?"rbu":"rb")); if(!sp.rbS&&sp.tilt) toks.push("tilt:"+Math.round(sp.tilt)); }
+  if(sp.rb){ toks.push(sp.rbS?"rbs":(sp.rbu?"rbu":"rb")); if(!sp.rbS&&sp.tilt) toks.push("tilt:"+Math.round(sp.tilt));
+    if(!sp.rbS&&sp.xb!=null&&Math.round(sp.xb)!==Math.round(sp.turn==null?0:sp.turn)) toks.push("xb:"+Math.round(sp.xb)); }
   if(sp.dirt) toks.push("dirt");
+  if(sp.wide&&!sp.dirt) toks.push("wide");
   if(sp.col) toks.push("col:"+sp.col.slice(1).toLowerCase());
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
   if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); if(sp.tilt) toks.push("tilt:"+Math.round(sp.tilt)); }
@@ -490,6 +493,23 @@ function drawElements(ctx,els){
         IMGCACHE[e.data]=img; }
       if(img.complete&&img.naturalWidth) ctx.drawImage(img,e.p[0],e.p[1],e.w,e.h); }
   }
+  /* WIDE road pass: a white core inside every flagged piece, drawn after all the
+     colour so the joints stay clean. The core stops short of arrowheads and the
+     start ball, so the ends stay solid — white sits INSIDE two thin colour lines. */
+  let wideOn=false;
+  for(const e of els){
+    if(!e.wd||(e.k!=='l'&&e.k!=='q')) continue;
+    if(!wideOn){ ctx.strokeStyle="#fff"; wideOn=true; }
+    ctx.lineWidth=Math.max(2.5,(e.w||9)-4.6);
+    if(e.k==='l'){
+      const [x1,y1,x2,y2]=e.p, L=Math.hypot(x2-x1,y2-y1)||1, ux=(x2-x1)/L, uy=(y2-y1)/L;
+      const s=e.ss?7:0, en=e.es?11:0;
+      if(L-s-en>1){ ctx.beginPath(); ctx.moveTo(x1+ux*s,y1+uy*s); ctx.lineTo(x2-ux*en,y2-uy*en); ctx.stroke(); }
+    } else {
+      const [x1,y1,cx,cy,x2,y2]=e.p;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.quadraticCurveTo(cx,cy,x2,y2); ctx.stroke();
+    }
+  }
 }
 function armAttach(off,turn,cs,sp){
   /* A point ON the drawn road for a side road at `off` (0 = the junction).
@@ -555,15 +575,33 @@ function rbRot(sp,pt){
 /* which side-road attaches ride the tilt: the ring, the exit stem, and the short
    entry stub above the pivot (off>193 = further down the fixed entry, stays put) */
 function rbArmRides(off){ return off<193; }
+/* the roundabout exit has a bend like the bridge: a straight stub leaves the
+   ring radially at `a` out to RBB, then the arrowed end runs at `xb` (defaults
+   to `a` — dead straight, exactly the old drawing). xb stays within 135° of
+   the stub so the arrow can't fold back into the ring. */
+const RBB=38;
+function rbXb(sp){
+  const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
+  if(sp.xb==null) return turn;
+  return Math.max(turn-135,Math.min(turn+135,Math.round(sp.xb)));
+}
+/* a point on the rb exit path `d` units out from the ring edge (frame coords) */
+function rbExitPt(sp,d){
+  const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn)), stub=RBB-17;
+  if(d<=stub) return ray(turn,17+d);
+  const xb=rbXb(sp), [bx,by]=ray(turn,RBB);
+  const r=xb*Math.PI/180;
+  return [bx+Math.sin(r)*(d-stub), by-Math.cos(r)*(d-stub)];
+}
 function brgGeom(sp){
   /* bridge in the middle of the stem, small or full-size large */
   return {L:BRGSTEM, uc:BRGSTEM/2, hh:sp.brgL?20:12};
 }
-function exitShift(sp){ return (sp.rb||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.bend||0))); }
+function exitShift(sp){ return ((sp.rb&&!sp.rbS)||sp.brg) ? 0 : Math.max(-MAXSHIFT,Math.min(MAXSHIFT,Math.round(sp.bend||0))); }   // small roundabout jogs like a plain line
 /* the exit base: where the exit stem starts — the junction centre, nudged sideways by the shift */
 function exitBase(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn));
-  if(sp.rb&&!sp.rbS) return rbRot(sp, ray(turn,17));
+  if(sp.rb&&!sp.rbS) return rbRot(sp, ray(turn,RBB));   // the bend point — where the arrowed end begins
   /* the green dot is a two-way handle: sideways = the chicane jog (bend),
      up/down = sliding WHERE THE BEND STARTS along the route (lift). On a
      bridge the sideways half is off; the lift works everywhere. The exit
@@ -590,10 +628,12 @@ function symbolSpots(sp){
    the jog. Pulled back if it would run off the canvas or under a corner symbol. */
 function exitTipPt(sp){
   const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn)), [bx,by]=exitBase(sp);
-  const aa=turn+rbTiltDeg(sp);                                   // tilted roundabout: the exit stays radial in its frame
+  const bigRb=sp.rb&&!sp.rbS;
+  const aa=(bigRb?rbXb(sp):turn)+rbTiltDeg(sp);                  // rb: the arrowed end runs at its (possibly bent) direction
   const dx=Math.sin(aa*Math.PI/180), dy=-Math.cos(aa*Math.PI/180);
   let len=sp.end?52:68;
   if(sp.brg) len=Math.max(12,len-30);   // the corner sits 30 past the centre — give it back, so the route stays the same overall length
+  if(bigRb) len=Math.max(10,len-(RBB-17));   // the stub already covered ring→bend; same overall reach as before
   const pad=15;                                                  // keep the arrow head on the canvas
   if(dx>1e-3) len=Math.min(len,(TW-pad-bx)/dx); else if(dx<-1e-3) len=Math.min(len,(pad-bx)/dx);
   if(dy>1e-3) len=Math.min(len,(THh-pad-by)/dy); else if(dy<-1e-3) len=Math.min(len,(pad-by)/dy);
@@ -634,9 +674,10 @@ function quickCS(sp){ const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.t
   return sp.cs===3 ? (Math.abs(turn)>=90?0:Math.abs(turn)<=45?2:1) : (sp.cs===undefined?1:sp.cs); }
 /* roundabout outline for a side road's attach: it can ride the entry stem, the ring, or the exit stem.
    off encodes where — |off|<=180 is a ring angle; off>180 runs down the entry stem; off<-180 up the exit stem. */
-function armAttachRB(off,turn){
+function armAttachRB(off,turn,sp){
   if(off>180) return ray(180, 17+(off-180));      // down the entry stem (below the ring)
-  if(off<-180) return ray(turn, 17+(-180-off));   // out along the exit stem
+  if(off<-180) return sp ? rbExitPt(sp,-180-off)  // out along the exit — following its bend
+                         : ray(turn, 17+(-180-off));
   return ray(off,17);                             // on the ring at angle `off`
 }
 function rbNearestOff(x,y,turn,sp){                // nearest point on that outline → its off code
@@ -645,12 +686,12 @@ function rbNearestOff(x,y,turn,sp){                // nearest point on that outl
     const d=(p[0]-x)**2+(p[1]-y)**2; if(d<bd){bd=d;best=o;} };
   for(let a=-179;a<=180;a+=2) cons(ray(a,17),a);                 // the ring
   for(let r=19;r<=62;r+=2)   cons(ray(180,r),180+(r-17));        // entry stem (straight down)
-  for(let r=19;r<=68;r+=2)   cons(ray(turn,r),-180-(r-17));      // exit stem (out along the turn)
+  for(let r=19;r<=68;r+=2)   cons(sp?rbExitPt(sp,r-17):ray(turn,r),-180-(r-17));   // exit — follows the bend
   return Math.round(best);
 }
 /* where a side road's two ends sit: [px,py]=attached end, [tx,ty]=free end. */
 function armGeom(sp,m){ const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn)), cs=quickCS(sp);
-  if(sp.rb){ let p=armAttachRB(m.off,turn); if(rbArmRides(m.off)) p=rbRot(sp,p);
+  if(sp.rb&&!sp.rbS){ let p=armAttachRB(m.off,turn,sp); if(rbArmRides(m.off)) p=rbRot(sp,p);
     const [tx,ty]=ray(m.a,m.len||38,p[0],p[1]); return {px:p[0],py:p[1],tx,ty}; }
   const [px,py]=armAttach(m.off,turn,cs,sp), [tx,ty]=ray(m.a,m.len||38,px,py); return {px,py,tx,ty}; }
 /* how the route line ends: 0 arrow, 1 flat bar, 2 ball (endcap styles 2/3/1) */
@@ -679,7 +720,7 @@ function quickToElements(sp){
   if(sp.rb&&!sp.rbS){
     const rr=17, tlt=rbTiltDeg(sp);
     for(const m of sp.arms){                              // side roads on the roundabout — attach along entry stem / ring / exit stem via `off`
-      let ap=armAttachRB(m.off,turn); if(rbArmRides(m.off)) ap=rbRot(sp,ap);
+      let ap=armAttachRB(m.off,turn,sp); if(rbArmRides(m.off)) ap=rbRot(sp,ap);
       const [px,py]=ap, [ax,ay]=ray(m.a,m.len||38,px,py);
       if(m.rail) railSeg(px,py,ax,ay);
       else els.push({k:'l',p:[px,py,ax,ay],w:5,ss:0,es:0,ds});
@@ -706,8 +747,31 @@ function quickToElements(sp){
         els.push({k:'l',p:[ax,ay,bx,by],w:4,ss:0,es:0,ds});
       }
     }
-    const [rx,ry]=rbRot(sp,ray(turn,rr)), [ox,oy]=rbRot(sp,ray(turn,sp.end?52:68));
-    pushExit(els,rx,ry,ox,oy,sp,ds,rc);
+    /* the exit: a straight stub off the ring, then the arrowed end — which can
+       bend at RBB to its own direction (xb), like the corner on a bridge */
+    const xb=rbXb(sp), tipLen=(sp.end?52:68)-(RBB-17);
+    const [rx,ry]=rbRot(sp,ray(turn,rr));
+    if(xb===turn){                                        // straight through the bend — one piece, the old drawing exactly
+      const [ox,oy]=rbRot(sp,ray(turn,sp.end?52:68));
+      pushExit(els,rx,ry,ox,oy,sp,ds,rc);
+    } else {
+      const B0=ray(turn,RBB), xr=xb*Math.PI/180, ux=Math.sin(xr), uy=-Math.cos(xr);
+      const T0=[B0[0]+ux*tipLen, B0[1]+uy*tipLen];
+      if(cs===0){                                         // sharp: hard elbow at the bend
+        const Bp=rbRot(sp,B0), Tp=rbRot(sp,T0);
+        els.push({k:'l',p:[rx,ry,Bp[0],Bp[1]],w:9,ss:0,es:0,ds,col:rc});
+        pushExit(els,Bp[0],Bp[1],Tp[0],Tp[1],sp,ds,rc);
+      } else {                                            // curvy: a small curve through the bend
+        const j=Math.min(8,(RBB-17)-2,tipLen-2);
+        const tr2=turn*Math.PI/180;
+        const Bin=[B0[0]-Math.sin(tr2)*j, B0[1]+Math.cos(tr2)*j];
+        const Bout=[B0[0]+ux*j, B0[1]+uy*j];
+        const A2=rbRot(sp,Bin), Bp=rbRot(sp,B0), C2=rbRot(sp,Bout), Tp=rbRot(sp,T0);
+        els.push({k:'l',p:[rx,ry,A2[0],A2[1]],w:9,ss:0,es:0,ds,col:rc});
+        els.push({k:'q',p:[A2[0],A2[1],Bp[0],Bp[1],C2[0],C2[1]],w:9,ss:0,es:0,ds,col:rc});
+        pushExit(els,C2[0],C2[1],Tp[0],Tp[1],sp,ds,rc);
+      }
+    }
   } else {
     for(const m of sp.arms){                              // every side road always draws — never hidden by the main route
       const [px,py]=armAttach(m.off,turn,cs,sp);
@@ -824,6 +888,10 @@ function quickToElements(sp){
     const CPOS={tl:[26,24], tr:[TW-26,26], bl:[26,THh-28], br:[TW-26,THh-28]};
     for(const k in CPOS) if(sp.corners[k]) els.push({k:'s',name:sp.corners[k], p:CPOS[k], sc:1});
   }
+  /* WIDE road (the rally two-thin-lines look): flag every main-route piece —
+     they're the full-width ones — and drawElements paints a white core inside.
+     Side roads, rails and the bridge marks stay solid; dirt wins if both set. */
+  if(sp.wide&&!sp.dirt) for(const e of els) if((e.k==='l'||e.k==='q')&&e.w===9) e.wd=1;
   return els;
 }
 function drawQuick(ctx,sp){ drawElements(ctx,quickToElements(sp)); }
