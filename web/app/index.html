@@ -157,9 +157,26 @@
   #quickui, #drawui { height:152px; box-sizing:border-box; overflow-y:auto; overflow-x:hidden; }
   /* detailed has three rows of controls — sit them a touch tighter so they all fit */
   #drawui .csrow { margin-top:5px; gap:5px; }
-  #drawui .tog, #drawui .seg > button { padding-top:3px; padding-bottom:3px; }
-  #drawui .tog.ico { padding-left:7px; padding-right:7px; }              /* icon-only tools stay square-ish */
+  #drawui .tog.ico { padding-left:9px; padding-right:9px; }              /* icon-only tools stay square-ish */
   #drawui .tog.ico .csi { margin:0; }
+  /* ---- one height for the tulip's controls ----
+     The top row is the main control set: every button the same height, set in
+     px so the icon/text mix can't make some taller. The bridge / roundabout
+     rows below are deliberately a touch smaller. */
+  #quickui .csrow:first-child > button,
+  #quickui .csrow:first-child > .seg,
+  #quickui .csrow:first-child > .seg > button,
+  #drawui .tog, #drawui .seg, #drawui .seg > button {
+    height:30px; box-sizing:border-box; padding-top:0; padding-bottom:0;
+    display:inline-flex; align-items:center; justify-content:center; }
+  #quickui .csrow:first-child > #colbox { width:30px; height:30px; }
+  #quickui .csrow:nth-child(n+2) > button,
+  #quickui .csrow:nth-child(n+2) > .seg,
+  #quickui .csrow:nth-child(n+2) > .seg > button {
+    height:26px; box-sizing:border-box; padding-top:0; padding-bottom:0;
+    display:inline-flex; align-items:center; justify-content:center; }
+  #eprops .csrow > * { height:30px; box-sizing:border-box; }
+  #eprops #etext { height:auto; }
   #shaperow { gap:4px; }
   #pathbtn.on { background:#143d2e; color:#fff; border-color:#143d2e; }   /* lit while you're laying points */
   /* line ends cycle like the quick Arrow/Flat/Ball button — fixed at the longest word */
@@ -384,8 +401,13 @@
     align-items:center; justify-content:center; }
   #rbmodal .rbcard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
     width:920px; max-width:95vw; height:660px; max-height:92vh; display:flex; overflow:hidden; }
-  #rblivecard { width:252px; }
-  #rbliveimg { display:block; width:100%; height:330px; border:1px solid var(--hair); border-radius:6px; background:#fff; }
+  /* the Roadbook page box: resizable, and the page always fills the box's
+     width (FitH below), so a box wider than it is tall shows a full-width
+     page and scrolls down it rather than shrinking it to fit */
+  #rblivecard { width:252px; display:flex; flex-direction:column; min-height:220px; }
+  #rbliveimg { display:block; width:100%; flex:1 1 auto; min-height:140px; height:330px;
+    border:1px solid var(--hair); border-radius:6px; background:#fff; }
+  #rblivecard .hint { flex:0 0 auto; }
   #rb_cols { display:flex; flex-direction:column; gap:3px; margin-top:4px; }
   .rbcolrow { display:flex; align-items:center; gap:5px; border-radius:7px; padding:1px 2px; }
   .rbcolrow.off .rc-i { opacity:.4; }
@@ -777,7 +799,7 @@
         <div class="csrow">
           <button id="colbox" title="colour of the main road"></button>
           <button class="tog ico" id="t_cs" title="corner: Curvy — click to swap"></button>
-          <button class="tog ico" id="t_dirt" title="dirt / gravel road — the route and its side roads draw dashed"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg></button>
+          <button class="tog ico" id="t_dirt" title="road style — click to cycle solid / dirt / wide (the MAIN route only)"><svg class="csi" viewBox="0 0 13 13"><path d="M1.5 6.5 H3.5 M5.5 6.5 H7.5 M9.5 6.5 H11.5"/></svg></button>
           <button class="tog ico" id="t_end" title="how the route line ends — click to cycle Arrow / Flat / Ball"></button>
           <span class="seg"><button id="armtype" title="what ＋ adds — click to swap between road and railway"><svg class="csi at" viewBox="0 0 14 14"><path d="M4 1.2 V12.8 M10 1.2 V12.8 M7 2.2 V4 M7 6.2 V8 M7 10.2 V12"/></svg></button><button id="addarm" title="add a side road — or double-click the tulip">＋</button></span>
           <div id="colpop" style="display:none">
@@ -990,13 +1012,13 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=2aug2"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="tulip_core.js?v=2aug3"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 11";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 12";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1186,7 +1208,7 @@ function applyMapRotation(){
   map.setBearing(routeUp? -currentHeading() : 0);
 }
 /* ---------- movable, edge-snapping map panels ---------- */
-const MP={ list:[], gap:8, snapDist:48, anchor:null };   // anchor = the box you last grabbed; it holds its ground, others yield
+const MP={ list:[], gap:8, snapDist:48, anchor:null, busy:false };   // anchor = the box you last grabbed; it holds its ground, others yield. busy = a drag/resize is happening, so the layout waits
 let styleBtns=[], stylePanelBody=null, styleCurBtn=null, pendingAction=null, mpEdgeEl=null;
 function showHint(msg){ $("routehint").textContent=msg; $("routehint").style.display="block"; }
 function setStyleCur(){ if(!styleCurBtn)return;   // the collapsed style panel shows only the current map
@@ -1215,7 +1237,7 @@ function mpDrag(panel){
   el.addEventListener("pointerdown",()=>{ MP.anchor=panel; },true);   // touching a box (drag OR resize) makes it the anchor
   head.addEventListener("pointerdown",e=>{
     if(e.target.closest("button")) return;
-    drag=true; setUiDrag(true); try{head.setPointerCapture(e.pointerId);}catch(_){}
+    drag=true; setUiDrag(true); MP.busy=true; try{head.setPointerCapture(e.pointerId);}catch(_){}
     const mr=map.getContainer().getBoundingClientRect(), r=el.getBoundingClientRect();
     ox=r.left-mr.left; oy=r.top-mr.top; mpFree(el,ox,oy);
     others=mpRects(panel);                      // the other boxes hold still while this one drags
@@ -1232,7 +1254,7 @@ function mpDrag(panel){
     mpEdge(nx<MP.snapDist, W-(nx+w)<MP.snapDist, ny<MP.snapDist, H-(ny+h)<MP.snapDist);
   });
   head.addEventListener("pointerup",e=>{
-    if(!drag)return; drag=false; setUiDrag(false); try{head.releasePointerCapture(e.pointerId);}catch(_){}
+    if(!drag)return; drag=false; setUiDrag(false); MP.busy=false; try{head.releasePointerCapture(e.pointerId);}catch(_){}
     el.classList.remove("mp-drag"); mpEdge(false,false,false,false);
     mpDrop(panel);
   });
@@ -1242,21 +1264,44 @@ function mpEdgeResize(panel,modes){ // drag an edge (or its corner) to resize �
   for(const mode of (modes||["l","t","lt"])){
     const h=document.createElement("div"); h.className="mp-rz rz-"+mode; el.appendChild(h);
     h.addEventListener("pointerdown",e=>{
-      e.preventDefault(); e.stopPropagation(); MP.anchor=panel; setUiDrag(true);
+      e.preventDefault(); e.stopPropagation(); MP.anchor=panel; setUiDrag(true); MP.busy=true;
       try{h.setPointerCapture(e.pointerId);}catch(_){}
       const mr=map.getContainer().getBoundingClientRect(), r=el.getBoundingClientRect();
       const x0=r.left-mr.left, y0=r.top-mr.top, right=x0+r.width, bottom=y0+r.height, sx=e.clientX, sy=e.clientY;
       const minW=parseFloat(getComputedStyle(el).minWidth)||166, minH=parseFloat(getComputedStyle(el).minHeight)||120;
       el.style.right=""; el.style.bottom="";
       const sz=map.getSize();
+      /* the other boxes are walls: an edge stops when it reaches one, so a box
+         can never be dragged out over its neighbours (and nothing has to jump
+         out of the way afterwards). Only boxes that actually line up with the
+         edge you're pulling count as walls. */
+      const walls=mpRects(panel);
+      const overlapV=w=>(y0 < w.y+w.h-2) && (w.y < bottom-2);   // shares horizontal band
+      const overlapH=w=>(x0 < w.x+w.w-2) && (w.x < right-2);    // shares vertical band
+      let limL=MP.gap, limR=sz.x-MP.gap, limT=MP.gap, limB=sz.y-MP.gap;
+      for(const w of walls){
+        if(overlapV(w)){
+          if(w.x+w.w<=x0+2) limL=Math.max(limL, w.x+w.w+MP.gap);      // a box to our left
+          if(w.x>=right-2)  limR=Math.min(limR, w.x-MP.gap);          // a box to our right
+        }
+        if(overlapH(w)){
+          if(w.y+w.h<=y0+2) limT=Math.max(limT, w.y+w.h+MP.gap);      // a box above
+          if(w.y>=bottom-2) limB=Math.min(limB, w.y-MP.gap);          // a box below
+        }
+      }
       const move=ev=>{
-        if(mode.includes("l")){ const nl=Math.max(MP.gap, Math.min(x0+(ev.clientX-sx), right-minW)); el.style.left=nl+"px"; el.style.width=(right-nl)+"px"; }
-        if(mode.includes("t")){ const nt=Math.max(MP.gap, Math.min(y0+(ev.clientY-sy), bottom-minH)); el.style.top=nt+"px"; el.style.height=(bottom-nt)+"px"; }
-        if(mode.includes("r")){ const nr=Math.min(sz.x-MP.gap, Math.max(right+(ev.clientX-sx), x0+minW)); el.style.left=x0+"px"; el.style.width=(nr-x0)+"px"; }
-        if(mode.includes("b")){ const nb=Math.min(sz.y-MP.gap, Math.max(bottom+(ev.clientY-sy), y0+minH)); el.style.top=y0+"px"; el.style.height=(nb-y0)+"px"; }
+        if(mode.includes("l")){ const nl=Math.max(limL, Math.min(x0+(ev.clientX-sx), right-minW)); el.style.left=nl+"px"; el.style.width=(right-nl)+"px"; }
+        if(mode.includes("t")){ const nt=Math.max(limT, Math.min(y0+(ev.clientY-sy), bottom-minH)); el.style.top=nt+"px"; el.style.height=(bottom-nt)+"px"; }
+        if(mode.includes("r")){ const nr=Math.min(limR, Math.max(right+(ev.clientX-sx), x0+minW)); el.style.left=x0+"px"; el.style.width=(nr-x0)+"px"; }
+        if(mode.includes("b")){ const nb=Math.min(limB, Math.max(bottom+(ev.clientY-sy), y0+minH)); el.style.top=y0+"px"; el.style.height=(nb-y0)+"px"; }
       };
-      const up=()=>{ setUiDrag(false); h.removeEventListener("pointermove",move); h.removeEventListener("pointerup",up); mpDrop(panel); };
-      h.addEventListener("pointermove",move); h.addEventListener("pointerup",up);
+      const up=()=>{ setUiDrag(false); MP.busy=false;
+        h.removeEventListener("pointermove",move); h.removeEventListener("pointerup",up);
+        h.removeEventListener("pointercancel",up);
+        mpDrop(panel);                                   // one tidy-up once you let go
+        if(panel.id==="rblivecard"&&typeof rbLiveUpdate==="function") rbLiveUpdate();   // redraw the page at its new size
+        if(panel.id==="elevpanel"&&typeof drawElevation==="function") drawElevation(); };
+      h.addEventListener("pointermove",move); h.addEventListener("pointerup",up); h.addEventListener("pointercancel",up);
     });
   }
 }
@@ -1370,7 +1415,11 @@ function mpDefaults(){                    // Chris's first-run layout, worked ou
   var lc=P("libcard"); if(lc) lc.el.style.height="214px";              // tall enough for three tulip rows
 }
 let mpReTimer=null;
-function mpResoon(){ clearTimeout(mpReTimer); mpReTimer=setTimeout(mpRelayout,50); }
+/* While you're dragging or resizing a box, the auto-layout holds still. It used
+   to re-run on every size change (the box's own resize triggered it), which
+   yanked the box you were holding — the "jump" while resizing. It runs once,
+   after you let go. */
+function mpResoon(){ if(MP.busy) return; clearTimeout(mpReTimer); mpReTimer=setTimeout(mpRelayout,50); }
 function mpWatch(){                        // keep the no-overlap layout honest as boxes appear or change size
   const seen=new WeakMap();
   for(const p of MP.list) seen.set(p.el, getComputedStyle(p.el).display);
@@ -1517,8 +1566,31 @@ function buildToolbar(){
     if(!xmlDoc) newRoute();
     if(pts.length) startRouting(pts.length-1);
     else { pendingAction=ll=>{ appendTrackPoint(ll); startRouting(0); }; showHint("Click the map to start routing"); } }));
+  /* centre on me — the browser asks permission the first time; the blue dot
+     shows where it put you and fades after a few seconds */
+  tools.body.append(btn('<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10" cy="10" r="4.2"/><path d="M10 1.4 V4 M10 16 V18.6 M1.4 10 H4 M16 10 H18.6" stroke-linecap="round"/></svg>',
+    "centre the map on where I am",()=>centreOnMe()));
   tools.body.append(btn("👁","street view of the selected point",()=>toggleSV()));
   const searchB=btn("🔍 search","search for a place",()=>toggleSearch()); searchB.classList.add("wide"); tools.body.append(span2(searchB));
+}
+/* ---- centre on me ---- */
+let meDot=null, meTimer=null;
+function centreOnMe(){
+  if(!navigator.geolocation){ toast("This browser can't do locations."); return; }
+  toast("Finding you…",2000);
+  navigator.geolocation.getCurrentPosition(p=>{
+    const ll=[p.coords.latitude,p.coords.longitude];
+    map.setView(ll, Math.max(map.getZoom(),15));
+    if(meDot) meDot.remove();
+    meDot=L.circleMarker(ll,{pane:selPane(),radius:8,color:"#fff",weight:3,
+      fillColor:"#1a63d6",fillOpacity:1,interactive:false}).addTo(map);
+    clearTimeout(meTimer); meTimer=setTimeout(()=>{ if(meDot){meDot.remove();meDot=null;} },8000);
+    const acc=Math.round(p.coords.accuracy||0);
+    toast("Here you are"+(acc?` (within about ${acc} m)`:""),3000);
+  },err=>{
+    toast(err&&err.code===1 ? "Location is blocked — allow it for this site in your browser's address bar."
+                            : "Couldn't get a location fix.",5000);
+  },{enableHighAccuracy:true,timeout:10000,maximumAge:30000});
 }
 function doUndo(){ const b=$("undobtn"); if(b) b.click(); }   // one undo path for the button and the keyboard
 $("redobtn").onclick=()=>doRedo();
@@ -1564,7 +1636,7 @@ function buildElevPanel(){
   box.append(head,body); map.getContainer().appendChild(box); L.DomEvent.disableClickPropagation(box);
   const panel={el:box,head,body,id:"elevpanel",title:"Elevation",snapH:"left",snapV:"bottom",freeX:null,freeY:null};
   MP.list.push(panel); mpDrag(panel);
-  mpEdgeResize(panel,["r","t","rt"]);   // bottom-left anchored → widen by the right edge, taller by the top
+  mpEdgeResize(panel,["l","r"]);        // Elevation: width only, from either side — never from above
   if(window.ResizeObserver) new ResizeObserver(()=>drawElevation()).observe(body);   // redraw the profile at the new size
 }
 let elevTried=-1;   // pts.length we last auto-pulled heights for, so we ask ORS once per route
@@ -3425,13 +3497,16 @@ function syncQuick(){
   syncCorners();
 }
 /* side roads are edited on the canvas now — this just drops a fresh one in and selects it */
-let armType="road";                                     // what ＋ adds — road or railway
+let armType="road";                                     // what ＋ adds — road, railway or track
 const ARMTYPE_ICON={
   road:'<svg class="csi at" viewBox="0 0 14 14"><path d="M4 1.2 V12.8 M10 1.2 V12.8 M7 2.2 V4 M7 6.2 V8 M7 10.2 V12"/></svg>',
-  rail:'<svg class="csi at" viewBox="0 0 14 14"><path d="M4.8 1.2 V12.8 M9.2 1.2 V12.8 M2.8 3.2 H11.2 M2.8 7 H11.2 M2.8 10.8 H11.2"/></svg>'};
-$("armtype").onclick=()=>{ armType=armType==="road"?"rail":"road";
+  rail:'<svg class="csi at" viewBox="0 0 14 14"><path d="M4.8 1.2 V12.8 M9.2 1.2 V12.8 M2.8 3.2 H11.2 M2.8 7 H11.2 M2.8 10.8 H11.2"/></svg>',
+  track:'<svg class="csi at" viewBox="0 0 14 14"><path d="M7 1.2 V4 M7 6 V8.4 M7 10.4 V12.8"/></svg>'};
+const ARMTYPE_NAME={road:"a side ROAD", rail:"a RAILWAY", track:"a TRACK (dashed)"};
+const ARMTYPE_SEQ=["road","rail","track"];
+$("armtype").onclick=()=>{ armType=ARMTYPE_SEQ[(ARMTYPE_SEQ.indexOf(armType)+1)%ARMTYPE_SEQ.length];
   $("armtype").innerHTML=ARMTYPE_ICON[armType];
-  $("armtype").title="what ＋ adds: "+(armType==="road"?"a side ROAD":"a RAILWAY")+" — click to swap"; };
+  $("armtype").title="what ＋ adds: "+ARMTYPE_NAME[armType]+" — click to cycle"; };
 /* the colour box: quick samples, then any colour */
 $("colbox").onclick=e=>{ e.stopPropagation();
   const p=$("colpop"), r=$("colbox").getBoundingClientRect();
@@ -3448,7 +3523,7 @@ $("colmore").oninput=e=>{ if(!cur)return; cur.col=e.target.value; mark(); syncQu
 $("addarm").onclick=()=>{
   if(!cur)return;
   const m = cur.rb? {a:90,off:90,len:38} : {a:90,off:0,len:38};   // on a roundabout: on the ring, out to the right
-  if(armType==="rail") m.rail=true;
+  if(armType==="rail") m.rail=true; else if(armType==="track") m.track=true;
   cur.arms.push(m);
   armSel=cur.arms.length-1; hideHandles=false; mark(); syncQuick(); repaint();
 };
@@ -4019,7 +4094,7 @@ function addArmAt(x,y){
   else { off=offFromPoint(cur,x,y); [ax,ay]=armAttach(off,armTurn(cur),quickCS(cur),cur); }
   const a=Math.max(-170,Math.min(170,snapAngle(Math.atan2(x-ax, ay-y)*180/Math.PI)));
   const len=Math.max(30,Math.min(72,Math.round(Math.hypot(x-ax,y-ay))));
-  const nm={a,off,len}; if(armType==="rail") nm.rail=true;
+  const nm={a,off,len}; if(armType==="rail") nm.rail=true; else if(armType==="track") nm.track=true;
   cur.arms.push(nm); armSel=cur.arms.length-1;
 }
 $("big").addEventListener("dblclick",ev=>{
@@ -5113,7 +5188,7 @@ function rbLiveUpdate(){
       const doc=buildRoadbook({...rbOpts,sub:baseName||"route"},true,pg);
       if(rbLiveUrl) URL.revokeObjectURL(rbLiveUrl);
       rbLiveUrl=doc.output("bloburl");                     // blob, not a data: URI — browsers reliably render these in a frame
-      $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=Fit";
+      $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH";   // FitH = the page always fills the box's width
       $("rblivehint").textContent="page "+(pg+1)+" — where your selected waypoint prints";
     }catch(e){ $("rblivehint").textContent="couldn't draw the page: "+(e&&e.message||e); }
   },420);
@@ -5329,7 +5404,8 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
     var panel={el:card, head:head, body:card, id:r.id, title:r.title,
                snapH:null, snapV:null, freeX:r.x, freeY:r.y};
     MP.list.push(panel); mpDrag(panel);
-    if(r.id==="libcard") mpEdgeResize(panel,["l","t","lt","b"]);   // Tulip Library: wider by the left edge, taller by the top or bottom
+    if(r.id==="libcard") mpEdgeResize(panel,["l","r","t","b","lt","rt"]);        // Tulip Library: any edge or top corner
+    if(r.id==="rblivecard") mpEdgeResize(panel,["l","r","t","b","lt","rt"]);     // Roadbook page: any edge — the page always fills the width
     if(r.id==="reconcard") mpEdgeResize(panel,["l","t","r","b","lt","rt"]);   // Check tulips: resize any edge
   });
   var side=document.getElementById("side"); if(side) side.remove();   // no sidebar — everything lives on the map
