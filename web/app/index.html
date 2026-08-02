@@ -996,7 +996,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 7";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 8";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -1968,12 +1968,12 @@ let lastDragEnd=0;
 /* click-and-hold ANY visible dot to move it — no select-first needed.
    A plain click (no movement) just selects. The map only pans off the track.
    Runs from a capture-phase listener, so Leaflet never starts a map pan. */
-function beginDotDrag(i){
+function beginDotDrag(i,downEv){
   selectVertex(i);                                     // selected the moment you touch it
-  let moved=false, sx=null, sy=null; const wpi=wpAtPoint(i);
+  let moved=false; const wpi=wpAtPoint(i);
+  const sx=downEv?downEv.clientX:0, sy=downEv?downEv.clientY:0;   // dead zone measures from the PRESS, not the first move
   const move=e2=>{
     if(e2.buttons===0){ up(); return; }                // button no longer down → the drag is over, whatever event got lost
-    if(sx==null){ sx=e2.clientX; sy=e2.clientY; }
     if(!moved){
       if(Math.abs(e2.clientX-sx)<3&&Math.abs(e2.clientY-sy)<3) return;   // 3px dead zone — a click stays a click
       snapshot(); moved=true;
@@ -2021,7 +2021,7 @@ function initTpInput(){
     const i=tpDotAt(e.clientX-r.left,e.clientY-r.top);
     if(i<0) return;
     e.stopPropagation(); e.preventDefault();           // the map never sees it — no pan, no line click
-    beginDotDrag(i);
+    beginDotDrag(i,e);
   },true);
   mc.addEventListener("contextmenu",e=>{
     if(routing||measuring||pendingAction) return;
@@ -2039,19 +2039,15 @@ function initTpInput(){
      a second hand-setter at container level just strobed against it */
 }
 initTpInput();
-/* when the pale dots are showing, the SELECTED look comes from the recoloured
-   dot itself — the draggable handle on top goes invisible (but still grabs).
-   Without the dots, the handle is the visible red dot as before. */
+/* when the pale dots are showing, the SELECTED look and all the input come
+   from the recoloured dot itself — the marker leaves the map entirely, so
+   there is no invisible hover zone to touch the cursor. Without the dots,
+   the marker is the visible red dot exactly as before. */
 function syncSelHandle(){
   if(!vertexHandle||vertexIdx<0) return;
   const hasDot=!!(allTpOn&&allTpArr[vertexIdx]);
-  const want=hasDot?"ghost":"dot";
-  if(vertexHandle._look===want) return;
-  vertexHandle._look=want;
-  vertexHandle.setIcon(L.divIcon({className:"",
-    html:hasDot?'<div style="width:18px;height:18px"></div>'
-               :'<div style="width:12px;height:12px;border-radius:50%;background:#ff1f30;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.45)"></div>',
-    iconSize:hasDot?[18,18]:[16,16], iconAnchor:hasDot?[9,9]:[8,8]}));
+  if(hasDot){ if(map.hasLayer(vertexHandle)) map.removeLayer(vertexHandle); }
+  else if(!map.hasLayer(vertexHandle)) vertexHandle.addTo(map);
 }
 window.setAllTp=function(on){ allTpOn=!!on; try{ localStorage.setItem("vmstudio_alltp",on?"1":"0"); }catch(_){ } refreshAllTp(); };
 /* ---------- colour the track by speed / altitude / slope ----------
