@@ -709,6 +709,26 @@
      against the visible edge. The card gives up its top padding to the header. */
   .rs-float { padding-top:0; }
   .rs-float .rs-head { top:0; margin-top:0; }
+
+  /* ==== CURSOR: the boxes are NOT the map ====
+     cursor is an inherited property and every box lives inside the Leaflet
+     container, so the boxes were quietly inheriting the map's drag-hand.
+     Sweeping across a box then flipped hand → pointer → hand on every button:
+     the flicker. A box body is a normal arrow; only its header (a drag handle)
+     is a hand; controls keep their own pointer. */
+  .rs-float, .mpanel, #routebox, #signmodal, #mediabox, #cutchip, #ctx,
+  #rs-menu, #views-menu, .lyrfly, .stylefly, #searchbox, #trackcolor { cursor:default; }
+  .rs-float input, .rs-float textarea, .mpanel input, #routebox input { cursor:text; }
+  .rs-head, .mph, #routebox .rbx-head, #signmodal .signhd { cursor:grab; }
+  .rs-head:active, .mph:active, #signmodal .signhd:active { cursor:grabbing; }
+  /* The MAP SURFACE always shows the map's own hand: tiles, the drawing
+     canvases and any layer the base map adds are forbidden from setting a
+     cursor of their own, so it cannot flicker as the mouse crosses their
+     seams. Clickable things (the route line, pins) keep their pointer. */
+  .leaflet-tile-pane, .leaflet-tile-pane *,
+  .leaflet-pane > canvas, .leaflet-overlay-pane canvas,
+  .leaflet-pane > svg:not(.leaflet-interactive) { cursor:inherit !important; }
+  .leaflet-interactive, .leaflet-marker-icon { cursor:pointer !important; }
 </style>
 </head>
 <body>
@@ -996,7 +1016,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 8";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 9";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
