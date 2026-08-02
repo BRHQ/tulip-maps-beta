@@ -420,14 +420,16 @@
     height:3px; background:var(--amber); }
   #rbmodal .rbstep b { display:block; font-size:17px; line-height:1.1; }
   #rbmodal .rbbody { flex:1; display:flex; min-height:0; }
-  #rbmodal .rbpane { width:430px; flex:none; padding:18px 22px; overflow-y:auto;
-    border-right:1px solid var(--hair); }
+  #rbmodal .rbleft { width:430px; flex:none; display:flex; flex-direction:column;
+    min-height:0; border-right:1px solid var(--hair); }
+  #rbmodal .rbpane { flex:1; padding:18px 22px; overflow-y:auto; min-height:0; }
   #rbmodal .rbpane::-webkit-scrollbar { width:9px; }
   #rbmodal .rbpane::-webkit-scrollbar-thumb { background:rgba(20,61,46,.18); border-radius:5px; }
   #rbmodal .rbstage { flex:1; background:#E7E3D9; display:flex; align-items:stretch;
     justify-content:center; padding:16px; min-width:0; }
-  #rbmodal .rbfoot { flex:none; display:flex; align-items:center; gap:10px;
-    padding:12px 20px; border-top:1px solid var(--hair); background:#FBF7EE; }
+  #rbmodal .rbfoot { flex:none; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding:12px 16px; border-top:1px solid var(--hair); background:#FBF7EE; }
+  #rbmodal .rbfoot .hint { width:100%; text-align:center; order:-1; margin:0 0 2px; }
   #rbmodal .rbfoot .grow { flex:1; }
   #rbmodal .stepnote { font-size:12.5px; color:var(--mut); margin:0 0 14px; line-height:1.45; }
   #rbmodal .rbpane .field:first-of-type { margin-top:0; }
@@ -929,6 +931,7 @@
       <button class="rbstep" data-step="3"><b>4</b>Export</button>
     </div>
     <div class="rbbody">
+      <div class="rbleft">
       <div class="rbpane">
         <div class="rbstepbox" data-step="0">
           <p class="stepnote">Name it, choose the paper and the look. Everything here changes the whole book.</p>
@@ -968,11 +971,27 @@
         </div>
         <div class="rbstepbox" data-step="2" style="display:none">
           <p class="stepnote">A map of the whole route as page one, and a height profile along the foot of every page.</p>
-          <div class="field">Front page</div>
+          <div class="field">Title page</div>
       <div class="rbtickrow">
-        <button class="rc-s" id="rb_mappage" title="start the book with a page showing the whole route on a map">🗺 Map page</button>
-        <button class="rc-s" id="rb_mapelev" title="add the height profile as a bar along the bottom of the map page">⛰ Height profile</button>
+        <button class="rc-s" id="rb_titlepage" title="open the book with a cover page">📄 Title page</button>
       </div>
+      <div id="rb_tprow" style="display:none">
+        <div class="rbtickrow" style="flex-wrap:wrap;margin-top:5px">
+          <button class="rc-s" data-tp="sub">Route name</button>
+          <button class="rc-s" data-tp="dist">Distance</button>
+          <button class="rc-s" data-tp="wps">Waypoints</button>
+          <button class="rc-s" data-tp="date">Date</button>
+          <button class="rc-s" data-tp="badge">Badge</button>
+        </div>
+        <input type="text" id="rb_tpnote" placeholder="anything else to print on the cover…" style="margin-top:5px">
+      </div>
+      <div class="field">Map page</div>
+      <div class="rbtickrow">
+        <button class="rc-s" id="rb_mappage" title="a page showing the whole route on a map">🗺 Map page</button>
+        <button class="rc-s" id="rb_mapelev" title="add the height profile as a bar along the bottom of the map page">⛰ Height profile</button>
+        <button class="rc-s" id="rb_mapcaption" title="print a heading above the map">Aa Heading</button>
+      </div>
+      <input type="text" id="rb_mapnote" placeholder="map page heading (blank = the event title)" style="margin-top:5px;display:none">
       <div class="rbtickrow" id="rb_maprow2" style="display:none;align-items:center">
         <span style="font-size:11.5px;color:var(--mut)">show</span>
         <span class="seg" id="rb_mapmarks"><button data-v="wp">waypoints</button><button data-v="dist">distance</button></span>
@@ -982,6 +1001,7 @@
       <div class="field">Every page</div>
       <div class="rbtickrow">
         <button class="rc-s" id="rb_pageelev" title="a thin height profile along the foot of every page, for that page's waypoints">⛰ Height profile strip</button>
+        <button class="rc-s" id="rb_profilebars" title="mark each waypoint on the height profiles with a coloured line">┃ Waypoint bars</button>
       </div>
       
         </div>
@@ -991,15 +1011,15 @@
           <div class="hint" id="rb_summary" style="line-height:1.6"></div>
         </div>
       </div>
+      <div class="rbfoot">
+        <span class="hint" id="rb_steplbl"></span>
+        <button class="btn" id="rb_back" style="background:#f0f2f0">‹ Back</button>
+        <span class="grow"></span>
+        <button class="btn" id="rb_next">Next ›</button>
+        <button class="btn green" id="rb_export" style="display:none">⤓ Export PDF</button>
+      </div>
+      </div>
       <div class="rbstage"><iframe id="rbprev"></iframe></div>
-    </div>
-    <div class="rbfoot">
-      <button class="btn" id="rb_back" style="background:#f0f2f0">‹ Back</button>
-      <span class="grow"></span>
-      <span class="hint" id="rb_steplbl" style="margin:0"></span>
-      <span class="grow"></span>
-      <button class="btn" id="rb_next">Next ›</button>
-      <button class="btn green" id="rb_export" style="display:none">⤓ Export PDF</button>
     </div>
   </div>
 </div>
@@ -1094,7 +1114,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 15";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 2 Aug · 16";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -4976,6 +4996,8 @@ const RB_COLS_ALL=[["inter","INTER"],["total","TOTAL"],["togo","TO GO"],["tulip"
 const RB_COLW={inter:50,total:52,togo:56,gps:74,info:92,street:92,height:52,climb:58,wp:49};
 const RB_DEF={title:"Grand Prix of South America",type:"tulip",page:"a4",theme:"dark",rowsPP:12,tulip:"normal",togoIn:0,wpIn:0,gpsIn:0,streetIn:1,badge:"Day 1",motoTulip:"right",motoNotes:"under",scope:"day",
               caps:"", mapPage:0, mapElev:1, mapMarks:"wp", mapDistKm:5, pageElev:0, units:"km",
+              titlePage:0, tpNote:"", tpShow:{sub:1,dist:1,wps:1,date:1,badge:1},
+              mapCaption:1, mapNote:"", profileBars:1,
               cols:[{k:"inter",on:1},{k:"total",on:1},{k:"togo",on:0},{k:"tulip",on:1},
                     {k:"direction",on:1},{k:"info",on:1},{k:"street",on:0},{k:"height",on:0},
                     {k:"climb",on:0},{k:"gps",on:0},{k:"wp",on:1}]};
@@ -5071,7 +5093,7 @@ async function rbMapCanvas(wpx,hpx,marks,stepUnits,unit){
   }
   return cv;
 }
-function rbElevStrip(wpx,hpx){                   // the height profile as a wide, short bar
+function rbElevStrip(wpx,hpx,bars){                   // the height profile as a wide, short bar
   if(!pts.some(p=>p.ele)) return null;
   const cv=document.createElement("canvas"); cv.width=wpx; cv.height=hpx;
   const c=cv.getContext("2d");
@@ -5085,7 +5107,7 @@ function rbElevStrip(wpx,hpx){                   // the height profile as a wide
   c.beginPath();
   pts.forEach((p,i)=>{ const X=(cum[i]/tot)*wpx, Y=hpx-8-((p.ele||0)-lo)/rng*(hpx-22); i?c.lineTo(X,Y):c.moveTo(X,Y); });
   c.strokeStyle="#143d2e"; c.lineWidth=2; c.stroke();
-  wps.filter(w=>!w.deleted).forEach(w=>{         // a coloured line at every waypoint
+  if(bars!==0) wps.filter(w=>!w.deleted).forEach(w=>{   // a coloured line at every waypoint
     const X=((w.pos||0)/tot)*wpx;
     c.strokeStyle="#e1694f"; c.lineWidth=1.4;
     c.beginPath(); c.moveTo(X,hpx-8); c.lineTo(X,6); c.stroke();
@@ -5099,7 +5121,7 @@ function rbElevStrip(wpx,hpx){                   // the height profile as a wide
 let rbMapCache={img:null,elev:null,key:""};
 async function rbPrepMap(o){
   if(!o.mapPage || !pts.length){ rbMapCache={img:null,elev:null,key:""}; return; }
-  const key=[o.page,o.mapElev,o.mapMarks,o.mapDistKm,rbUnits(o),pts.length,baseName,(pts[0]||{}).lat,(pts[pts.length-1]||{}).lat].join("|");
+  const key=[o.page,o.mapElev,o.mapMarks,o.mapDistKm,o.profileBars,rbUnits(o),pts.length,baseName,(pts[0]||{}).lat,(pts[pts.length-1]||{}).lat].join("|");
   if(rbMapCache.key===key && rbMapCache.img) return;                   // already drawn for this route
   const a5=o.page==="a5";
   const wpx=a5?900:1240, hpx=a5?1150:1560;                             // ~150dpi of the printable area
@@ -5107,7 +5129,7 @@ async function rbPrepMap(o){
   const cv=await rbMapCanvas(wpx,hpx-elevH-40,o.mapMarks,o.mapDistKm,rbUnits(o));
   rbMapCache={ img:cv?cv.toDataURL("image/jpeg",0.86):null,
                imgW:cv?cv.width:0, imgH:cv?cv.height:0,
-               elev:o.mapElev?(rbElevStrip(wpx,elevH||1)||null):null, key };
+               elev:o.mapElev?(rbElevStrip(wpx,elevH||1,o.profileBars)||null):null, key };
   if(rbMapCache.elev) rbMapCache.elev=rbMapCache.elev.toDataURL("image/png");
 }
 /* a thin profile of only the stretch this page covers, waypoints marked */
@@ -5128,7 +5150,7 @@ function rbPageElevStrip(fromPos,toPos,chunk,o){
   c.fillStyle="rgba(20,61,46,.14)"; c.fill();
   c.beginPath(); idx.forEach((i,n)=>n?c.lineTo(X(i),Y(i)):c.moveTo(X(i),Y(i)));
   c.strokeStyle="#143d2e"; c.lineWidth=2; c.stroke();
-  chunk.forEach(r=>{                       // a coloured line at each waypoint on this page
+  if(o.profileBars!==0) chunk.forEach(r=>{ // a coloured line at each waypoint on this page
     const w=rbWpFor(r); if(!w) return;
     const x=((w.pos-a)/(b-a))*wpx; if(x<0||x>wpx) return;
     c.strokeStyle="#e1694f"; c.lineWidth=1.6;
@@ -5235,24 +5257,57 @@ function buildRoadbook(o,previewOnly,onlyPage){
   const days=(o.scope==="rally"&&!previewOnly)?rbGatherDays()
             :[{sub:(o.sub||baseName||"route"), rows}];
   let firstPage=true;
-  /* the MAP page goes first: the whole route on real map tiles, fitted to the
+  const extras = !o.noExtras;          // the live box asks for the tulip pages only
+  /* the TITLE page: a big cover with whatever facts you tick */
+  if(extras && o.titlePage && onlyPage==null){
+    if(!firstPage) doc.addPage();
+    firstPage=false;
+    const sh=o.tpShow||{}, totKm=(cum[cum.length-1]||0)/1000;
+    doc.setFillColor(...(classic||raid?[255,255,255]:BANDC));
+    if(!classic&&!raid) doc.rect(0,0,W,H*0.42,"F");
+    doc.setTextColor(...(classic||raid?INK:[255,255,255]));
+    doc.setFont("helvetica","bold"); FS(34);
+    doc.splitTextToSize(o.title||"Roadbook",W-2*M).forEach((ln,i)=>doc.text(ln,M,H*0.17+i*40*S));
+    if(sh.sub!==0){ doc.setFont("helvetica","normal"); FS(15);
+      doc.setTextColor(...(classic||raid?GREY:SUBC));
+      doc.text((o.sub||baseName||"route"),M,H*0.30); }
+    if(sh.badge!==0 && o.badge){
+      doc.setFillColor(245,166,35); doc.roundedRect(M,H*0.33,86*S,30*S,6*S,6*S,"F");
+      doc.setTextColor(28,28,33); doc.setFont("helvetica","bold"); FS(12);
+      doc.text(o.badge,M+43*S,H*0.33+20*S,{align:"center"}); }
+    let y=H*0.52;
+    const fact=(k,v)=>{ doc.setTextColor(...GREY); doc.setFont("helvetica","normal"); FS(9.5);
+      doc.text(k.toUpperCase(),M,y);
+      doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(19);
+      doc.text(v,M,y+24*S); y+=52*S; };
+    if(sh.dist!==0) fact("Distance", rbDistTxt(totKm,o,1)+" "+rbDistUnitLabel(o));
+    if(sh.wps!==0)  fact("Waypoints", String(rows.length));
+    if(sh.date!==0) fact("Date", new Date().toLocaleDateString());
+    if(o.tpNote){ doc.setTextColor(...GREY); doc.setFont("helvetica","normal"); FS(11);
+      doc.splitTextToSize(o.tpNote,W-2*M).forEach((ln,i)=>doc.text(ln,M,y+i*15*S)); }
+    doc.setFont("helvetica","normal"); FS(6.2); doc.setTextColor(...GREY);
+    doc.text("\u00a9 Tulip Maps \u2014 tulipmaps.com",W/2,H-8*S,{align:"center"});
+  }
+  /* the MAP page: the whole route on real map tiles, fitted to the
      paper, with the height profile as a bar underneath if that's ticked */
-  if(o.mapPage && rbMapCache.img && onlyPage==null){
+  if(extras && o.mapPage && rbMapCache.img && onlyPage==null){
+    if(!firstPage) doc.addPage();
     firstPage=false;
     const availW=W-2*M, elevH=rbMapCache.elev?(H*0.12):0;
     const top=60*S, availH=H-top-M-elevH-(elevH?12*S:0);
     const sc=Math.min(availW/rbMapCache.imgW, availH/rbMapCache.imgH);
     const dw=rbMapCache.imgW*sc, dh=rbMapCache.imgH*sc, dx=M+(availW-dw)/2;
-    doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(17);
-    doc.text(o.title||"Roadbook",M,26*S);
-    doc.setFont("helvetica","normal"); FS(10); doc.setTextColor(...GREY);
-    doc.text(((o.sub||baseName||"route")+"   \u00b7   "+rbDistTxt((cum[cum.length-1]||0)/1000,o,1)+" "+rbDistUnitLabel(o)).toUpperCase(),M,43*S);
+    if(o.mapCaption!==0){
+      doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(17);
+      doc.text(o.mapNote||o.title||"Roadbook",M,26*S);
+      doc.setFont("helvetica","normal"); FS(10); doc.setTextColor(...GREY);
+      doc.text(((o.sub||baseName||"route")+"   \u00b7   "+rbDistTxt((cum[cum.length-1]||0)/1000,o,1)+" "+rbDistUnitLabel(o)).toUpperCase(),M,43*S);
+    }
     doc.addImage(rbMapCache.img,"JPEG",dx,top,dw,dh);
     doc.setDrawColor(...GREY); doc.setLineWidth(.6); doc.rect(dx,top,dw,dh);
     if(rbMapCache.elev) doc.addImage(rbMapCache.elev,"PNG",M,H-M-elevH,availW,elevH);
     doc.setFont("helvetica","normal"); FS(6.5); doc.setTextColor(...GREY);
     doc.text("\u00a9 OpenStreetMap contributors",M,H-M-elevH-4*S);
-    doc.addPage();
   }
   days.forEach(day=>{
     const ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
@@ -5356,8 +5411,9 @@ function buildRoadbook(o,previewOnly,onlyPage){
               FS(raid?13:10.5); doc.text(rbHeightTxt(r.height_m,o),X+CW/2,mid+3*S,{align:"center"}); } }
           else if(c.k==="climb"){        // up / down on the leg TO THE NEXT waypoint
             if(r.climb_up!=null){ doc.setFont("helvetica","bold"); FS(raid?11.5:9.5);
-              doc.setTextColor(22,122,58);  doc.text("\u25b2 "+rbClimbTxt(r.climb_up,o),X+CW/2,mid-2*S,{align:"center"});
-              doc.setTextColor(184,42,32);  doc.text("\u25bc "+rbClimbTxt(r.climb_dn,o),X+CW/2,mid+9*S,{align:"center"}); } }
+              const cu=rbUnits(o)==="mi"?"ft":"m";
+              doc.setTextColor(22,122,58);  doc.text("\u25b2 "+rbClimbTxt(r.climb_up,o)+cu,X+CW/2,mid-2*S,{align:"center"});
+              doc.setTextColor(184,42,32);  doc.text("\u25bc "+rbClimbTxt(r.climb_dn,o)+cu,X+CW/2,mid+9*S,{align:"center"}); } }
           else if(c.k==="gps"){ const w=rbWpFor(r);
             if(w){ doc.setFont("helvetica","normal"); FS(6.8); doc.setTextColor(...GREY);
               doc.text(w.lat.toFixed(5),X+CW/2,mid-1*S,{align:"center"});
@@ -5486,7 +5542,8 @@ function rbLivePageOf(){
 let rbLiveKey="", rbLiveAim=0;
 function rbLiveSig(){                                  // what the printed pages depend on
   const hiPage=rbLivePageOf();                 // the highlight only counts when it lands on another page
-  return JSON.stringify([rbOpts,
+  return JSON.stringify([rbOpts.units,rbOpts.type,rbOpts.page,rbOpts.tulip,rbOpts.rowsPP,rbOpts.cols,
+    rbOpts.togoIn,rbOpts.wpIn,rbOpts.gpsIn,rbOpts.streetIn,rbOpts.pageElev,rbOpts.profileBars,rbOpts.title,rbOpts.badge,
     rows.map(r=>[r.wp,r.tulip,r.direction,r.info,r.street,r.total_km,r.inter_km,r.height_m,r.climb_up]),
     baseName,hiPage]);
 }
@@ -5499,7 +5556,7 @@ function rbLiveUpdate(force){
     if(!rbOpts) rbLoad();
     rbFillDistances();
     const hi=(selWp>=0&&wps[selWp]&&!wps[selWp].deleted)?((rowFor(wps[selWp])||{}).wp):null;
-    const pg=rbLivePageOf()+((rbOpts.mapPage&&rbMapCache.img)?1:0)+1;   // 1-based, after any map page
+    const pg=rbLivePageOf()+1;         // the box holds the TULIP pages only, so no offset
     /* Only the CONTENT decides whether to redraw. Stepping to another waypoint
        on the same page leaves the box completely alone — it used to redraw and
        re-scroll on every arrow press, which kept yanking the view. The
@@ -5512,9 +5569,10 @@ function rbLiveUpdate(force){
       rbLiveAim=pg; $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH&page="+pg; return;
     }
     try{
-      const o={...rbOpts,sub:baseName||"route",hiWp:hi};
-      if(o.mapPage) await rbPrepMap(o);
-      const doc=buildRoadbook(o,false);                                  // every page, not just one
+      /* the working box shows the ROADBOOK pages only — no cover, no map page:
+         they'd just get in the way while you're editing waypoints */
+      const o={...rbOpts,sub:baseName||"route",hiWp:hi,noExtras:1};
+      const doc=buildRoadbook(o,false);                                  // every tulip page, not just one
       if(rbLiveUrl) URL.revokeObjectURL(rbLiveUrl);
       rbLiveUrl=doc.output("bloburl");                                   // blob, not a data: URI - browsers reliably render these in a frame
       rbLiveKey=sig; rbLiveAim=pg;
@@ -5579,6 +5637,31 @@ function rbTypeSync(){
           me.onclick=()=>{ if(!rbOpts.mapPage) return; rbOpts.mapElev=rbOpts.mapElev?0:1; rbMapCache.key=""; rbTypeSync(); rbPreview(); }; }
   if(pe){ pe.classList.toggle("on",!!rbOpts.pageElev);
           pe.onclick=()=>{ rbOpts.pageElev=rbOpts.pageElev?0:1; rbTypeSync(); rbPreview(); }; }
+  const pb=$("rb_profilebars");
+  if(pb){ pb.classList.toggle("on",rbOpts.profileBars!==0);
+          pb.onclick=()=>{ rbOpts.profileBars=(rbOpts.profileBars===0)?1:0; rbMapCache.key=""; rbTypeSync(); rbPreview(); }; }
+  /* the title page and what it says */
+  const tp=$("rb_titlepage"), tprow=$("rb_tprow"), tpn=$("rb_tpnote");
+  if(tp){ tp.classList.toggle("on",!!rbOpts.titlePage);
+          tp.onclick=()=>{ rbOpts.titlePage=rbOpts.titlePage?0:1; rbTypeSync(); rbPreview(); }; }
+  if(tprow){ tprow.style.display=rbOpts.titlePage?"block":"none";
+    rbOpts.tpShow=rbOpts.tpShow||{};
+    tprow.querySelectorAll("[data-tp]").forEach(b=>{
+      const k=b.dataset.tp;
+      b.classList.toggle("on",rbOpts.tpShow[k]!==0);
+      b.onclick=()=>{ rbOpts.tpShow[k]=(rbOpts.tpShow[k]===0)?1:0; rbTypeSync(); rbPreview(); };
+    });
+  }
+  if(tpn){ tpn.value=rbOpts.tpNote||"";
+           tpn.oninput=()=>{ rbOpts.tpNote=tpn.value; rbPreview(); }; }
+  /* the map page's heading */
+  const mc2=$("rb_mapcaption"), mn=$("rb_mapnote");
+  if(mc2){ mc2.classList.toggle("on",rbOpts.mapCaption!==0);
+           mc2.style.opacity=rbOpts.mapPage?1:.4;
+           mc2.onclick=()=>{ if(!rbOpts.mapPage) return; rbOpts.mapCaption=(rbOpts.mapCaption===0)?1:0; rbTypeSync(); rbPreview(); }; }
+  if(mn){ mn.style.display=(rbOpts.mapPage&&rbOpts.mapCaption!==0)?"block":"none";
+          mn.value=rbOpts.mapNote||"";
+          mn.oninput=()=>{ rbOpts.mapNote=mn.value; rbPreview(); }; }
   const mr2=$("rb_maprow2");
   if(mr2){ mr2.style.display=rbOpts.mapPage?"flex":"none";
     rbSeg("rb_mapmarks","mapMarks");
@@ -5675,10 +5758,24 @@ $("rb_title").oninput=rbPreview; $("rb_sub").oninput=rbPreview;
 $("rb_badge").oninput=()=>{ rbOpts.badge=$("rb_badge").value; rbPreview(); };
 /* a DESIGN is just the layout choices — a tiny file anyone can pass around */
 $("rb_dsave").onclick=()=>{
-  const d={tulipbook:1, type:rbOpts.type, page:rbOpts.page, theme:rbOpts.theme,
+  /* A DESIGN FILE — "Tulip Maps Roadbook Design v1". It holds the LOOK of a
+     book (paper, type, columns, units, extra pages), never the route itself,
+     so one design can be used for every rally you run. It's written as JSON
+     because that's what every tool on earth can read; the .tulipbook name is
+     ours so a double-click can belong to Tulip Maps later. */
+  const d={ tulipbook:1, format:"tulip-maps-roadbook-design", version:1,
+    written:new Date().toISOString().slice(0,10), app:STUDIO_BUILD,
+    type:rbOpts.type, page:rbOpts.page, theme:rbOpts.theme, units:rbOpts.units,
     tulip:rbOpts.tulip, rowsPP:rbOpts.rowsPP, togoIn:rbOpts.togoIn, wpIn:rbOpts.wpIn,
-    gpsIn:rbOpts.gpsIn, badge:rbOpts.badge, cols:rbOpts.cols};
-  download(JSON.stringify(d,null,1),"roadbook-design.tulipbook.json","application/json");
+    gpsIn:rbOpts.gpsIn, streetIn:rbOpts.streetIn, badge:rbOpts.badge,
+    titlePage:rbOpts.titlePage, tpShow:rbOpts.tpShow, tpNote:rbOpts.tpNote,
+    mapPage:rbOpts.mapPage, mapElev:rbOpts.mapElev, mapMarks:rbOpts.mapMarks,
+    mapDistKm:rbOpts.mapDistKm, mapCaption:rbOpts.mapCaption, mapNote:rbOpts.mapNote,
+    pageElev:rbOpts.pageElev, profileBars:rbOpts.profileBars,
+    cols:rbOpts.cols };
+  const name=(rbOpts.title||"roadbook").replace(/[^\w \-]+/g,"").trim().slice(0,40)||"roadbook";
+  download(JSON.stringify(d,null,1),name+".tulipbook.json","application/json");
+  toast("Design saved — open it in any Tulip Maps studio to print another rally the same way.",5000);
 };
 $("rb_dload").onclick=()=>$("rb_dfile").click();
 $("rb_dfile").onchange=e=>{
@@ -5686,7 +5783,9 @@ $("rb_dfile").onchange=e=>{
   f.text().then(t=>{
     const d=JSON.parse(t);
     if(!d||d.tulipbook!==1) throw new Error("not a roadbook design file");
-    ["type","page","theme","tulip","rowsPP","togoIn","wpIn","gpsIn","streetIn","mapPage","mapElev","badge"].forEach(k=>{ if(d[k]!=null) rbOpts[k]=d[k]; });
+    ["type","page","theme","tulip","rowsPP","togoIn","wpIn","gpsIn","streetIn","mapPage","mapElev",
+     "mapMarks","mapDistKm","pageElev","units","titlePage","tpNote","tpShow","mapCaption","mapNote",
+     "profileBars","badge"].forEach(k=>{ if(d[k]!=null) rbOpts[k]=d[k]; });
     if(Array.isArray(d.cols)&&d.cols.length) rbOpts.cols=d.cols;
     rbLoad&&localStorage.setItem("vmstudio_rb",JSON.stringify(rbOpts));
     rbSeg("rb_page","page"); rbSeg("rb_type","type"); rbSeg("rb_theme","theme"); rbSeg("rb_tulip","tulip");
