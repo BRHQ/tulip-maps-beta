@@ -283,9 +283,25 @@
   #searchres button { display:block; width:100%; text-align:left; background:none; border:none; padding:7px 8px; font-size:12px; border-radius:6px; cursor:pointer; }
   #searchres button:hover { background:#f2f7ee; }
   #searchres .shint { padding:8px; font-size:12px; color:var(--mut); }
-  .elevinfo { font-size:10.5px; color:var(--mut); text-align:center; margin:1px 0 0; line-height:1.25; }
-  #elevpanel .mpc { padding:5px 6px 4px; gap:2px; }
+  .elevinfo { font-size:10.5px; color:var(--mut); text-align:center; margin:1px 0 0; line-height:1.25; flex:0 0 auto; }
+  /* the graph takes all the room the box has, so the line of text underneath
+     always sits right on the bottom edge — no dead space, whatever height the
+     box has been left at */
+  #elevpanel { display:flex; flex-direction:column; }
+  #elevpanel .mpc { padding:5px 6px 3px; gap:2px; flex:1 1 auto; min-height:0; }
+  #elevcanvas { flex:1 1 auto; min-height:70px; }
   .rbtickrow { display:flex; gap:6px; margin-top:2px; }
+  /* the theme chips: a swatch of the theme's own colours, then its name */
+  .rbthemes { display:flex; flex-wrap:wrap; gap:5px; margin-top:4px; }
+  .rbtheme { display:flex; align-items:center; gap:6px; border:1px solid var(--hair); border-radius:8px;
+    background:#fff; cursor:pointer; padding:4px 8px 4px 5px; font:inherit; font-size:11.5px;
+    font-weight:600; color:var(--char); }
+  .rbtheme:hover { border-color:var(--amber); }
+  .rbtheme.on { border-color:var(--green); box-shadow:0 0 0 1.5px var(--green) inset; }
+  .rbtheme .sw { display:flex; border-radius:4px; overflow:hidden; border:1px solid rgba(0,0,0,.14); }
+  .rbtheme .sw i { width:9px; height:15px; display:block; }
+  .rbtheme .x { color:var(--mut); font-weight:400; padding:0 1px; }
+  .rbtheme .x:hover { color:#c0392b; }
   .rbcolors { display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; margin-top:4px; }
   .rbcolors label { display:flex; align-items:center; justify-content:space-between; gap:8px;
     font-size:12px; color:var(--char); background:#fff; border:1px solid var(--hair);
@@ -449,8 +465,17 @@
   #rb_cols { display:flex; flex-direction:column; gap:3px; margin-top:4px; }
   .rbcolrow { display:flex; align-items:center; gap:5px; border-radius:7px; padding:1px 2px; }
   .rbcolrow.off .rc-i { opacity:.4; }
-  .rbcolrow.dragover { outline:2px dashed var(--green); outline-offset:1px; }
   .rbcolrow.dropinside { outline:2px solid var(--amber); background:#FBEAE5; }
+  /* REORDERING: the row you grabbed lifts out of the list and an empty slot
+     opens where it would land, so the other rows visibly shuffle up and down
+     as you drag. (Dropping onto the MIDDLE of a row still tucks it inside —
+     that keeps its own amber outline and no slot opens.) */
+  .rbcolrow.rc-lift { opacity:.35; }
+  .rbcolslot { border:1.5px dashed var(--green); border-radius:7px; background:#eef4ea;
+    height:0; margin:0; opacity:0; overflow:hidden;
+    transition:height .12s ease, margin .12s ease, opacity .12s ease; }
+  .rbcolslot.open { height:26px; opacity:1; }
+  #rb_cols .rbcolrow { transition:transform .12s ease; }
   .rbcolrow.rbsub { margin-left:22px; opacity:.92; }
   .rc-subname { flex:1; font-size:11px; font-weight:600; color:var(--mut); }
   .rc-g { cursor:grab; color:var(--mut); font-size:12px; padding:0 2px; user-select:none; }
@@ -937,7 +962,7 @@
       <button class="rbstep on" data-step="0"><b>1</b>The book</button>
       <button class="rbstep" data-step="1"><b>2</b>Columns</button>
       <button class="rbstep" data-step="2"><b>3</b>Style</button>
-      <button class="rbstep" data-step="3"><b>4</b>Extra pages</button>
+      <button class="rbstep" data-step="3"><b>4</b>Extras</button>
       <button class="rbstep" data-step="4"><b>5</b>Export</button>
     </div>
     <div class="rbbody">
@@ -955,8 +980,16 @@
       <span class="seg" id="rb_page"><button data-v="a4">A4</button><button data-v="a5">A5</button><button data-v="moto">Moto roll</button></span>
       <div class="field">Type</div>
       <span class="seg" id="rb_type"><button data-v="tulip">Tulip</button><button data-v="classic">Classic</button><button data-v="raid">Raid</button></span>
-      <div class="field" id="rb_badgerow">Header badge <span style="font-weight:400;color:var(--mut)">— the yellow box ("Day 1", "VM"…)</span></div>
-      <input type="text" id="rb_badge" maxlength="10">
+      <div class="field" id="rb_badgerow">Header badge <span style="font-weight:400;color:var(--mut)">— the little box in the top corner</span></div>
+      <span class="seg" id="rb_badgemode">
+        <button data-v="day">Day</button>
+        <button data-v="date">Date</button>
+        <button data-v="sub">Route</button>
+        <button data-v="text">My own</button>
+        <button data-v="none">None</button></span>
+      <input type="text" id="rb_badge" maxlength="10" placeholder="up to 10 letters" style="display:none;margin-top:5px">
+      <input type="date" id="rb_badgedate" style="display:none;margin-top:5px">
+      <div class="hint" id="rb_badgenote" style="margin-top:3px"></div>
       <div class="field" id="rb_motorow1" style="display:none">Tulip side</div>
       <span class="seg" id="rb_mototulip" style="display:none"><button data-v="left">Left</button><button data-v="right">Right</button></span>
       <div class="field" id="rb_motorow2" style="display:none">Notes</div>
@@ -979,8 +1012,11 @@
         </div>
         <div class="rbstepbox" data-step="2" style="display:none">
           <p class="stepnote">The look of the printed page — type, colours and where the words sit.</p>
-          <div class="field" id="rb_themerow">Theme <span style="font-weight:400;color:var(--mut)">— the starting colours</span></div>
-          <span class="seg" id="rb_theme"><button data-v="dark">1 · Stage Dark</button><button data-v="green">2 · VM Green</button></span>
+          <div class="field" id="rb_themerow">Theme <span style="font-weight:400;color:var(--mut)">— sets everything below in one go</span></div>
+          <div id="rb_theme" class="rbthemes"></div>
+          <div class="rbtickrow" style="margin-top:6px">
+            <button class="rc-s" id="rb_themesave" title="keep the settings below as a theme you can pick again">💾 Save these as a theme</button>
+          </div>
           <div class="field">Font</div>
           <span class="seg" id="rb_font">
             <button data-v="helvetica">Helvetica</button>
@@ -1009,7 +1045,7 @@
           <div class="hint" style="margin-top:6px">Directions always start on the left — they're sentences.</div>
         </div>
         <div class="rbstepbox" data-step="3" style="display:none">
-          <p class="stepnote">A map of the whole route as page one, and a height profile along the foot of every page.</p>
+          <p class="stepnote">The cover, a map of the whole route as page one, and a height profile along the foot of every page.</p>
           <div class="field">Title page</div>
       <div class="rbtickrow">
         <button class="rc-s" id="rb_titlepage" title="open the book with a cover page">📄 Title page</button>
@@ -1023,6 +1059,12 @@
           <button class="rc-s" data-tp="badge">Badge</button>
         </div>
         <input type="text" id="rb_tpnote" placeholder="anything else to print on the cover…" style="margin-top:5px">
+        <div class="rbtickrow" style="margin-top:6px;align-items:center">
+          <button class="rc-s" id="rb_tplogobtn" title="a picture for the top of the cover — your event logo, a badge, a sponsor">🖼 Add a picture</button>
+          <button class="rc-s" id="rb_tplogoclear" style="display:none">✕ remove</button>
+          <img id="rb_tplogoprev" alt="" style="display:none;max-height:34px;max-width:90px;border:1px solid var(--hair);border-radius:5px;background:#fff">
+        </div>
+        <input type="file" id="rb_tplogofile" accept="image/*" style="display:none">
       </div>
       <div class="field">Map page</div>
       <div class="rbtickrow">
@@ -1767,7 +1809,7 @@ function buildElevPanel(){
   const box=document.createElement("div"); box.id="elevpanel"; box.className="mpanel"; box.style.width="300px";   // panel carries the width so resizing reaches the canvas
   const head=document.createElement("div"); head.className="mph"; head.innerHTML='<span class="mpt">Elevation</span>';
   const body=document.createElement("div"); body.className="mpc";
-  body.innerHTML='<canvas id="elevcanvas" width="300" height="120" style="width:100%;height:auto;display:block"></canvas><div id="elevinfo" class="elevinfo"></div>';
+  body.innerHTML='<canvas id="elevcanvas" width="300" height="120" style="width:100%;display:block"></canvas><div id="elevinfo" class="elevinfo"></div>';
   box.append(head,body); map.getContainer().appendChild(box); L.DomEvent.disableClickPropagation(box);
   const panel={el:box,head,body,id:"elevpanel",title:"Elevation",snapH:"left",snapV:"bottom",freeX:null,freeY:null};
   MP.list.push(panel); mpDrag(panel);
@@ -1779,6 +1821,7 @@ function drawElevation(){
   const box=$("elevpanel"); if(!box || getComputedStyle(box).display==="none") return;
   const cv=$("elevcanvas"), info=$("elevinfo"); if(!cv) return;
   if(cv.clientWidth && Math.abs(cv.width-cv.clientWidth)>4) cv.width=cv.clientWidth;   // match the canvas to the resized panel
+  if(cv.clientHeight && Math.abs(cv.height-cv.clientHeight)>4) cv.height=cv.clientHeight;   // ...in height too, so the graph fills the box
   const c=cv.getContext("2d"), W=cv.width, H=cv.height, pad=8; c.clearRect(0,0,W,H);
   if(!pts.length){ info.textContent="No route yet."; return; }
   const eles=pts.map(p=>p.ele||0), hasEle=eles.some(e=>e>0);
@@ -5246,12 +5289,65 @@ function rbMigrateNesting(o){
 const RB_STYLE_DEF={font:"helvetica", ink:"#131315", grey:"#73767c", line:"#d9dade",
                     band:"", bandText:"", accent:"", headBold:1, headCaps:1, align:"center"};
 function rbStyle(o){ return {...RB_STYLE_DEF, ...((o&&o.style)||{})}; }
+/* ---- THEMES ----
+   A theme is simply a whole set of the Style settings under one name: the
+   type, all six colours, the headings and where the text sits. Picking one
+   fills them all in, and you can then change anything and keep the result as
+   a theme of your own (for a particular event, say). The five built in use
+   the Tulip Maps colours. */
+const RB_THEMES=[
+  {id:"dark",  name:"Stage Dark", style:{font:"helvetica", ink:"#131315", grey:"#73767c", line:"#d9dade",
+     band:"#1c1c21", bandText:"#ffffff", accent:"#f5a623", headBold:1, headCaps:1, align:"center"}},
+  {id:"green", name:"Racing Green", style:{font:"helvetica", ink:"#131315", grey:"#5c6b62", line:"#d7ded8",
+     band:"#143D2E", bandText:"#FBF7EE", accent:"#8EB792", headBold:1, headCaps:1, align:"center"}},
+  {id:"coral", name:"Coral", style:{font:"helvetica", ink:"#241d1b", grey:"#7d6f6a", line:"#e6d9d3",
+     band:"#E1694F", bandText:"#FBF7EE", accent:"#F3C13C", headBold:1, headCaps:1, align:"center"}},
+  {id:"plum",  name:"Plum", style:{font:"helvetica", ink:"#1b1720", grey:"#786b80", line:"#ded6e2",
+     band:"#5E3183", bandText:"#FBF7EE", accent:"#CBA7E0", headBold:1, headCaps:1, align:"center"}},
+  {id:"paper", name:"Ink & Paper", style:{font:"times", ink:"#111111", grey:"#666666", line:"#cccccc",
+     band:"#ffffff", bandText:"#111111", accent:"#BC3B2C", headBold:0, headCaps:1, align:"center"}}
+];
+function rbMyThemes(){
+  try{ const a=JSON.parse(localStorage.getItem("vmstudio_rbthemes")||"[]");
+       return Array.isArray(a)?a:[]; }catch(_){ return []; }
+}
+function rbSaveMyThemes(list){
+  try{ localStorage.setItem("vmstudio_rbthemes",JSON.stringify(list)); }
+  catch(_){ toast("Couldn't keep that theme — the browser's store is full.",4500); }
+}
+function rbAllThemes(){ return RB_THEMES.concat(rbMyThemes()); }
 function rbRGB(hex,fallback){
   if(!hex||!/^#?[0-9a-f]{6}$/i.test(hex.replace("#",""))) return fallback;
   const h=hex.replace("#","");
   return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
 }
 function rbHeadTxt(t,st){ return st.headCaps?String(t||"").toUpperCase():String(t||""); }
+/* ---- the header badge: the little coloured box in the top corner ----
+   It's a choice now, not a free text box: the day (which counts itself up
+   through a multi-day rally), the date, the route name, your own words, or
+   nothing at all. Books saved before this had only the text box, so their
+   wording decides which choice they land on. */
+function rbBadgeMode(o){
+  if(o&&o.badgeMode) return o.badgeMode;
+  const b=(o&&o.badge!=null)?String(o.badge):"Day 1";
+  if(!b.trim()) return "none";
+  return /^day\s*\d*$/i.test(b.trim()) ? "day" : "text";
+}
+function rbBadgeText(o,day,days){
+  const m=rbBadgeMode(o);
+  if(m==="none") return "";
+  if(m==="day"){
+    const n=(days&&day&&days.indexOf(day)>=0)?days.indexOf(day)+1:1;
+    return "Day "+n;
+  }
+  if(m==="date"){
+    const d=o.badgeDate?new Date(o.badgeDate+"T12:00:00"):new Date();
+    if(isNaN(d.getTime())) return "";
+    return d.toLocaleDateString(undefined,{day:"numeric",month:"short"});
+  }
+  if(m==="sub") return String((day&&day.sub)||o.sub||baseName||"").slice(0,10);
+  return String(o.badge||"").slice(0,10);
+}
 /* ---- units: kilometres or miles ---- */
 function rbUnits(o){ return (o&&o.units)||"km"; }
 function rbDistTxt(km,o,dp){                       // one distance, in the chosen unit(s)
@@ -5319,6 +5415,7 @@ function buildRoadbook(o,previewOnly,onlyPage){
   const INK=rbRGB(ST.ink,[19,19,21]), GREY=rbRGB(ST.grey,[115,118,124]);
   const LINE=rbRGB(ST.line,[217,218,222]);
   const BANDTXT=rbRGB(ST.bandText,[255,255,255]);
+  const BADGEC=rbRGB(ST.accent,[245,166,35]);     // the little header badge follows the theme's accent
   const AL=ST.align||"center";                    // where the data sits in its box
   const alignX=(X,CW)=>AL==="left"?X+7:AL==="right"?X+CW-7:X+CW/2;
   const alignOpt=AL==="center"?{align:"center"}:{align:AL};
@@ -5356,10 +5453,22 @@ function buildRoadbook(o,previewOnly,onlyPage){
     if(sh.sub!==0){ doc.setFont(F,"normal"); FS(15);
       doc.setTextColor(...(classic||raid?GREY:SUBC));
       doc.text((o.sub||baseName||"route"),M,H*0.30); }
-    if(sh.badge!==0 && o.badge){
-      doc.setFillColor(245,166,35); doc.roundedRect(M,H*0.33,86*S,30*S,6*S,6*S,"F");
+    const tpBadge=rbBadgeText(o,days[0],days);
+    if(sh.badge!==0 && tpBadge){
+      doc.setFillColor(...BADGEC); doc.roundedRect(M,H*0.33,86*S,30*S,6*S,6*S,"F");
       doc.setTextColor(28,28,33); doc.setFont(F,"bold"); FS(12);
-      doc.text(o.badge,M+43*S,H*0.33+20*S,{align:"center"}); }
+      doc.text(tpBadge,M+43*S,H*0.33+20*S,{align:"center"}); }
+    /* the event's own picture / logo, top right of the cover */
+    if(o.tpLogo){
+      try{
+        const maxW=150*S, maxH=88*S;
+        const iw=o.tpLogoW||maxW, ih=o.tpLogoH||maxH;
+        const k=Math.min(maxW/iw, maxH/ih, 1);
+        const dw=iw*k, dh=ih*k;
+        doc.addImage(o.tpLogo,/^data:image\/jpe?g/i.test(o.tpLogo)?"JPEG":"PNG",
+                     W-M-dw, H*0.055, dw, dh);
+      }catch(_){}
+    }
     let y=H*0.52;
     const fact=(k,v)=>{ doc.setTextColor(...GREY); doc.setFont(F,"normal"); FS(9.5);
       doc.text(k.toUpperCase(),M,y);
@@ -5367,7 +5476,10 @@ function buildRoadbook(o,previewOnly,onlyPage){
       doc.text(v,M,y+24*S); y+=52*S; };
     if(sh.dist!==0) fact("Distance", rbDistTxt(totKm,o,1)+" "+rbDistUnitLabel(o));
     if(sh.wps!==0)  fact("Waypoints", String(rows.length));
-    if(sh.date!==0) fact("Date", new Date().toLocaleDateString());
+    /* one date for the whole book: the event date if you've set one for the
+       badge, otherwise today's */
+    if(sh.date!==0){ const ed=o.badgeDate?new Date(o.badgeDate+"T12:00:00"):null;
+      fact("Date", ((ed&&!isNaN(ed.getTime()))?ed:new Date()).toLocaleDateString()); }
     if(o.tpNote){ doc.setTextColor(...GREY); doc.setFont(F,"normal"); FS(11);
       doc.splitTextToSize(o.tpNote,W-2*M).forEach((ln,i)=>doc.text(ln,M,y+i*15*S)); }
     doc.setFont(F,"normal"); FS(6.2); doc.setTextColor(...GREY);
@@ -5395,11 +5507,20 @@ function buildRoadbook(o,previewOnly,onlyPage){
     doc.text("\u00a9 OpenStreetMap contributors",M,H-M-elevH-4*S);
   }
   days.forEach(day=>{
-    const ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
+    let ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
     const total=Math.max(0,...ordered.map(r=>parseFloat(r.total_km)||0));
     const allPages=Math.ceil(ordered.length/NR)||1;
-    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,allPages-1)):0;
-    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:allPages);
+    /* THE LIVE BOX ONLY (o.startWp): begin the page at the waypoint you're on,
+       so your row is always the top line of the box. The printed book is never
+       built this way — it always breaks pages 1,2,3… from the start. */
+    let truePg=0;
+    if(o.startWp!=null){
+      const si=ordered.findIndex(r=>String(r.wp)===String(o.startWp));
+      if(si>0){ truePg=Math.floor(si/NR); ordered=ordered.slice(si); }
+    }
+    const pagesLeft=Math.ceil(ordered.length/NR)||1;          // pages still to come from where this starts
+    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,pagesLeft-1)):0;
+    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:pagesLeft);
     for(let pg=pgFrom;pg<pgTo;pg++){
       if(!firstPage)doc.addPage(); firstPage=false;
       if(classic||raid){
@@ -5415,16 +5536,17 @@ function buildRoadbook(o,previewOnly,onlyPage){
         doc.text(o.title||"Roadbook",M,30*S);
         doc.setTextColor(...SUBC); FS(11);
         doc.text((day.sub||"route").toUpperCase()+"   \u00b7   "+rbDistTxt(total,o,1)+" "+rbDistUnitLabel(o),M,50*S);
-        doc.setFillColor(245,166,35); doc.roundedRect(W-M-64*S,17*S,64*S,30*S,6*S,6*S,"F");
-        doc.setTextColor(28,28,33); FS(11.5);
-        let badge=(o.badge!=null?o.badge:"Day 1");
-        if(/^day\s*\d*$/i.test(badge.trim())&&days.length>1) badge="Day "+(days.indexOf(day)+1);
-        doc.text(badge.slice(0,10)||"VM",W-M-32*S,36*S,{align:"center"});
+        const badge=rbBadgeText(o,day,days);
+        if(badge){
+          doc.setFillColor(...BADGEC); doc.roundedRect(W-M-64*S,17*S,64*S,30*S,6*S,6*S,"F");
+          doc.setTextColor(28,28,33); FS(11.5);
+          doc.text(badge,W-M-32*S,36*S,{align:"center"});
+        }
       }
       doc.setTextColor(...GREY); FS(8); doc.setFont(F,ST.headBold?"bold":"normal");
       caps.forEach((l,i)=>{ if(cols[i].w>0) doc.text(l,XS[i]+cols[i].w/2,HEAD-10*S,{align:"center"}); });
       doc.setFont(F,"normal");
-      doc.text("pg "+(pg+1)+"/"+allPages,W-M,HEAD-24*S,{align:"right"});
+      doc.text("pg "+(truePg+pg+1)+"/"+allPages,W-M,HEAD-24*S,{align:"right"});
       const chunk=ordered.slice(pg*NR,(pg+1)*NR);
       chunk.forEach((r,i)=>{
         const top=HEAD+i*ROW_H, mid=top+ROW_H/2;
@@ -5560,21 +5682,29 @@ function buildMotoRoll(o,previewOnly,onlyPage){
             :[{sub:(o.sub||baseName||"route"), rows}];
   let firstPage=true;
   days.forEach(day=>{
-    const ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
+    let ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
     const total=Math.max(0,...ordered.map(r=>parseFloat(r.total_km)||0));
     const allPages=Math.ceil(ordered.length/perPage)||1;
-    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,allPages-1)):0;
-    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:allPages);
+    let truePg=0;                                   // the live box starts the strip at the waypoint you're on
+    if(o.startWp!=null){
+      const si=ordered.findIndex(r=>String(r.wp)===String(o.startWp));
+      if(si>0){ truePg=Math.floor(si/perPage); ordered=ordered.slice(si); }
+    }
+    const stripsLeft=Math.ceil(ordered.length/perPage)||1;
+    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,stripsLeft-1)):0;
+    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:stripsLeft);
     for(let pg=pgFrom;pg<pgTo;pg++){
       if(!firstPage)doc.addPage([RW,RH]); firstPage=false;
       doc.setTextColor(...GREY); doc.setFont(F,"bold"); doc.setFontSize(6.5);
-      doc.text((o.title||"Roadbook")+" · "+(day.sub||"")+" · strip "+(pg+1)+"/"+allPages, RW/2, M+2, {align:"center"});
+      doc.text((o.title||"Roadbook")+" · "+(day.sub||"")+" · strip "+(truePg+pg+1)+"/"+allPages, RW/2, M+2, {align:"center"});
       const on=k=>(o.cols||RB_DEF.cols).some(c=>c.k===k&&c.on);
       const tulRight=(o.motoTulip||"right")!=="left";
       const notesBeside=(o.motoNotes||"under")==="beside";
       const chunk=ordered.slice(pg*perPage,(pg+1)*perPage);
       chunk.forEach((r,i)=>{
         const top=M+8+i*CH;
+        if(o.hiWp!=null && String(r.wp)===String(o.hiWp)){      // the waypoint you're working on
+          doc.setFillColor(255,244,186); doc.rect(M,top,RW-2*M,CH,"F"); }
         doc.setDrawColor(...INK); doc.setLineWidth(1); doc.line(M,top,RW-M,top);
         const tk=parseFloat(r.total_km);
         const numX=tulRight?M+2:RW-M-46;              // numbers sit opposite the tulip
@@ -5620,27 +5750,22 @@ function buildMotoRoll(o,previewOnly,onlyPage){
 let rbTimer=null, rbPrevUrl=null;
 /* ── the live page preview ── */
 let rbLiveTimer=null, rbLiveUrl=null;
-function rbLivePageOf(){
-  if(selWp<0||!wps[selWp]||wps[selWp].deleted) return 0;
-  const r=rowFor(wps[selWp]); if(!r) return 0;
-  const NR=(rbOpts&&rbOpts.page==="moto")
-    ? Math.floor((841.89-16)/(({small:88,none:88,normal:112,large:146})[rbOpts.tulip]??112))
-    : ((rbOpts&&rbOpts.rowsPP)||12);
-  const ordered=[...rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
-  const i=ordered.indexOf(r);
-  return i<0?0:Math.floor(i/NR);
+/* The live box shows ONE page that starts at the waypoint you're on: your row
+   is the top line, washed pale yellow, with the ones that follow underneath.
+   Step to another waypoint and the box follows immediately — one page is quick
+   enough to redraw every time (the whole book was not, which is why the
+   highlight used to stick until you crossed onto another page). */
+let rbLiveKey="";
+function rbLiveHiWp(){                                 // the waypoint the box is following
+  if(selWp<0||!wps[selWp]||wps[selWp].deleted) return null;
+  const r=rowFor(wps[selWp]); return r?r.wp:null;
 }
-/* The live box holds the WHOLE book — scroll straight from page 1 into 2, 3...
-   The waypoint you're on is washed pale yellow and the box jumps to its page.
-   Redrawing every page is heavy, so it only rebuilds when something that
-   changes the PRINT changes; picking another waypoint just re-aims it. */
-let rbLiveKey="", rbLiveAim=0;
-function rbLiveSig(){                                  // what the printed pages depend on
-  const hiPage=rbLivePageOf();                 // the highlight only counts when it lands on another page
+function rbLiveSig(){                                  // what the drawn page depends on
   return JSON.stringify([rbOpts.units,rbOpts.type,rbOpts.page,rbOpts.tulip,rbOpts.rowsPP,rbOpts.cols,
-    rbOpts.togoIn,rbOpts.wpIn,rbOpts.gpsIn,rbOpts.streetIn,rbOpts.pageElev,rbOpts.profileBars,rbOpts.title,rbOpts.badge,
+    rbOpts.togoIn,rbOpts.wpIn,rbOpts.gpsIn,rbOpts.streetIn,rbOpts.pageElev,rbOpts.profileBars,rbOpts.title,
+    rbOpts.badge,rbOpts.badgeMode,rbOpts.badgeDate,rbOpts.style,
     rows.map(r=>[r.wp,r.tulip,r.direction,r.info,r.street,r.total_km,r.inter_km,r.height_m,r.climb_up]),
-    baseName,hiPage]);
+    baseName,rbLiveHiWp()]);
 }
 function rbLiveUpdate(force){
   const card=$("rblivecard");
@@ -5650,35 +5775,32 @@ function rbLiveUpdate(force){
     if(!rows.length){ $("rbliveimg").removeAttribute("src"); rbLiveKey=""; return; }
     if(!rbOpts) rbLoad();
     rbFillDistances();
-    const hi=(selWp>=0&&wps[selWp]&&!wps[selWp].deleted)?((rowFor(wps[selWp])||{}).wp):null;
-    const pg=rbLivePageOf()+1;         // the box holds the TULIP pages only, so no offset
-    /* Only the CONTENT decides whether to redraw. Stepping to another waypoint
-       on the same page leaves the box completely alone — it used to redraw and
-       re-scroll on every arrow press, which kept yanking the view. The
-       highlight catches up when you land on a different page, edit something,
-       or press the redraw button. */
+    const hi=rbLiveHiWp();
     const sig=rbLiveSig();
-    const samePage = rbLiveAim===pg;
-    if(!force && sig===rbLiveKey && rbLiveUrl && samePage) return;       // nothing to do — hold still
-    if(!force && sig===rbLiveKey && rbLiveUrl && !samePage){             // same book, new page → just aim
-      rbLiveAim=pg; $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH&page="+pg; return;
-    }
+    if(!force && sig===rbLiveKey && rbLiveUrl) return;                   // nothing has changed — hold still
     try{
       /* the working box shows the ROADBOOK pages only — no cover, no map page:
          they'd just get in the way while you're editing waypoints */
-      const o={...rbOpts,sub:baseName||"route",hiWp:hi,noExtras:1};
-      const doc=buildRoadbook(o,false);                                  // every tulip page, not just one
+      const o={...rbOpts,sub:baseName||"route",hiWp:hi,startWp:hi,noExtras:1};
+      const doc=buildRoadbook(o,false,0);                                // one page, starting at the selected waypoint
       if(rbLiveUrl) URL.revokeObjectURL(rbLiveUrl);
       rbLiveUrl=doc.output("bloburl");                                   // blob, not a data: URI - browsers reliably render these in a frame
-      rbLiveKey=sig; rbLiveAim=pg;
-      $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH&page="+pg;
+      rbLiveKey=sig;
+      $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH&page=1";
     }catch(e){ toast("Couldn't draw the roadbook: "+(e&&e.message||e),5000); }
-  },force?0:500);
+  },force?0:140);
 }
 function rbCollect(){
   rbOpts.title=$("rb_title").value;
   rbFillDistances();
-  localStorage.setItem("vmstudio_rb",JSON.stringify(rbOpts));
+  /* a cover picture can be big, so a full store must never lose the settings */
+  try{ localStorage.setItem("vmstudio_rb",JSON.stringify(rbOpts)); }
+  catch(e){
+    try{ const {tpLogo,tpLogoW,tpLogoH,...lean}=rbOpts;
+         localStorage.setItem("vmstudio_rb",JSON.stringify(lean));
+         toast("Your settings are remembered, but the cover picture is too big to keep for next time.",5000);
+    }catch(_){}
+  }
   return {...rbOpts,sub:$("rb_sub").value};
 }
 function rbPreview(){
@@ -5717,8 +5839,10 @@ function rbRowsSync(){
 }
 function rbTypeSync(){
   const moto=rbOpts.page==="moto", tul=rbOpts.type==="tulip";
-  $("rb_themerow").style.display=tul&&!moto?"block":"none";
-  $("rb_theme").style.display=tul&&!moto?"inline-flex":"none";
+  /* themes now cover the type, colours and headings, so they matter on every
+     kind of book — not just the tulip one */
+  $("rb_themerow").style.display="block";
+  $("rb_theme").style.display="flex";
   $("rb_colshead").style.display="block";
   $("rb_cols").style.display="flex";
   ["rb_motorow1","rb_motorow2"].forEach(id=>$(id).style.display=moto?"block":"none");
@@ -5749,6 +5873,20 @@ function rbTypeSync(){
   }
   if(tpn){ tpn.value=rbOpts.tpNote||"";
            tpn.oninput=()=>{ rbOpts.tpNote=tpn.value; rbPreview(); }; }
+  /* the cover picture — an event logo, a badge, a sponsor */
+  const lb=$("rb_tplogobtn"), lc=$("rb_tplogoclear"), lp=$("rb_tplogoprev"), lf=$("rb_tplogofile");
+  if(lb&&lc&&lp&&lf){
+    const has=!!rbOpts.tpLogo;
+    lb.textContent=has?"🖼 Change picture":"🖼 Add a picture";
+    lc.style.display=has?"inline-block":"none";
+    lp.style.display=has?"inline-block":"none";
+    if(has) lp.src=rbOpts.tpLogo;
+    lb.onclick=()=>lf.click();
+    lc.onclick=()=>{ delete rbOpts.tpLogo; delete rbOpts.tpLogoW; delete rbOpts.tpLogoH;
+                     rbTypeSync(); rbPreview(); };
+    lf.onchange=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value="";
+                     if(f) rbLogoLoad(f); };
+  }
   /* the map page's heading */
   const mc2=$("rb_mapcaption"), mn=$("rb_mapnote");
   if(mc2){ mc2.classList.toggle("on",rbOpts.mapCaption!==0);
@@ -5767,6 +5905,53 @@ function rbTypeSync(){
       su.style.display=rbOpts.mapMarks==="dist"?"inline":"none"; }
   }
   rbSeg("rb_units","units");
+  rbBadgeUI();
+}
+/* the header badge: pick what it says rather than typing it every time */
+function rbBadgeUI(){
+  const m=rbBadgeMode(rbOpts); rbOpts.badgeMode=m;
+  document.querySelectorAll("#rb_badgemode button").forEach(b=>{
+    b.classList.toggle("on",b.dataset.v===m);
+    b.onclick=()=>{
+      rbOpts.badgeMode=b.dataset.v;
+      if(b.dataset.v==="date"&&!rbOpts.badgeDate) rbOpts.badgeDate=new Date().toISOString().slice(0,10);
+      if(b.dataset.v==="text"&&!rbOpts.badge) rbOpts.badge="";
+      rbBadgeUI(); rbPreview(); if(typeof rbLiveUpdate==="function") rbLiveUpdate();
+    };
+  });
+  const t=$("rb_badge"), d=$("rb_badgedate"), n=$("rb_badgenote");
+  if(t){ t.style.display=m==="text"?"block":"none"; if(m==="text") t.value=rbOpts.badge||""; }
+  if(d){ d.style.display=m==="date"?"block":"none";
+         if(m==="date") d.value=rbOpts.badgeDate||new Date().toISOString().slice(0,10); }
+  if(n) n.textContent =
+      m==="day"  ? "Counts itself up — Day 1, Day 2… on a whole-rally book."
+    : m==="date" ? "Printed short, like 3 Aug."
+    : m==="sub"  ? "Whatever's in the Route / subtitle box above."
+    : m==="text" ? "Up to ten letters."
+    :              "Nothing is printed in the corner.";
+}
+/* A picture chosen for the cover is shrunk before it's kept, so a big photo
+   straight off a phone can't fill up the small store the browser gives us. */
+function rbLogoLoad(file){
+  const rd=new FileReader();
+  rd.onerror=()=>toast("Couldn't read that file.",4000);
+  rd.onload=()=>{
+    const img=new Image();
+    img.onerror=()=>toast("That file didn't open as a picture.",4000);
+    img.onload=()=>{
+      const MAX=620, k=Math.min(1,MAX/Math.max(img.width,img.height));
+      const w=Math.max(1,Math.round(img.width*k)), h=Math.max(1,Math.round(img.height*k));
+      const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+      cv.getContext("2d").drawImage(img,0,0,w,h);
+      let url=cv.toDataURL("image/png");
+      if(url.length>400000) url=cv.toDataURL("image/jpeg",0.85);   // a photo turns into a JPEG; a logo stays crisp
+      rbOpts.tpLogo=url; rbOpts.tpLogoW=w; rbOpts.tpLogoH=h;
+      if(!rbOpts.titlePage){ rbOpts.titlePage=1; toast("Title page turned on so the picture has somewhere to go.",4000); }
+      rbTypeSync(); rbPreview();
+    };
+    img.src=rd.result;
+  };
+  rd.readAsDataURL(file);
 }
 function rbFits(cols){
   /* would this column set stay readable on the chosen page? fixed columns at
@@ -5779,35 +5964,67 @@ function rbFits(cols){
   const dir=on.some(c=>c.k==="direction")?150*S:0;   // DIRECTIONS must keep enough width to read
   return fixed*0.95+dir<=W-2*M;
 }
-let rbDragIdx=null;
+let rbDragIdx=null, rbSlot=null, rbSlotAt=null;
+/* the empty slot that opens up where the row you're dragging would land */
+function rbSlotShow(row,after){
+  const box=$("rb_cols"); if(!box) return;
+  if(!rbSlot){ rbSlot=document.createElement("div"); rbSlot.className="rbcolslot"; }
+  const ref=after?row.nextSibling:row;
+  if(rbSlot.parentNode!==box || (after?rbSlot.previousSibling:rbSlot.nextSibling)!==row){
+    box.insertBefore(rbSlot,ref);
+    requestAnimationFrame(()=>rbSlot&&rbSlot.classList.add("open"));
+  }
+  rbSlotAt=+row.dataset.ci + (after?1:0);
+}
+function rbSlotHide(){
+  if(rbSlot&&rbSlot.parentNode) rbSlot.parentNode.removeChild(rbSlot);
+  rbSlot=null; rbSlotAt=null;
+}
+function rbDragEnd(){
+  rbSlotHide(); rbDragIdx=null;
+  document.querySelectorAll("#rb_cols .rbcolrow").forEach(r=>r.classList.remove("rc-lift","dropinside"));
+}
 function rbColsUI(){
   const box=$("rb_cols"); if(!box) return; box.innerHTML="";
+  rbSlot=null; rbSlotAt=null;
   const label=k=>{ const e=RB_COLS_ALL.find(x=>x[0]===k); return e?e[1]:k; };
   rbOpts.cols.forEach((c,i)=>{
     if(c.in) return;                                   // nested ones are drawn under their host
     const row=document.createElement("div"); row.className="rbcolrow"+(c.on?"":" off");
-    row.draggable=true;
-    row.addEventListener("dragstart",e=>{ rbDragIdx=i; e.dataTransfer.effectAllowed="move"; });
+    row.draggable=true; row.dataset.ci=i;
+    row.addEventListener("dragstart",e=>{ rbDragIdx=i; e.dataTransfer.effectAllowed="move";
+      try{ e.dataTransfer.setData("text/plain",c.k); }catch(_){}
+      setTimeout(()=>row.classList.add("rc-lift"),0); });     // the grabbed row fades where it came from
+    row.addEventListener("dragend",rbDragEnd);
     row.addEventListener("dragover",e=>{ e.preventDefault();
+      if(rbDragIdx==null||rbDragIdx===i){ return; }
       const rr=row.getBoundingClientRect(), mid=rr.top+rr.height/2;
-      row.classList.toggle("dropinside", e.clientY>mid-7 && e.clientY<mid+7);   // middle = drop INSIDE
-      row.classList.add("dragover"); });
-    row.addEventListener("dragleave",()=>row.classList.remove("dragover","dropinside"));
-    row.addEventListener("drop",e=>{ e.preventDefault();
+      const inside = e.clientY>mid-7 && e.clientY<mid+7;      // middle = drop INSIDE, unchanged
+      row.classList.toggle("dropinside",inside);
+      if(inside) rbSlotHide(); else rbSlotShow(row, e.clientY>mid);
+    });
+    row.addEventListener("dragleave",()=>row.classList.remove("dropinside"));
+    row.addEventListener("drop",e=>{ e.preventDefault(); e.stopPropagation();
       const inside=row.classList.contains("dropinside");
-      row.classList.remove("dragover","dropinside");
-      if(rbDragIdx==null||rbDragIdx===i) return;
+      const at=rbSlotAt;
+      row.classList.remove("dropinside"); rbSlotHide();
+      if(rbDragIdx==null||rbDragIdx===i){ rbDragEnd(); return; }
       const drag=rbOpts.cols[rbDragIdx];
       if(inside){
-        if(!rbCanNest(drag.k)){ toast(label(drag.k)+" can't go inside another column.",4000); rbDragIdx=null; return; }
-        if(rbIsHost(rbOpts,drag.k)){ toast(label(drag.k)+" already holds a column, so it can't go inside one.",4500); rbDragIdx=null; return; }
+        if(!rbCanNest(drag.k)){ toast(label(drag.k)+" can't go inside another column.",4000); rbDragEnd(); return; }
+        if(rbIsHost(rbOpts,drag.k)){ toast(label(drag.k)+" already holds a column, so it can't go inside one.",4500); rbDragEnd(); return; }
         const held=rbChildOf(rbOpts,c.k);
-        if(held){ toast(label(c.k)+" already holds "+label(held.k)+" — take that out first.",4500); rbDragIdx=null; return; }
+        if(held){ toast(label(c.k)+" already holds "+label(held.k)+" — take that out first.",4500); rbDragEnd(); return; }
         drag.in=c.k; drag.on=1;
       } else {
-        rbOpts.cols.splice(i,0,rbOpts.cols.splice(rbDragIdx,1)[0]);
+        /* drop into the empty slot: take the row out, then put it back where
+           the slot sits (one place earlier if it came from above it) */
+        let to=(at==null?i:at);
+        const it=rbOpts.cols.splice(rbDragIdx,1)[0];
+        if(rbDragIdx<to) to--;
+        rbOpts.cols.splice(Math.max(0,Math.min(to,rbOpts.cols.length)),0,it);
       }
-      rbDragIdx=null; rbColsUI(); rbPreview(); });
+      rbDragIdx=null; rbSlotAt=null; rbColsUI(); rbPreview(); });
     const grip=document.createElement("span"); grip.className="rc-g"; grip.textContent="⠿";
     grip.title="drag to reorder — or drop onto the middle of another column to tuck it inside";
     const tick=document.createElement("button"); tick.className="rc-k"; tick.textContent=c.on?"☑":"☐";
@@ -5836,21 +6053,41 @@ function rbColsUI(){
     }
   });
   const hint=document.createElement("div"); hint.className="hint"; hint.style.marginTop="7px";
-  hint.textContent="Drag a column onto the MIDDLE of another to tuck it inside it; drop above or below to reorder. Tulip and Directions can hold others, but can't go inside anything.";
+  hint.textContent="Drag a column onto the MIDDLE of another to tuck it inside it; drop above or below to reorder — an empty slot shows where it will land. Tulip and Directions can hold others, but can't go inside anything.";
   box.append(hint);
+  /* dropping in the empty space under the list, or onto the open slot itself */
+  if(!box.dataset.wired){
+    box.dataset.wired="1";
+    box.addEventListener("dragover",e=>{
+      e.preventDefault();
+      if(rbDragIdx==null) return;
+      const rows=[...box.querySelectorAll(".rbcolrow:not(.rbsub)")];
+      const last=rows[rows.length-1];
+      if(last && e.clientY>last.getBoundingClientRect().bottom) rbSlotShow(last,true);
+    });
+    box.addEventListener("drop",e=>{
+      e.preventDefault();
+      if(rbDragIdx==null||rbSlotAt==null){ rbDragEnd(); return; }
+      let to=rbSlotAt;
+      const it=rbOpts.cols.splice(rbDragIdx,1)[0];
+      if(rbDragIdx<to) to--;
+      rbOpts.cols.splice(Math.max(0,Math.min(to,rbOpts.cols.length)),0,it);
+      rbDragIdx=null; rbSlotHide(); rbColsUI(); rbPreview();
+    });
+  }
 }
 $("pdfbtn").onclick=()=>{
   maybeApply();
   if(!rbOpts)rbLoad();
   $("rb_title").value=rbOpts.title;
-  $("rb_badge").value=(rbOpts.badge!=null?rbOpts.badge:"Day 1");
+  rbOpts.badgeMode=rbBadgeMode(rbOpts);
   if(!$("rb_sub").value){
     const towns=[...rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp)).map(r=>r.info).filter(Boolean);
     if(towns.length>1&&towns[0]!==towns[towns.length-1]) $("rb_sub").value=towns[0]+" to "+towns[towns.length-1];
     else if(towns.length) $("rb_sub").value=towns[0];
   }
   if(!$("rb_sub").value) $("rb_sub").value=baseName||"route";
-  rbSeg("rb_page","page"); rbSeg("rb_type","type"); rbSeg("rb_theme","theme"); rbSeg("rb_tulip","tulip");
+  rbSeg("rb_page","page"); rbSeg("rb_type","type"); rbSeg("rb_tulip","tulip");
   rbColsUI(); rbTypeSync(); rbRowsSync();
   const multi=routesAll.length>1;
   $("rb_scoperow").style.display=multi?"block":"none";
@@ -5861,7 +6098,10 @@ $("pdfbtn").onclick=()=>{
   rbPreview();
 };
 $("rb_title").oninput=rbPreview; $("rb_sub").oninput=rbPreview;
-$("rb_badge").oninput=()=>{ rbOpts.badge=$("rb_badge").value; rbPreview(); };
+$("rb_badge").oninput=()=>{ rbOpts.badge=$("rb_badge").value; rbPreview();
+                            if(typeof rbLiveUpdate==="function") rbLiveUpdate(); };
+$("rb_badgedate").onchange=()=>{ rbOpts.badgeDate=$("rb_badgedate").value; rbBadgeUI(); rbPreview();
+                                 if(typeof rbLiveUpdate==="function") rbLiveUpdate(); };
 /* a DESIGN is just the layout choices — a tiny file anyone can pass around */
 $("rb_dsave").onclick=()=>{
   /* A DESIGN FILE — "Tulip Maps Roadbook Design v1". It holds the LOOK of a
@@ -5873,7 +6113,7 @@ $("rb_dsave").onclick=()=>{
     written:new Date().toISOString().slice(0,10), app:STUDIO_BUILD,
     type:rbOpts.type, page:rbOpts.page, theme:rbOpts.theme, units:rbOpts.units,
     tulip:rbOpts.tulip, rowsPP:rbOpts.rowsPP, togoIn:rbOpts.togoIn, wpIn:rbOpts.wpIn,
-    gpsIn:rbOpts.gpsIn, streetIn:rbOpts.streetIn, badge:rbOpts.badge,
+    gpsIn:rbOpts.gpsIn, streetIn:rbOpts.streetIn, badge:rbOpts.badge, badgeMode:rbOpts.badgeMode,
     titlePage:rbOpts.titlePage, tpShow:rbOpts.tpShow, tpNote:rbOpts.tpNote,
     mapPage:rbOpts.mapPage, mapElev:rbOpts.mapElev, mapMarks:rbOpts.mapMarks,
     mapDistKm:rbOpts.mapDistKm, mapCaption:rbOpts.mapCaption, mapNote:rbOpts.mapNote,
@@ -5891,11 +6131,11 @@ $("rb_dfile").onchange=e=>{
     if(!d||d.tulipbook!==1) throw new Error("not a roadbook design file");
     ["type","page","theme","tulip","rowsPP","togoIn","wpIn","gpsIn","streetIn","mapPage","mapElev",
      "mapMarks","mapDistKm","pageElev","units","titlePage","tpNote","tpShow","mapCaption","mapNote",
-     "profileBars","style","badge"].forEach(k=>{ if(d[k]!=null) rbOpts[k]=d[k]; });
+     "profileBars","style","badge","badgeMode"].forEach(k=>{ if(d[k]!=null) rbOpts[k]=d[k]; });
     if(Array.isArray(d.cols)&&d.cols.length) rbOpts.cols=d.cols;
     rbLoad&&localStorage.setItem("vmstudio_rb",JSON.stringify(rbOpts));
-    rbSeg("rb_page","page"); rbSeg("rb_type","type"); rbSeg("rb_theme","theme"); rbSeg("rb_tulip","tulip");
-    $("rb_badge").value=rbOpts.badge||"";
+    rbSeg("rb_page","page"); rbSeg("rb_type","type"); rbSeg("rb_tulip","tulip");
+    rbOpts.badgeMode=rbBadgeMode(rbOpts);
     rbColsUI(); rbTypeSync(); rbRowsSync(); rbPreview();
     toast("Design loaded.",2500);
   }).catch(err=>toast("Couldn't load that design: "+err.message,5000));
@@ -5903,7 +6143,7 @@ $("rb_dfile").onchange=e=>{
 };
 /* ---- the maker's four steps: one group of controls at a time ---- */
 let rbStep=0;
-const RB_STEPNAMES=["The book","Columns","Style","Extra pages","Export"];
+const RB_STEPNAMES=["The book","Columns","Style","Extras","Export"];
 const RB_LASTSTEP=RB_STEPNAMES.length-1;
 function rbGoStep(n){
   rbStep=Math.max(0,Math.min(RB_LASTSTEP,n));
@@ -5919,9 +6159,54 @@ function rbGoStep(n){
   if(rbStep===2) rbStyleUI();
   if(rbStep===RB_LASTSTEP) rbSummary();
 }
+function rbApplyTheme(t){
+  if(!t) return;
+  rbOpts.style={...RB_STYLE_DEF, ...t.style};       // a theme fills in every setting below
+  rbOpts.theme=t.id;
+  rbStyleUI(); rbPreview();
+  if(typeof rbLiveUpdate==="function") rbLiveUpdate();
+}
+function rbThemesUI(){
+  const box=$("rb_theme"); if(!box) return;
+  box.innerHTML="";
+  const mine=rbMyThemes();
+  rbAllThemes().forEach(t=>{
+    const own=mine.some(m=>m.id===t.id);
+    const b=document.createElement("button");
+    b.className="rbtheme"+(rbOpts.theme===t.id?" on":"");
+    b.type="button"; b.title=own?"your own theme":"a Tulip Maps theme";
+    const sw=document.createElement("span"); sw.className="sw";
+    [t.style.band,t.style.accent,t.style.ink].forEach(c=>{
+      const i=document.createElement("i"); i.style.background=c||"#fff"; sw.appendChild(i); });
+    const nm=document.createElement("span"); nm.textContent=t.name;
+    b.append(sw,nm);
+    b.onclick=()=>rbApplyTheme(t);
+    if(own){
+      const x=document.createElement("span"); x.className="x"; x.textContent="✕";
+      x.title="forget this theme";
+      x.onclick=ev=>{ ev.stopPropagation();
+        rbSaveMyThemes(rbMyThemes().filter(m=>m.id!==t.id)); rbThemesUI(); };
+      b.appendChild(x);
+    }
+    box.appendChild(b);
+  });
+  const sv=$("rb_themesave");
+  if(sv) sv.onclick=()=>{
+    const name=(prompt("Name this theme — an event, a club, whatever helps you find it again:","My theme")||"").trim();
+    if(!name) return;
+    const list=rbMyThemes().filter(m=>m.name.toLowerCase()!==name.toLowerCase());
+    list.push({id:"my-"+name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+list.length,
+               name:name.slice(0,24), style:{...rbStyle(rbOpts)}});
+    rbSaveMyThemes(list);
+    rbOpts.theme=list[list.length-1].id;
+    rbThemesUI();
+    toast("Theme “"+name+"” saved — it'll be here next time.",4000);
+  };
+}
 function rbStyleUI(){
   rbOpts.style=rbStyle(rbOpts);
   const st=rbOpts.style;
+  rbThemesUI();
   document.querySelectorAll("#rb_font button").forEach(b=>{
     b.classList.toggle("on",(st.font||"helvetica")===b.dataset.v);
     b.onclick=()=>{ st.font=b.dataset.v; rbStyleUI(); rbPreview(); };
@@ -5930,18 +6215,20 @@ function rbStyleUI(){
     b.classList.toggle("on",(st.align||"center")===b.dataset.v);
     b.onclick=()=>{ st.align=b.dataset.v; rbStyleUI(); rbPreview(); };
   });
-  /* the theme's own colours show through until you pick one */
+  /* an older book that never picked a theme still shows its colours here */
   const dflt={ink:"#131315",grey:"#73767c",line:"#d9dade",
               band:rbOpts.type==="tulip"&&rbOpts.theme!=="green"?"#1c1c21":"#143d2e",
               bandText:"#ffffff",accent:"#f5a623"};
   const pick=(id,key)=>{ const el=$(id); if(!el) return;
     el.value=(st[key]&&/^#/.test(st[key]))?st[key]:dflt[key];
-    el.oninput=()=>{ st[key]=el.value; rbPreview(); }; };
+    el.oninput=()=>{ st[key]=el.value; rbPreview();
+                     if(typeof rbLiveUpdate==="function") rbLiveUpdate(); }; };
   pick("rb_c_ink","ink"); pick("rb_c_grey","grey"); pick("rb_c_line","line");
   pick("rb_c_band","band"); pick("rb_c_bandtext","bandText"); pick("rb_c_accent","accent");
   const rs=$("rb_c_reset");
-  if(rs) rs.onclick=()=>{ st.ink=RB_STYLE_DEF.ink; st.grey=RB_STYLE_DEF.grey; st.line=RB_STYLE_DEF.line;
-    st.band=""; st.bandText=""; st.accent=""; rbStyleUI(); rbPreview(); };
+  if(rs){ const t=rbAllThemes().find(x=>x.id===rbOpts.theme)||RB_THEMES[0];
+          rs.textContent="↺ back to "+t.name;
+          rs.onclick=()=>rbApplyTheme(t); }
   const hb=$("rb_headbold"), hc=$("rb_headcaps");
   if(hb){ hb.classList.toggle("on",st.headBold!==0);
           hb.onclick=()=>{ st.headBold=st.headBold===0?1:0; rbStyleUI(); rbPreview(); }; }
