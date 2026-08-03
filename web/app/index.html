@@ -458,9 +458,17 @@
   /* the Roadbook page box: resizable, and the page always fills the box's
      width (FitH below), so a box wider than it is tall shows a full-width
      page and scrolls down it rather than shrinking it to fit */
+  /* THE ROADBOOK BOX — the real rows as one long strip you can scroll, with
+     the column headings pinned above them. The waypoint you're on is washed
+     pale yellow and the strip jumps to it. */
   #rblivecard { width:252px; display:flex; flex-direction:column; min-height:220px; }
-  #rbliveimg { display:block; width:100%; flex:1 1 auto; min-height:140px; height:330px;
-    border:1px solid var(--hair); border-radius:6px; background:#fff; }
+  #rbhead { display:block; width:100%; flex:0 0 auto; background:#fff;
+    border:1px solid var(--hair); border-bottom:none; border-radius:6px 6px 0 0; }
+  #rbstrip { flex:1 1 auto; min-height:120px; height:330px; overflow-y:auto; overflow-x:hidden;
+    border:1px solid var(--hair); border-radius:0 0 6px 6px; background:#fff;
+    overscroll-behavior:contain; }
+  #rbstripcv { display:block; width:100%; position:sticky; top:0; z-index:1; pointer-events:none; }
+  #rbspacer { width:1px; }
   #rblivecard .hint { flex:0 0 auto; }
   #rb_cols { display:flex; flex-direction:column; gap:3px; margin-top:4px; }
   .rbcolrow { display:flex; align-items:center; gap:5px; border-radius:7px; padding:1px 2px; }
@@ -936,7 +944,12 @@
     </div>
 
     <div class="card" id="rblivecard">
-      <iframe id="rbliveimg" scrolling="no"></iframe>
+      <canvas id="rbhead"></canvas>
+      <div id="rbstrip">
+        <canvas id="rbstripcv"></canvas>
+        <div id="rbspacer"></div>
+      </div>
+      <div id="rbstripnote" class="hint" style="display:none"></div>
     </div>
 
     <div class="card" id="listcard">
@@ -1476,7 +1489,7 @@ function mpEdgeResize(panel,modes){ // drag an edge (or its corner) to resize �
         h.removeEventListener("pointermove",move); h.removeEventListener("pointerup",up);
         h.removeEventListener("pointercancel",up);
         mpDrop(panel);                                   // one tidy-up once you let go
-        if(panel.id==="rblivecard"&&typeof rbLiveUpdate==="function") rbLiveUpdate();   // redraw the page at its new size
+        if(panel.id==="rblivecard"&&typeof rbLiveUpdate==="function") rbLiveUpdate();   // redraw the strip at its new size
         if(panel.id==="elevpanel"&&typeof drawElevation==="function") drawElevation(); };
       h.addEventListener("pointermove",move); h.addEventListener("pointerup",up); h.addEventListener("pointercancel",up);
     });
@@ -2553,6 +2566,8 @@ function renderList(){
       }
     }
   });
+  /* the roadbook strip shows the same rows, so keep it in step with any edit */
+  if(typeof rbLiveUpdate==="function") rbLiveUpdate();
 }
 let wpboxEl=null;                       // (map info box removed — Chris to redesign)
 function fillInfo(w){
@@ -5398,15 +5413,14 @@ function rbFillDistances(){
     });
   }
 }
-function buildRoadbook(o,previewOnly,onlyPage){
-  if(o.type==="moto") return buildMotoRoll(o,previewOnly,onlyPage);
-  if(o.page==="moto") return buildMotoRoll(o,previewOnly,onlyPage);
-  const { jsPDF } = window.jspdf;
+/* THE PAGE'S MEASUREMENTS AND COLOURS, worked out once.
+   Pulled out of buildRoadbook so the live box in the map view can lay its
+   strip out with exactly the same numbers as the printed page — same column
+   widths, same row height, same colours. Two copies of this would drift. */
+function rbLayout(o){
   const a5=o.page==="a5";
-  const doc=new jsPDF({unit:"pt",format:a5?"a5":"a4"});
   const W=a5?419.53:595.28,H=a5?595.28:841.89,NR=rbRowsFor(o);
   const S=W/595.28, M=26*S;                       // A5 is a photographic reduction of A4
-  const FS=n=>doc.setFontSize(n*S);
   const classic=o.type==="classic", raid=o.type==="raid";
   const dark=o.theme!=="green";
   const ST=rbStyle(o), F=ST.font||"helvetica";
@@ -5436,6 +5450,193 @@ function buildRoadbook(o,previewOnly,onlyPage){
   const ROW_H=(H-HEAD-M-PELEV)/NR;
   const cvs=document.createElement("canvas"); cvs.width=564; cvs.height=480;
   const cctx=cvs.getContext("2d");
+  return {o,a5,W,H,NR,S,M,classic,raid,dark,ST,F,BANDC,SUBC,INK,GREY,LINE,BANDTXT,BADGEC,
+          AL,alignX,alignOpt,BAND,HEAD,cols,XS,caps,PELEV,ROW_H,cvs,cctx};
+}
+/* The tulip picture is drawn on a scratch canvas. On paper it has to become a
+   PNG; on screen the canvas can be used as it is, which saves the slow encode. */
+function rbPutCanvas(doc,cv,x,y,w,h){
+  if(doc.__canvas) doc.drawCanvas(cv,x,y,w,h);
+  else doc.addImage(cv.toDataURL("image/png"),"PNG",x,y,w,h);
+}
+/* A STAND-IN FOR jsPDF THAT PAINTS ONTO A CANVAS.
+   It answers to the handful of jsPDF calls the roadbook uses, in the same
+   units (points), so rbDrawRow can draw a real roadbook row straight into the
+   working box. Nothing here touches the printed PDF. */
+function rbCanvasDoc(ctx){
+  const FAM={ helvetica:'"Helvetica Neue",Helvetica,Arial,sans-serif',
+              times:'"Times New Roman",Times,serif',
+              courier:'"Courier New",Courier,monospace' };
+  let fam="helvetica", weight="normal", size=12;
+  let fill="#000", stroke="#000", textCol="#000";
+  const col=a=>(a.length===1?"rgb("+a[0]+","+a[0]+","+a[0]+")":"rgb("+a[0]+","+a[1]+","+a[2]+")");
+  const setFont=()=>{
+    const b=/bold/i.test(weight)?"bold ":"", it=/italic|oblique/i.test(weight)?"italic ":"";
+    ctx.font=it+b+size+"px "+(FAM[fam]||FAM.helvetica);
+  };
+  const path=(fn,style)=>{ ctx.beginPath(); fn();
+    if(style==="F"||style==="FD"||style==="DF"){ ctx.fillStyle=fill; ctx.fill(); }
+    if(!style||style==="D"||style==="FD"||style==="DF"){ ctx.strokeStyle=stroke; ctx.stroke(); } };
+  const D={
+    __canvas:true,
+    setFont(f,s){ fam=f||"helvetica"; weight=s||"normal"; setFont(); },
+    setFontSize(n){ size=n; setFont(); },
+    setTextColor(...a){ textCol=col(a); },
+    setFillColor(...a){ fill=col(a); },
+    setDrawColor(...a){ stroke=col(a); },
+    setLineWidth(w){ ctx.lineWidth=w; },
+    setLineDashPattern(a){ ctx.setLineDash(a||[]); },
+    text(t,x,y,opt){
+      ctx.fillStyle=textCol; ctx.textBaseline="alphabetic";
+      ctx.textAlign=(opt&&opt.align)||"left";
+      String(t==null?"":t).split("\n").forEach((ln,j)=>ctx.fillText(ln,x,y+j*size*1.15));
+      ctx.textAlign="left";
+    },
+    rect(x,y,w,h,st){ path(()=>ctx.rect(x,y,w,h),st); },
+    roundedRect(x,y,w,h,rx,ry,st){
+      const rr=Math.min(rx||0,w/2,h/2);
+      path(()=>{ ctx.moveTo(x+rr,y);
+        ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr);
+        ctx.arcTo(x,y+h,x,y,rr);     ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); },st);
+    },
+    circle(x,y,rr,st){ path(()=>ctx.arc(x,y,rr,0,Math.PI*2),st); },
+    triangle(x1,y1,x2,y2,x3,y3,st){
+      path(()=>{ ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.closePath(); },st);
+    },
+    line(x1,y1,x2,y2){ path(()=>{ ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); }); },
+    drawCanvas(cv,x,y,w,h){ ctx.drawImage(cv,x,y,w,h); },
+    addImage(src,f,x,y,w,h){ if(src&&src.width) ctx.drawImage(src,x,y,w,h); },
+    /* jsPDF wraps on words at the current font — measureText does the same job */
+    splitTextToSize(t,maxW){
+      const words=String(t==null?"":t).split(/\s+/).filter(Boolean);
+      if(!words.length) return [""];
+      const out=[]; let ln=words[0];
+      for(let j=1;j<words.length;j++){
+        const test=ln+" "+words[j];
+        if(ctx.measureText(test).width<=maxW) ln=test; else { out.push(ln); ln=words[j]; }
+      }
+      out.push(ln); return out;
+    }
+  };
+  setFont();
+  return D;
+}
+/* ONE ROW of the roadbook, drawn at `top`. The printed PDF and the live strip
+   in the map view both call this, so a row can never look like one thing on
+   paper and another on screen. `doc` is jsPDF when printing and the canvas
+   stand-in (rbCanvasDoc) when drawing the strip. */
+function rbDrawRow(doc,L,r,top,i,total){
+  const {o,S,M,W,F,cols,XS,ROW_H,INK,GREY,LINE,BANDC,BANDTXT,classic,raid,
+         alignX,alignOpt,cvs,cctx}=L;
+  const FS=n=>doc.setFontSize(n*S);
+  const mid=top+ROW_H/2;
+  /* the waypoint you're working on, washed pale yellow so you can find
+     it at a glance in the live box */
+  if(o.hiWp!=null && String(r.wp)===String(o.hiWp)){
+    doc.setFillColor(255,244,186);
+    doc.rect(M,top,W-2*M,ROW_H,"F");
+  }
+  if(classic||raid){ doc.setDrawColor(...LINE); doc.setLineWidth(.9);
+    cols.forEach((c,ci)=>doc.rect(XS[ci],top,c.w,ROW_H)); }
+  cols.forEach((c,ci)=>{
+          const X=XS[ci], CW=c.w;
+          /* anything nested in this column prints small at the foot of the box */
+          const kid=rbChildOf(o,c.k);
+          if(kid && !(c.k==="tulip"&&kid.k==="wp")){          // the wp chip has its own look
+            const txt=rbCellText(kid.k,r,o,total);
+            if(txt){ doc.setFont(F,"normal"); FS(kid.k==="gps"?6:7.5);
+              doc.setTextColor(...GREY);
+              doc.text(String(txt).slice(0,42), c.k==="direction"?X+10*S:X+CW/2,
+                       top+ROW_H-5*S, c.k==="direction"?undefined:{align:"center"}); }
+          }
+          if(c.k==="inter"&&r.inter_km){ doc.setTextColor(...INK); doc.setFont(F,"bold");
+            FS(raid?16:14); doc.text(rbDistTxt(parseFloat(r.inter_km),o),alignX(X,CW),mid+4*S,alignOpt); }
+          else if(c.k==="total"){ const tk=parseFloat(r.total_km);
+            if(!isNaN(tk)){ doc.setTextColor(...INK); doc.setFont(F,"bold");
+              const two=!!rbChildOf(o,"total");
+              FS(raid?14:11); doc.text(rbDistTxt(tk,o),alignX(X,CW),mid+(two?-2:3)*S,alignOpt); } }
+          else if(c.k==="togo"){ const tk=parseFloat(r.total_km);
+            if(!isNaN(tk)){ doc.setTextColor(...GREY); doc.setFont(F,"bold");
+              FS(raid?13:10.5); doc.text(rbDistTxt(total-tk,o,1),alignX(X,CW),mid+3*S,alignOpt); } }
+          else if(c.k==="tulip"&&CW>0){
+            cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,564,480); cctx.setTransform(3,0,0,3,0,0);
+            const sp=parseSpec(r.tulip)||specFromText(r.direction||"");
+            if(sp.draw)drawElements(cctx,sp.draw); else drawQuick(cctx,sp);
+            const th=Math.min(ROW_H-8*S,(CW-10*S)*160/188), tw=th*188/160;
+            rbPutCanvas(doc,cvs,X+(CW-tw)/2,mid-th/2,tw,th);
+            if(rbChildOf(o,"tulip") && rbChildOf(o,"tulip").k==="wp"){
+              /* the number chip dodges any symbol already parked in a corner:
+                 bottom-left first, then top-left, bottom-right, top-right */
+              const cn=sp.corners||{};
+              const busy={ bl:!!(cn.bl||sp.rsign||sp.f===2), tl:!!(cn.tl||sp.warn),
+                           br:!!(cn.br||sp.f===1),           tr:!!(cn.tr||sp.sign||sp.br) };
+              const k=["bl","tl","br","tr"].find(c=>!busy[c])||"bl";
+              const cx=(k==="br"||k==="tr") ? X+CW-29*S : X+3*S;
+              const cy=(k==="tl"||k==="tr") ? top+3*S   : top+ROW_H-19*S;
+              doc.setFillColor(255,255,255); doc.rect(cx,cy,26*S,16*S,"F");
+              doc.setDrawColor(...INK); doc.setLineWidth(.9); doc.rect(cx,cy,26*S,16*S);
+              doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(9.5);
+              doc.text(String(r.wp),cx+13*S,cy+12*S,{align:"center"}); }
+          }
+          else if(c.k==="direction"){
+            if(r.direction){ doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(13.5);
+              const lines=doc.splitTextToSize(r.direction,CW-18*S);
+              const startY=mid+4*S-(lines.length-1)*7.5*S;
+              lines.forEach((ln,j)=>doc.text(ln,X+10*S,startY+j*15*S)); }
+            if(r.flag){ doc.setFont(F,"italic"); FS(7.5); doc.setTextColor(...GREY);
+              doc.text("["+r.flag+"]",X+10*S,top+ROW_H-5*S); }
+          }
+          else if(c.k==="info"){
+            if(r.info){ doc.setFont(F,"normal"); FS(9.5); doc.setTextColor(...GREY);
+              doc.splitTextToSize(r.info,CW-8*S).forEach((ln,j)=>
+                doc.text(ln,alignX(X,CW),mid-2*S+j*11*S,alignOpt)); }
+          }
+          else if(c.k==="street"){
+            if(r.street){ doc.setFont(F,"normal"); FS(9.5); doc.setTextColor(...GREY);
+              doc.splitTextToSize(r.street,CW-8*S).forEach((ln,j)=>
+                doc.text(ln,alignX(X,CW),mid-2*S+j*11*S,alignOpt)); } }
+          else if(c.k==="height"){
+            if(r.height_m!=null){ doc.setTextColor(...INK); doc.setFont(F,"bold");
+              FS(raid?13:10.5); doc.text(rbHeightTxt(r.height_m,o),alignX(X,CW),mid+3*S,alignOpt); } }
+          else if(c.k==="climb"){        // up / down on the leg TO THE NEXT waypoint
+            if(r.climb_up!=null){
+              const cu=rbUnits(o)==="mi"?"ft":"m", cxm=X+CW/2, tw=4.5*S;
+              doc.setFont(F,"bold"); FS(raid?10.5:8.5);
+              /* the arrows are DRAWN — the triangle characters aren't in the
+                 PDF's standard font and came out as fraction signs */
+              doc.setFillColor(22,122,58); doc.setTextColor(22,122,58);
+              doc.triangle(cxm-13*S,mid-1.5*S, cxm-13*S+2*tw,mid-1.5*S, cxm-13*S+tw,mid-1.5*S-6*S,"F");
+              doc.text(rbClimbTxt(r.climb_up,o)+cu, cxm-3*S, mid-1.5*S);
+              doc.setFillColor(184,42,32); doc.setTextColor(184,42,32);
+              doc.triangle(cxm-13*S,mid+3.5*S, cxm-13*S+2*tw,mid+3.5*S, cxm-13*S+tw,mid+3.5*S+6*S,"F");
+              doc.text(rbClimbTxt(r.climb_dn,o)+cu, cxm-3*S, mid+9.5*S); } }
+          else if(c.k==="gps"){ const w=rbWpFor(r);
+            if(w){ doc.setFont(F,"normal"); FS(6.8); doc.setTextColor(...GREY);
+              doc.text(w.lat.toFixed(5),X+CW/2,mid-1*S,{align:"center"});
+              doc.text(w.lon.toFixed(5),X+CW/2,mid+7*S,{align:"center"}); } }
+          else if(c.k==="wp"){
+            if(classic||raid){ doc.setDrawColor(...INK); doc.setLineWidth(1.2);
+              doc.rect(X+7*S,mid-11*S,CW-16*S,22*S);
+              doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(12);
+              doc.text(String(r.wp),X+7*S+(CW-16*S)/2,mid+4*S,{align:"center"});
+            } else {
+              doc.setFillColor(...BANDC); doc.roundedRect(X+6*S,mid-11*S,CW-16*S,22*S,5*S,5*S,"F");
+              doc.setTextColor(...BANDTXT); doc.setFont(F,"bold"); FS(12);
+              doc.text(String(r.wp),X+6*S+(CW-16*S)/2,mid+4*S,{align:"center"});
+            }
+          }
+        });
+        if(!classic&&!raid&&i){ doc.setDrawColor(...LINE); doc.setLineWidth(.6); doc.line(M-4,top,W-M+4,top); }
+}
+function buildRoadbook(o,previewOnly,onlyPage){
+  if(o.type==="moto") return buildMotoRoll(o,previewOnly,onlyPage);
+  if(o.page==="moto") return buildMotoRoll(o,previewOnly,onlyPage);
+  const { jsPDF } = window.jspdf;
+  const L=rbLayout(o);
+  const {a5,W,H,NR,S,M,classic,raid,dark,ST,F,BANDC,SUBC,INK,GREY,LINE,BANDTXT,BADGEC,
+         alignX,alignOpt,BAND,HEAD,cols,XS,caps,PELEV,ROW_H,cvs,cctx}=L;
+  const doc=new jsPDF({unit:"pt",format:a5?"a5":"a4"});
+  const FS=n=>doc.setFontSize(n*S);
   const days=(o.scope==="rally"&&!previewOnly)?rbGatherDays()
             :[{sub:(o.sub||baseName||"route"), rows}];
   let firstPage=true;
@@ -5507,20 +5708,11 @@ function buildRoadbook(o,previewOnly,onlyPage){
     doc.text("\u00a9 OpenStreetMap contributors",M,H-M-elevH-4*S);
   }
   days.forEach(day=>{
-    let ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
+    const ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
     const total=Math.max(0,...ordered.map(r=>parseFloat(r.total_km)||0));
     const allPages=Math.ceil(ordered.length/NR)||1;
-    /* THE LIVE BOX ONLY (o.startWp): begin the page at the waypoint you're on,
-       so your row is always the top line of the box. The printed book is never
-       built this way — it always breaks pages 1,2,3… from the start. */
-    let truePg=0;
-    if(o.startWp!=null){
-      const si=ordered.findIndex(r=>String(r.wp)===String(o.startWp));
-      if(si>0){ truePg=Math.floor(si/NR); ordered=ordered.slice(si); }
-    }
-    const pagesLeft=Math.ceil(ordered.length/NR)||1;          // pages still to come from where this starts
-    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,pagesLeft-1)):0;
-    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:pagesLeft);
+    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,allPages-1)):0;
+    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:allPages);
     for(let pg=pgFrom;pg<pgTo;pg++){
       if(!firstPage)doc.addPage(); firstPage=false;
       if(classic||raid){
@@ -5546,108 +5738,9 @@ function buildRoadbook(o,previewOnly,onlyPage){
       doc.setTextColor(...GREY); FS(8); doc.setFont(F,ST.headBold?"bold":"normal");
       caps.forEach((l,i)=>{ if(cols[i].w>0) doc.text(l,XS[i]+cols[i].w/2,HEAD-10*S,{align:"center"}); });
       doc.setFont(F,"normal");
-      doc.text("pg "+(truePg+pg+1)+"/"+allPages,W-M,HEAD-24*S,{align:"right"});
+      doc.text("pg "+(pg+1)+"/"+allPages,W-M,HEAD-24*S,{align:"right"});
       const chunk=ordered.slice(pg*NR,(pg+1)*NR);
-      chunk.forEach((r,i)=>{
-        const top=HEAD+i*ROW_H, mid=top+ROW_H/2;
-        /* the waypoint you're working on, washed pale yellow so you can find
-           it at a glance in the live page box */
-        if(o.hiWp!=null && String(r.wp)===String(o.hiWp)){
-          doc.setFillColor(255,244,186);
-          doc.rect(M,top,W-2*M,ROW_H,"F");
-        }
-        if(classic||raid){ doc.setDrawColor(...LINE); doc.setLineWidth(.9);
-          cols.forEach((c,ci)=>doc.rect(XS[ci],top,c.w,ROW_H)); }
-        cols.forEach((c,ci)=>{
-          const X=XS[ci], CW=c.w;
-          /* anything nested in this column prints small at the foot of the box */
-          const kid=rbChildOf(o,c.k);
-          if(kid && !(c.k==="tulip"&&kid.k==="wp")){          // the wp chip has its own look
-            const txt=rbCellText(kid.k,r,o,total);
-            if(txt){ doc.setFont(F,"normal"); FS(kid.k==="gps"?6:7.5);
-              doc.setTextColor(...GREY);
-              doc.text(String(txt).slice(0,42), c.k==="direction"?X+10*S:X+CW/2,
-                       top+ROW_H-5*S, c.k==="direction"?undefined:{align:"center"}); }
-          }
-          if(c.k==="inter"&&r.inter_km){ doc.setTextColor(...INK); doc.setFont(F,"bold");
-            FS(raid?16:14); doc.text(rbDistTxt(parseFloat(r.inter_km),o),alignX(X,CW),mid+4*S,alignOpt); }
-          else if(c.k==="total"){ const tk=parseFloat(r.total_km);
-            if(!isNaN(tk)){ doc.setTextColor(...INK); doc.setFont(F,"bold");
-              const two=!!rbChildOf(o,"total");
-              FS(raid?14:11); doc.text(rbDistTxt(tk,o),alignX(X,CW),mid+(two?-2:3)*S,alignOpt); } }
-          else if(c.k==="togo"){ const tk=parseFloat(r.total_km);
-            if(!isNaN(tk)){ doc.setTextColor(...GREY); doc.setFont(F,"bold");
-              FS(raid?13:10.5); doc.text(rbDistTxt(total-tk,o,1),alignX(X,CW),mid+3*S,alignOpt); } }
-          else if(c.k==="tulip"&&CW>0){
-            cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,564,480); cctx.setTransform(3,0,0,3,0,0);
-            const sp=parseSpec(r.tulip)||specFromText(r.direction||"");
-            if(sp.draw)drawElements(cctx,sp.draw); else drawQuick(cctx,sp);
-            const th=Math.min(ROW_H-8*S,(CW-10*S)*160/188), tw=th*188/160;
-            doc.addImage(cvs.toDataURL("image/png"),"PNG",X+(CW-tw)/2,mid-th/2,tw,th);
-            if(rbChildOf(o,"tulip") && rbChildOf(o,"tulip").k==="wp"){
-              /* the number chip dodges any symbol already parked in a corner:
-                 bottom-left first, then top-left, bottom-right, top-right */
-              const cn=sp.corners||{};
-              const busy={ bl:!!(cn.bl||sp.rsign||sp.f===2), tl:!!(cn.tl||sp.warn),
-                           br:!!(cn.br||sp.f===1),           tr:!!(cn.tr||sp.sign||sp.br) };
-              const k=["bl","tl","br","tr"].find(c=>!busy[c])||"bl";
-              const cx=(k==="br"||k==="tr") ? X+CW-29*S : X+3*S;
-              const cy=(k==="tl"||k==="tr") ? top+3*S   : top+ROW_H-19*S;
-              doc.setFillColor(255,255,255); doc.rect(cx,cy,26*S,16*S,"F");
-              doc.setDrawColor(...INK); doc.setLineWidth(.9); doc.rect(cx,cy,26*S,16*S);
-              doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(9.5);
-              doc.text(String(r.wp),cx+13*S,cy+12*S,{align:"center"}); }
-          }
-          else if(c.k==="direction"){
-            if(r.direction){ doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(13.5);
-              const lines=doc.splitTextToSize(r.direction,CW-18*S);
-              const startY=mid+4*S-(lines.length-1)*7.5*S;
-              lines.forEach((ln,j)=>doc.text(ln,X+10*S,startY+j*15*S)); }
-            if(r.flag){ doc.setFont(F,"italic"); FS(7.5); doc.setTextColor(...GREY);
-              doc.text("["+r.flag+"]",X+10*S,top+ROW_H-5*S); }
-          }
-          else if(c.k==="info"){
-            if(r.info){ doc.setFont(F,"normal"); FS(9.5); doc.setTextColor(...GREY);
-              doc.splitTextToSize(r.info,CW-8*S).forEach((ln,j)=>
-                doc.text(ln,alignX(X,CW),mid-2*S+j*11*S,alignOpt)); }
-          }
-          else if(c.k==="street"){
-            if(r.street){ doc.setFont(F,"normal"); FS(9.5); doc.setTextColor(...GREY);
-              doc.splitTextToSize(r.street,CW-8*S).forEach((ln,j)=>
-                doc.text(ln,alignX(X,CW),mid-2*S+j*11*S,alignOpt)); } }
-          else if(c.k==="height"){
-            if(r.height_m!=null){ doc.setTextColor(...INK); doc.setFont(F,"bold");
-              FS(raid?13:10.5); doc.text(rbHeightTxt(r.height_m,o),alignX(X,CW),mid+3*S,alignOpt); } }
-          else if(c.k==="climb"){        // up / down on the leg TO THE NEXT waypoint
-            if(r.climb_up!=null){
-              const cu=rbUnits(o)==="mi"?"ft":"m", cxm=X+CW/2, tw=4.5*S;
-              doc.setFont(F,"bold"); FS(raid?10.5:8.5);
-              /* the arrows are DRAWN — the triangle characters aren't in the
-                 PDF's standard font and came out as fraction signs */
-              doc.setFillColor(22,122,58); doc.setTextColor(22,122,58);
-              doc.triangle(cxm-13*S,mid-1.5*S, cxm-13*S+2*tw,mid-1.5*S, cxm-13*S+tw,mid-1.5*S-6*S,"F");
-              doc.text(rbClimbTxt(r.climb_up,o)+cu, cxm-3*S, mid-1.5*S);
-              doc.setFillColor(184,42,32); doc.setTextColor(184,42,32);
-              doc.triangle(cxm-13*S,mid+3.5*S, cxm-13*S+2*tw,mid+3.5*S, cxm-13*S+tw,mid+3.5*S+6*S,"F");
-              doc.text(rbClimbTxt(r.climb_dn,o)+cu, cxm-3*S, mid+9.5*S); } }
-          else if(c.k==="gps"){ const w=rbWpFor(r);
-            if(w){ doc.setFont(F,"normal"); FS(6.8); doc.setTextColor(...GREY);
-              doc.text(w.lat.toFixed(5),X+CW/2,mid-1*S,{align:"center"});
-              doc.text(w.lon.toFixed(5),X+CW/2,mid+7*S,{align:"center"}); } }
-          else if(c.k==="wp"){
-            if(classic||raid){ doc.setDrawColor(...INK); doc.setLineWidth(1.2);
-              doc.rect(X+7*S,mid-11*S,CW-16*S,22*S);
-              doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(12);
-              doc.text(String(r.wp),X+7*S+(CW-16*S)/2,mid+4*S,{align:"center"});
-            } else {
-              doc.setFillColor(...BANDC); doc.roundedRect(X+6*S,mid-11*S,CW-16*S,22*S,5*S,5*S,"F");
-              doc.setTextColor(...BANDTXT); doc.setFont(F,"bold"); FS(12);
-              doc.text(String(r.wp),X+6*S+(CW-16*S)/2,mid+4*S,{align:"center"});
-            }
-          }
-        });
-        if(!classic&&!raid&&i){ doc.setDrawColor(...LINE); doc.setLineWidth(.6); doc.line(M-4,top,W-M+4,top); }
-      });
+      chunk.forEach((r,i)=>rbDrawRow(doc,L,r,HEAD+i*ROW_H,i,total));
       if(!classic&&!raid){ doc.setDrawColor(...SUBC); doc.setLineWidth(2);
         const gy=HEAD+chunk.length*ROW_H+2; doc.line(M-4,gy,W-M+4,gy); }
       /* the thin height profile for JUST this page's waypoints, along the foot */
@@ -5682,29 +5775,21 @@ function buildMotoRoll(o,previewOnly,onlyPage){
             :[{sub:(o.sub||baseName||"route"), rows}];
   let firstPage=true;
   days.forEach(day=>{
-    let ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
+    const ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
     const total=Math.max(0,...ordered.map(r=>parseFloat(r.total_km)||0));
     const allPages=Math.ceil(ordered.length/perPage)||1;
-    let truePg=0;                                   // the live box starts the strip at the waypoint you're on
-    if(o.startWp!=null){
-      const si=ordered.findIndex(r=>String(r.wp)===String(o.startWp));
-      if(si>0){ truePg=Math.floor(si/perPage); ordered=ordered.slice(si); }
-    }
-    const stripsLeft=Math.ceil(ordered.length/perPage)||1;
-    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,stripsLeft-1)):0;
-    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:stripsLeft);
+    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,allPages-1)):0;
+    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:allPages);
     for(let pg=pgFrom;pg<pgTo;pg++){
       if(!firstPage)doc.addPage([RW,RH]); firstPage=false;
       doc.setTextColor(...GREY); doc.setFont(F,"bold"); doc.setFontSize(6.5);
-      doc.text((o.title||"Roadbook")+" · "+(day.sub||"")+" · strip "+(truePg+pg+1)+"/"+allPages, RW/2, M+2, {align:"center"});
+      doc.text((o.title||"Roadbook")+" · "+(day.sub||"")+" · strip "+(pg+1)+"/"+allPages, RW/2, M+2, {align:"center"});
       const on=k=>(o.cols||RB_DEF.cols).some(c=>c.k===k&&c.on);
       const tulRight=(o.motoTulip||"right")!=="left";
       const notesBeside=(o.motoNotes||"under")==="beside";
       const chunk=ordered.slice(pg*perPage,(pg+1)*perPage);
       chunk.forEach((r,i)=>{
         const top=M+8+i*CH;
-        if(o.hiWp!=null && String(r.wp)===String(o.hiWp)){      // the waypoint you're working on
-          doc.setFillColor(255,244,186); doc.rect(M,top,RW-2*M,CH,"F"); }
         doc.setDrawColor(...INK); doc.setLineWidth(1); doc.line(M,top,RW-M,top);
         const tk=parseFloat(r.total_km);
         const numX=tulRight?M+2:RW-M-46;              // numbers sit opposite the tulip
@@ -5748,48 +5833,116 @@ function buildMotoRoll(o,previewOnly,onlyPage){
   return doc;
 }
 let rbTimer=null, rbPrevUrl=null;
-/* ── the live page preview ── */
-let rbLiveTimer=null, rbLiveUrl=null;
-/* The live box shows ONE page that starts at the waypoint you're on: your row
-   is the top line, washed pale yellow, with the ones that follow underneath.
-   Step to another waypoint and the box follows immediately — one page is quick
-   enough to redraw every time (the whole book was not, which is why the
-   highlight used to stick until you crossed onto another page). */
-let rbLiveKey="";
+/* ── THE ROADBOOK BOX ──
+   The real roadbook rows, all of them, as one long strip you scroll — not a
+   page at a time. It's drawn straight into the box rather than shown as a PDF,
+   for two reasons: a PDF sitting in a frame can't be scrolled to a particular
+   row by us (the viewer owns its own scrollbar), and a PDF page has a maximum
+   length that a long rally would run past. Drawing it ourselves means the
+   strip can be any length, it can jump to the waypoint you're on, and the
+   highlight follows instantly. rbDrawRow does the drawing either way, so what
+   you see here is the same row that prints. */
+let rbStripLast=null;
 function rbLiveHiWp(){                                 // the waypoint the box is following
   if(selWp<0||!wps[selWp]||wps[selWp].deleted) return null;
   const r=rowFor(wps[selWp]); return r?r.wp:null;
 }
-function rbLiveSig(){                                  // what the drawn page depends on
-  return JSON.stringify([rbOpts.units,rbOpts.type,rbOpts.page,rbOpts.tulip,rbOpts.rowsPP,rbOpts.cols,
-    rbOpts.togoIn,rbOpts.wpIn,rbOpts.gpsIn,rbOpts.streetIn,rbOpts.pageElev,rbOpts.profileBars,rbOpts.title,
-    rbOpts.badge,rbOpts.badgeMode,rbOpts.badgeDate,rbOpts.style,
-    rows.map(r=>[r.wp,r.tulip,r.direction,r.info,r.street,r.total_km,r.inter_km,r.height_m,r.climb_up]),
-    baseName,rbLiveHiWp()]);
+function rbStripRows(){
+  return [...rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
+}
+function rbStripOn(){
+  const card=$("rblivecard");
+  return !!card && !card.classList.contains("rs-off") && getComputedStyle(card).display!=="none";
+}
+/* the strip's geometry, worked out from the same layout the page uses */
+function rbStripGeom(){
+  if(!rbOpts) rbLoad();
+  const box=$("rbstrip"); if(!box) return null;
+  const o={...rbOpts, sub:baseName||"route", hiWp:rbLiveHiWp()};
+  const L=rbLayout(o);
+  const cssW=box.clientWidth||240;
+  const k=cssW/L.W;                                    // points -> screen pixels
+  return {L,o,box,cssW,k,rowPx:L.ROW_H*k,list:rbStripRows()};
+}
+function rbStripDraw(){
+  if(!rbStripOn()) return;
+  const cv=$("rbstripcv"), hc=$("rbhead"), note=$("rbstripnote");
+  if(!cv||!hc) return;
+  const g=rbStripGeom(); if(!g) return;
+  const {L,o,box,cssW,k,rowPx,list}=g;
+  /* the moto roll is drawn by its own code, so the strip can't show it */
+  if(rbOpts.page==="moto"||!list.length){
+    cv.style.display="none"; hc.style.display="none";
+    note.style.display="block";
+    note.textContent = !list.length ? "No waypoints yet."
+      : "The moto roll prints as its own long strip — open the Roadbook maker to see it.";
+    $("rbspacer").style.height="0px"; return;
+  }
+  cv.style.display="block"; hc.style.display="block"; note.style.display="none";
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const visPx=Math.max(60,box.clientHeight);
+  /* the spacer gives the scrollbar its travel; the canvas is pinned on top of
+     it, so its own height must be taken back off */
+  $("rbspacer").style.height=Math.max(0,list.length*rowPx-visPx)+"px";
+  if(cv.width!==Math.round(cssW*dpr)||cv.height!==Math.round(visPx*dpr)){
+    cv.width=Math.round(cssW*dpr); cv.height=Math.round(visPx*dpr);
+    cv.style.height=visPx+"px";
+  }
+  const ctx=cv.getContext("2d");
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle="#fff"; ctx.fillRect(0,0,cv.width,cv.height);
+  const scrollPts=box.scrollTop/k;                     // where we are, in page points
+  ctx.setTransform(dpr*k,0,0,dpr*k,0,0);
+  ctx.translate(0,-scrollPts);
+  const doc=rbCanvasDoc(ctx);
+  const total=Math.max(0,...list.map(r=>parseFloat(r.total_km)||0));
+  const first=Math.max(0,Math.floor(scrollPts/L.ROW_H));
+  const last=Math.min(list.length-1,Math.ceil((scrollPts+visPx/k)/L.ROW_H));
+  for(let j=first;j<=last;j++) rbDrawRow(doc,L,list[j],j*L.ROW_H,j,total);
+  /* the column headings, pinned above the strip */
+  const headPts=26*L.S;
+  if(hc.width!==Math.round(cssW*dpr)||hc.height!==Math.round(headPts*k*dpr)){
+    hc.width=Math.round(cssW*dpr); hc.height=Math.round(headPts*k*dpr);
+    hc.style.height=(headPts*k)+"px";
+  }
+  const hx=hc.getContext("2d");
+  hx.setTransform(1,0,0,1,0,0); hx.fillStyle="#fff"; hx.fillRect(0,0,hc.width,hc.height);
+  hx.setTransform(dpr*k,0,0,dpr*k,0,0);
+  const hdoc=rbCanvasDoc(hx);
+  hdoc.setTextColor(...L.GREY); hdoc.setFontSize(8*L.S);
+  hdoc.setFont(L.F,L.ST.headBold?"bold":"normal");
+  L.caps.forEach((l,ci)=>{ if(L.cols[ci].w>0)
+    hdoc.text(l,L.XS[ci]+L.cols[ci].w/2,headPts-14*L.S,{align:"center"}); });
+  hdoc.setDrawColor(...(L.classic||L.raid?L.INK:L.SUBC)); hdoc.setLineWidth(2);
+  hdoc.line(L.M-4,headPts-3*L.S,L.W-L.M+4,headPts-3*L.S);
+}
+/* bring the waypoint you're on to the top of the strip */
+function rbStripJump(){
+  if(!rbStripOn()) return;
+  const g=rbStripGeom(); if(!g||!g.list.length) return;
+  const hi=rbLiveHiWp(); if(hi==null) return;
+  const idx=g.list.findIndex(r=>String(r.wp)===String(hi));
+  if(idx<0) return;
+  g.box.scrollTop=idx*g.rowPx;
 }
 function rbLiveUpdate(force){
-  const card=$("rblivecard");
-  if(!card||card.classList.contains("rs-off")||getComputedStyle(card).display==="none") return;
-  clearTimeout(rbLiveTimer);
-  rbLiveTimer=setTimeout(async ()=>{
-    if(!rows.length){ $("rbliveimg").removeAttribute("src"); rbLiveKey=""; return; }
-    if(!rbOpts) rbLoad();
-    rbFillDistances();
-    const hi=rbLiveHiWp();
-    const sig=rbLiveSig();
-    if(!force && sig===rbLiveKey && rbLiveUrl) return;                   // nothing has changed — hold still
-    try{
-      /* the working box shows the ROADBOOK pages only — no cover, no map page:
-         they'd just get in the way while you're editing waypoints */
-      const o={...rbOpts,sub:baseName||"route",hiWp:hi,startWp:hi,noExtras:1};
-      const doc=buildRoadbook(o,false,0);                                // one page, starting at the selected waypoint
-      if(rbLiveUrl) URL.revokeObjectURL(rbLiveUrl);
-      rbLiveUrl=doc.output("bloburl");                                   // blob, not a data: URI - browsers reliably render these in a frame
-      rbLiveKey=sig;
-      $("rbliveimg").src=rbLiveUrl+"#toolbar=0&view=FitH&page=1";
-    }catch(e){ toast("Couldn't draw the roadbook: "+(e&&e.message||e),5000); }
-  },force?0:140);
+  if(!rbStripOn()) return;
+  if(!rbOpts) rbLoad();
+  rbFillDistances();
+  const hi=rbLiveHiWp();
+  if(force||hi!==rbStripLast){ rbStripLast=hi; rbStripJump(); }
+  rbStripDraw();
 }
+/* scrolling the strip just repaints the rows now in view — nothing is rebuilt */
+(function(){
+  const b=$("rbstrip"); if(!b) return;
+  let queued=false;
+  b.addEventListener("scroll",()=>{
+    if(queued) return; queued=true;
+    requestAnimationFrame(()=>{ queued=false; rbStripDraw(); });
+  },{passive:true});
+  if(window.ResizeObserver) new ResizeObserver(()=>rbStripDraw()).observe(b);
+})();
 function rbCollect(){
   rbOpts.title=$("rb_title").value;
   rbFillDistances();
@@ -6310,7 +6463,7 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
       r.id==="reconcard" ? '<span class="t">Check tulips</span>'
                            +'<button class="rs-hbtn" id="recheckbtn" type="button" title="re-scan every tulip against the GPS track" onclick="showRecon()">↻ recheck</button>' :
       r.id==="rblivecard"? '<span class="t">Roadbook</span>'
-                           +'<button class="rs-hbtn" type="button" title="redraw the page" onclick="rbLiveUpdate()">↻</button>' :
+                           +'<button class="rs-hbtn" type="button" title="redraw, and jump back to the waypoint you are on" onclick="rbLiveUpdate(1)">↻</button>' :
                            '<span class="t">'+r.title+'</span>';
     var h3=card.querySelector(":scope > h3"); if(h3) h3.remove();     // the drag header replaces the card's own title
     card.insertBefore(head, card.firstChild);
