@@ -1383,7 +1383,7 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=2aug3"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="tulip_core.js?v=4aug1"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
@@ -3974,7 +3974,8 @@ function renderExtraTags(){
   if(cur.rb) chip("roundabout",true,()=>{ cur.rb=false; cur.rbu=false; mark(); syncQuick(); repaint(); });
   const na=(cur.arms||[]).length;
   if(na) chip(na+(na>1?" side roads":" side road"),false,()=>openExtras(true));
-  for(const k of TOGGLES) if(cur[k]) chip(SYMLABEL[k],true,()=>{ cur[k]=false; mark(); syncQuick(); repaint(); });
+  for(const k of TOGGLES) if(cur[k]) chip(k==="brg"&&cur.brgU?"under bridge":SYMLABEL[k],true,
+    ()=>{ cur[k]=false; if(k==="brg"){ cur.brgU=false; cur.brgL=false; cur.brgx=""; } mark(); syncQuick(); repaint(); });
   if(cur.wide) chip("wide road",true,()=>{ cur.wide=false; mark(); syncQuick(); repaint(); });
   if(cur.f) chip("fuel "+(cur.f===2?"↙":"↘"),true,()=>{ cur.f=0; mark(); syncQuick(); repaint(); });
   if(cur.warn) chip(cur.warn===2?"danger":"warn",true,()=>{ cur.warn=0; mark(); syncQuick(); repaint(); });
@@ -4011,8 +4012,11 @@ function syncQuick(){
   $("t_brgx").style.display=cur.brg?"inline-flex":"none";
   $("brg_s").classList.toggle("on",cur.brg&&!cur.brgL);
   $("brg_l").classList.toggle("on",cur.brg&&!!cur.brgL);
-  $("t_brgx").textContent="over "+(cur.brgx||"—");
+  $("t_brgx").textContent=(cur.brgU?"under ":"over ")+(cur.brgx==="foot"?"footpath":(cur.brgx||"—"));
+  $("t_brgx").title=cur.brgU?"what crosses over you — click to cycle":"what the bridge crosses — click to cycle";
   $("t_brgx").classList.toggle("on",!!cur.brgx);
+  $("t_brg").classList.toggle("on",!!cur.brg);
+  $("t_brg").lastChild.nodeValue = cur.brg&&cur.brgU ? "Under" : "Bridge";
   const cb=$("colbox"); if(cb) cb.style.background=cur.col||"#14141a";
   syncEndBtn();
   $("rb_eu").classList.toggle("on",cur.rb&&!cur.rbu);
@@ -4063,18 +4067,28 @@ $("t_dirt").onclick=()=>{ if(!cur)return;
   mark(); syncQuick(); repaint(); };
 /* the bridge needs more than a plain toggle: it owns the junction centre, so the
    chicane jog resets and the exit can't fold past 135° while it's on */
+/* Bridge cycles: off → OVER one (you're on the bridge) → UNDER one (it crosses
+   over you, and the route disappears beneath it) → off. */
 $("t_brg").onclick=()=>{ if(!cur)return;
-  rehomeArms(()=>{ cur.brg=!cur.brg;
-    if(cur.brg){ if(cur.bend) cur.bend=0;
+  rehomeArms(()=>{
+    const state = !cur.brg ? 0 : (cur.brgU ? 2 : 1);          // where we are now
+    if(state===0){ cur.brg=true; cur.brgU=false;
+      if(cur.bend) cur.bend=0;
       if(Math.abs(cur.turn||0)>135) cur.turn=(cur.turn<0?-135:135);
       cur.rb=false; cur.rbu=false; cur.lx=false; cur.tilt=0; cur.xb=null; }   // the centre holds ONE thing — and starts flat
-    else { cur.brgL=false; cur.brgx=""; cur.tilt=0; } });
+    else if(state===1){ cur.brgU=true;
+      if(cur.brgx==="water") cur.brgx="";                     // nothing runs over you on water
+    }
+    else { cur.brg=false; cur.brgU=false; cur.brgL=false; cur.brgx=""; cur.tilt=0; }
+  });
   mark(); syncQuick(); repaint(); };
 
 $("brg_s").onclick=()=>{ if(!cur)return; cur.brgL=false; mark(); syncQuick(); repaint(); };
 $("brg_l").onclick=()=>{ if(!cur)return; cur.brgL=true;  mark(); syncQuick(); repaint(); };
 $("t_brgx").onclick=()=>{ if(!cur)return;
-  const seq=["","water","rail","road"];
+  /* over a bridge: what you're crossing. Under one: what's crossing over you —
+     no water up there, but a footbridge is common. */
+  const seq = cur.brgU ? ["","road","rail","foot"] : ["","water","rail","road"];
   cur.brgx=seq[(seq.indexOf(cur.brgx||"")+1)%seq.length];
   mark(); syncQuick(); repaint(); };
 /* how the route line ends — one button cycling Flat → Ball → Arrow, icon and word both change */

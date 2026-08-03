@@ -51,7 +51,8 @@ function parseSpec(s){
     else if(tok==="rbs"){ sp.rb=true; sp.rbS=true; }
     else if(["rb","rbu","dirt","wide","lc","br","brg","gate","ford","lx"].includes(tok)) sp[tok]=true;
     else if(tok==="brgl"){ sp.brg=true; sp.brgL=true; }
-    else if(tok.startsWith("brgx:")){ const v=tok.slice(5); if(["water","rail","road"].includes(v)){ sp.brg=true; sp.brgx=v; } }
+    else if(tok==="brgu"){ sp.brg=true; sp.brgU=true; }          // going UNDER, not over
+    else if(tok.startsWith("brgx:")){ const v=tok.slice(5); if(["water","rail","road","foot"].includes(v)){ sp.brg=true; sp.brgx=v; } }
     else if(tok.startsWith("lift:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.lift=Math.max(-30,Math.min(30,v)); }
     else if(tok.startsWith("tilt:")){ const v=parseInt(tok.slice(5)); if(!isNaN(v)) sp.tilt=Math.max(-45,Math.min(45,v)); }
     else if(tok.startsWith("xb:")){ const v=parseInt(tok.slice(3)); if(!isNaN(v)) sp.xb=Math.max(-179,Math.min(179,v)); }   // roundabout exit's bent final direction
@@ -89,7 +90,8 @@ function specToString(sp){
   if(sp.wide&&!sp.dirt) toks.push("wide");
   if(sp.col) toks.push("col:"+sp.col.slice(1).toLowerCase());
   if(sp.cs!==undefined&&sp.cs!==1) toks.push("cs:"+sp.cs);
-  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgx) toks.push("brgx:"+sp.brgx); if(sp.tilt) toks.push("tilt:"+Math.round(sp.tilt)); }
+  if(sp.brg){ toks.push(sp.brgL?"brgl":"brg"); if(sp.brgU) toks.push("brgu");
+    if(sp.brgx) toks.push("brgx:"+sp.brgx); if(sp.tilt) toks.push("tilt:"+Math.round(sp.tilt)); }
   for(const [k,t] of [["lc","lc"],["br","br"],["gate","gate"],["ford","ford"],["lx","lx"]]) if(sp[k]) toks.push(t);
   if(sp.end===1) toks.push("stop"); else if(sp.end===2) toks.push("ball");
   if(sp.bend) toks.push("bend:"+Math.round(sp.bend));
@@ -155,6 +157,7 @@ function specFromText(text){
   else if(Math.abs(sp.turn)>=60&&!sp.rb) sp.arms.push({a:0,off:0});
   sp.lc=t.includes("cattle grid");
   sp.brg=/\bbridge\b|\bflyover\b/.test(t);
+  if(sp.brg && /\bunder\b|\bbeneath\b|\bunderneath\b/.test(t)) sp.brgU=true;   // "under the bridge"
   if(sp.brg){ if(/water|river|stream|canal/.test(t)) sp.brgx="water";
     else if(/rail|track/.test(t)) sp.brgx="rail";
     else if(/\bflyover\b|motorway|over the road|over road/.test(t)) sp.brgx="road"; }
@@ -831,16 +834,45 @@ function quickToElements(sp){
     const [pxB,pyB]=brgPivot(), [du,dv2]=stemDirOf(sp);
     const M=(u,v)=>[pxB+du*u-dv2*v, pyB+dv2*u+du*v];          // stem frame → canvas
     const g=brgGeom(sp), uc=g.uc, hh=g.hh, dx=sp.brgL?17:14, cap=sp.brgL?7:6, bw=3.5;
-    const seg=(u1,v1,u2,v2,w)=>{ const a=M(u1,v1), b=M(u2,v2);
-      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:w||bw,ss:0,es:0}); };
-    for(const sgn of [-1,1]){
-      seg(uc-hh, sgn*(dx+cap), uc-hh, sgn*dx);               // cap, turned away
-      seg(uc-hh, sgn*dx,       uc+hh, sgn*dx);               // the bracket itself
-      seg(uc+hh, sgn*dx,       uc+hh, sgn*(dx+cap));         // cap, turned away
+    const seg=(u1,v1,u2,v2,w,col,ds)=>{ const a=M(u1,v1), b=M(u2,v2);
+      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:w||bw,ss:0,es:0,col:col,ds:ds?1:0}); };
+    const W=dx+cap;                                          // how far the bridge reaches either side
+    if(sp.brgU){
+      /* GOING UNDER: the bridge lies ACROSS the route instead of along it, and
+         the route disappears beneath it and comes out the other side. The gap is
+         made by laying a white band over the road between the two edges — the
+         same trick the white core of a wide road uses. */
+      const ud=sp.brgL?11:8;                                 // half the depth of the deck
+      const a=M(uc-ud,0), b=M(uc+ud,0);
+      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:13,ss:0,es:0,col:"#fff"});   // the road, hidden under it
+      for(const sgn of [-1,1]) seg(uc+sgn*ud, -W, uc+sgn*ud, W);            // the two edges of the bridge
+    } else {
+      for(const sgn of [-1,1]){
+        seg(uc-hh, sgn*W,  uc-hh, sgn*dx);                   // cap, turned away
+        seg(uc-hh, sgn*dx, uc+hh, sgn*dx);                   // the bracket itself
+        seg(uc+hh, sgn*dx, uc+hh, sgn*W);                    // cap, turned away
+      }
     }
     /* what the bridge crosses — the mark sits OUTSIDE the bridge, both sides,
        riding the same frame */
-    if(sp.brgx){
+    if(sp.brgx && sp.brgU){
+      /* what's carried OVER you — it runs along the bridge and carries on out
+         the far side, so you can see at a glance whether it's a road, a railway
+         or a footbridge above your head. */
+      for(const sgn of [-1,1]){
+        const v0=sgn*W, v1=sgn*(W+13);
+        if(sp.brgx==="rail"){
+          seg(uc-2.6, v0, uc-2.6, v1, 1.8);
+          seg(uc+2.6, v0, uc+2.6, v1, 1.8);
+          for(const f of [0.3,0.72]) seg(uc-5, v0+(v1-v0)*f, uc+5, v0+(v1-v0)*f, 1.5);
+        } else if(sp.brgx==="foot"){
+          seg(uc, v0, uc, v1, 2.2, null, true);              // a footbridge: a dashed way over
+        } else {
+          seg(uc-3.6, v0, uc-3.6, v1, 1.9);                  // a road over the top
+          seg(uc+3.6, v0, uc+3.6, v1, 1.9);
+        }
+      }
+    } else if(sp.brgx){
       const vs=dx+cap+9;
       for(const sgn of [-1,1]){
         if(sp.brgx==="water"){
