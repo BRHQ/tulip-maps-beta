@@ -82,9 +82,13 @@
   .seg button.on, .seg button.on:hover { background:var(--green); color:#fff; }
   #eprops { background:#f6f8f6; border:1px solid var(--hair); border-radius:8px; padding:8px; margin-top:7px; display:none; }
   /* waypoint card */
-  #cutchip { position:absolute; z-index:1002; left:50%; top:12px; transform:translateX(-50%);
+  /* the cut chip sits ON the stretch you've marked, not at the top of the
+     screen — you shouldn't have to look away from the bit you're cutting */
+  #cutchip { position:absolute; z-index:1002; left:50%; top:12px; transform:translate(-50%,-50%);
     display:none; align-items:center; gap:8px; background:rgba(255,255,255,.97);
-    border:1px solid var(--hair); border-radius:10px; padding:5px 7px 5px 11px; box-shadow:0 3px 14px rgba(0,0,0,.3); }
+    border:1px solid var(--hair); border-radius:10px; padding:5px 7px 5px 11px; box-shadow:0 3px 14px rgba(0,0,0,.3);
+    white-space:nowrap; }
+  #cutchip .keys { font-size:10.5px; color:var(--mut); padding-right:2px; }
   #cutchip .cut { background:#d9534f; color:#fff; border:none; border-radius:7px; padding:6px 13px; font-weight:700; font-size:12.5px; }
   #cutchip .desel { background:#f0f2f0; border:1px solid var(--hair); border-radius:7px; padding:6px 10px; font-size:13px; color:var(--mut); line-height:1; }
   #mediabox { position:absolute; right:12px; bottom:12px; z-index:1002; width:250px; background:#fff;
@@ -504,6 +508,16 @@
   .wprowflex .wpfield { flex:1; width:auto; }   /* stacked inputs now carry their own heading as placeholder */
   #tulipcard { height:auto; overflow:visible; }
   #wplist { max-height:300px; overflow-y:auto; }   /* WP list never grows unbounded */
+  /* our own "are you sure?" box, so a question never arrives as the browser's
+     own alarming grey dialog */
+  #askmodal { display:none; position:fixed; inset:0; z-index:3400; background:rgba(12,18,14,.55);
+    align-items:center; justify-content:center; }
+  #askmodal .askcard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
+    width:430px; max-width:92vw; padding:20px 22px; }
+  #askmodal h3 { margin:0 0 8px; font-size:17px; color:var(--green); }
+  #askmodal #askmsg { font-size:13.5px; line-height:1.55; color:var(--char); white-space:pre-line; }
+  #askmodal .askrow { display:flex; gap:9px; justify-content:flex-end; margin-top:16px; }
+  #askmodal .askkeys { font-size:11.5px; color:var(--mut); text-align:right; margin-top:7px; }
   #automodal { display:none; position:fixed; inset:0; z-index:3200; background:rgba(12,18,14,.55);
     align-items:center; justify-content:center; }
   #automodal .autocard { background:#fff; border-radius:14px; box-shadow:0 14px 44px rgba(0,0,0,.45);
@@ -1151,6 +1165,17 @@
     <div class="expsub">Pick a format. Your route stays open either way.</div>
     <div id="expopts"></div>
     <div class="exprow"><button class="expcancel" id="expcancel">Cancel</button></div>
+  </div>
+</div>
+<div id="askmodal">
+  <div class="askcard">
+    <h3 id="asktitle">Are you sure?</h3>
+    <div id="askmsg"></div>
+    <div class="askrow">
+      <button class="btn ghost2" id="askno">Cancel</button>
+      <button class="btn" id="askyes">Yes</button>
+    </div>
+    <div class="askkeys">Enter to go ahead · Esc to cancel</div>
   </div>
 </div>
 <div id="automodal">
@@ -1829,13 +1854,44 @@ function buildElevPanel(){
   mpEdgeResize(panel,["l","r"]);        // Elevation: width only, from either side — never from above
   if(window.ResizeObserver) new ResizeObserver(()=>drawElevation()).observe(body);   // redraw the profile at the new size
 }
+/* MOVING THE WINDOW TO ANOTHER SCREEN.
+   Two monitors are often different sharpnesses — a Retina laptop and a plain
+   external one. Nothing fires a resize when a window is dragged across, so
+   anything we draw ourselves (the roadbook strip, the height graph) would keep
+   the old screen's sharpness and look soft or over-fine until something else
+   happened to redraw it. This watches for the change and redraws. */
+function watchScreenSharpness(){
+  let mq=null;
+  const again=()=>{
+    const dpr=window.devicePixelRatio||1;
+    try{
+      mq=matchMedia("(resolution: "+dpr+"dppx)");
+      if(mq.addEventListener) mq.addEventListener("change",moved,{once:true});
+      else if(mq.addListener) mq.addListener(moved);
+    }catch(_){}
+  };
+  const moved=()=>{
+    again();
+    if(typeof drawElevation==="function") drawElevation();
+    if(typeof rbStripDraw==="function") rbStripDraw();
+    if(map) map.invalidateSize();
+  };
+  again();
+}
+watchScreenSharpness();
 let elevTried=-1;   // pts.length we last auto-pulled heights for, so we ask ORS once per route
 function drawElevation(){
   const box=$("elevpanel"); if(!box || getComputedStyle(box).display==="none") return;
   const cv=$("elevcanvas"), info=$("elevinfo"); if(!cv) return;
-  if(cv.clientWidth && Math.abs(cv.width-cv.clientWidth)>4) cv.width=cv.clientWidth;   // match the canvas to the resized panel
-  if(cv.clientHeight && Math.abs(cv.height-cv.clientHeight)>4) cv.height=cv.clientHeight;   // ...in height too, so the graph fills the box
-  const c=cv.getContext("2d"), W=cv.width, H=cv.height, pad=8; c.clearRect(0,0,W,H);
+  /* drawn at the screen's own sharpness, so it isn't soft on a Retina display
+     — and redrawn if the window moves to a screen with a different one */
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const wantW=Math.round((cv.clientWidth||300)*dpr), wantH=Math.round((cv.clientHeight||120)*dpr);
+  if(wantW && Math.abs(cv.width-wantW)>2) cv.width=wantW;      // match the canvas to the resized panel
+  if(wantH && Math.abs(cv.height-wantH)>2) cv.height=wantH;    // ...in height too, so the graph fills the box
+  const c=cv.getContext("2d");
+  c.setTransform(dpr,0,0,dpr,0,0);
+  const W=cv.width/dpr, H=cv.height/dpr, pad=8; c.clearRect(0,0,W,H);
   if(!pts.length){ info.textContent="No route yet."; return; }
   const eles=pts.map(p=>p.ele||0), hasEle=eles.some(e=>e>0);
   const dist=[0]; for(let i=1;i<pts.length;i++) dist.push(dist[i-1]+hav(pts[i-1],pts[i]));
@@ -3210,9 +3266,16 @@ map.on("click",async ev=>{
       const leg=await routeLeg(pts[idx].lat,pts[idx].lon);
       routing.coords=routing.coords.concat(leg.slice(1));
       const km=((routing.coords.length>1)?routing.coords.reduce((acc,c,i)=>i?acc+hav({lat:routing.coords[i-1][0],lon:routing.coords[i-1][1]},{lat:c[0],lon:c[1]}):0,0):0)/1000;
-      if(confirm(`Replace the track between these points with the routed road (${km.toFixed(2)} km)?`)){
+      const ok=await askConfirm(
+        `The stretch between these two points will be replaced by the road the router found — `+
+        `${km.toFixed(2)} km.\n\nThe old line between them is thrown away.`,
+        {title:"Join the route up?", yes:"✓ Replace it", no:"Leave it alone"});
+      if(ok){
         snapshot();
-        const newPts=routing.coords.slice(1,-1).map(([la,lo])=>({lat:la,lon:lo}));
+        /* heights read off the two ends, so the joined stretch doesn't drop to
+           sea level on the elevation graph */
+        const a0=pts[routing.anchor], b0=pts[idx];
+        const newPts=routing.coords.slice(1,-1).map(([la,lo])=>newTrackPoint(la,lo,a0,b0));
         pts.splice(routing.anchor+1,idx-routing.anchor-1,...newPts);
         cancelRouting(); redraw(); return;
       }
@@ -3280,25 +3343,71 @@ function clearTrackSel(){
 }
 /* The section-cut tool lives on the map now, not in a sidebar card: a chip
    appears only when a stretch is shift-selected. (cutChipEl declared up top.) */
+/* ASK FIRST — our own box instead of the browser's grey one.
+   Returns a promise: true if they went ahead. Enter says yes, Esc says no. */
+let askOpen=null;
+function askConfirm(msg,opts){
+  opts=opts||{};
+  const box=$("askmodal");
+  if(!box) return Promise.resolve(window.confirm(msg));     // belt and braces
+  $("asktitle").textContent=opts.title||"Are you sure?";
+  $("askmsg").textContent=msg;
+  $("askyes").textContent=opts.yes||"Yes";
+  $("askno").textContent=opts.no||"Cancel";
+  box.style.display="flex";
+  return new Promise(done=>{
+    const finish=v=>{ if(!askOpen) return; askOpen=null;
+      box.style.display="none"; done(v); };
+    askOpen=finish;
+    $("askyes").onclick=()=>finish(true);
+    $("askno").onclick=()=>finish(false);
+    box.onclick=e=>{ if(e.target===box) finish(false); };
+    setTimeout(()=>{ try{ $("askyes").focus(); }catch(_){ } },0);
+  });
+}
+document.addEventListener("keydown",e=>{
+  if(!askOpen) return;
+  if(e.key==="Enter"){ e.preventDefault(); e.stopPropagation(); askOpen(true); }
+  else if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); askOpen(false); }
+},true);
 function buildCutChip(){
   cutChipEl=document.createElement("div"); cutChipEl.id="cutchip";
   const cut=document.createElement("button"); cut.className="cut"; cut.onclick=()=>cutRange();
+  cut.title="cut this section out (Enter)";
+  const keys=document.createElement("span"); keys.className="keys"; keys.textContent="⏎ / esc";
   const desel=document.createElement("button"); desel.className="desel"; desel.textContent="✕";
-  desel.title="deselect"; desel.onclick=()=>clearTrackSel();
-  cutChipEl._cut=cut; cutChipEl.append(cut,desel);
+  desel.title="deselect (Esc)"; desel.onclick=()=>clearTrackSel();
+  cutChipEl._cut=cut; cutChipEl.append(cut,keys,desel);
   map.getContainer().appendChild(cutChipEl);
   L.DomEvent.disableClickPropagation(cutChipEl);
 }
 function updateCutChip(){
   if(!cutChipEl) return;
-  if(rangeB>=0 && vertexIdx>=0){
-    const a=Math.min(vertexIdx,rangeB), b=Math.max(vertexIdx,rangeB);
-    cutChipEl._cut.textContent=`✂ Cut ${((cum[b]-cum[a])/1000).toFixed(2)} km`;
-    cutChipEl.style.display="flex";
-  } else {
-    cutChipEl.style.display="none";
-  }
+  if(!(rangeB>=0 && vertexIdx>=0)){ cutChipEl.style.display="none"; return; }
+  const a=Math.min(vertexIdx,rangeB), b=Math.max(vertexIdx,rangeB);
+  cutChipEl._cut.textContent=`✂ Cut ${((cum[b]-cum[a])/1000).toFixed(2)} km`;
+  cutChipEl.style.display="flex";
+  /* park it over the middle of the marked stretch, nudged up off the line, and
+     kept inside the map however far off-screen the stretch runs */
+  const mid=pts[Math.round((a+b)/2)];
+  if(!mid) return;
+  const sz=map.getSize(), pt=map.latLngToContainerPoint([mid.lat,mid.lon]);
+  const w=cutChipEl.offsetWidth||190, h=cutChipEl.offsetHeight||34;
+  const x=Math.max(w/2+8, Math.min(sz.x-w/2-8, pt.x));
+  const y=Math.max(h/2+8, Math.min(sz.y-h/2-8, pt.y-32));
+  cutChipEl.style.left=x+"px"; cutChipEl.style.top=y+"px";
 }
+/* it's pinned to a place on the map, so it has to move with the map */
+map.on("move zoom viewreset resize",()=>{ if(rangeB>=0) updateCutChip(); });
+/* Enter cuts the marked stretch, Esc drops the selection */
+document.addEventListener("keydown",e=>{
+  if(askOpen||routing||measuring||pendingAction) return;
+  if(rangeB<0||vertexIdx<0) return;
+  const t=e.target;
+  if(t&&t.closest&&t.closest("input,textarea,select,[contenteditable=true]")) return;
+  if(e.key==="Enter"){ e.preventDefault(); cutRange(); }
+  else if(e.key==="Escape"){ e.preventDefault(); clearTrackSel(); }
+});
 /* Recce media: a map overlay showing the photo + voice note for the picked wp.
    (mediaBoxEl / mbAudio declared up top so init can build the box.) */
 function fmtT(s){ s=Math.max(0,Math.round(s||0)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
@@ -3350,16 +3459,19 @@ function openLightbox(src){
     document.body.appendChild(lb); lb.onclick=()=>lb.style.display="none"; }
   lb.querySelector("img").src=src; lb.style.display="flex";
 }
-function cutRange(){
+async function cutRange(){
   if(rangeB<0)return;
   const a=Math.min(vertexIdx,rangeB), b=Math.max(vertexIdx,rangeB);
   const inside=wps.filter(w=>!w.deleted&&w.pos>cum[a]&&w.pos<cum[b]);
-  snapshot();
-  if(inside.length&&confirm(
-      `This section contains waypoint${inside.length>1?"s":""} ${inside.map(w=>w.name).join(", ")}.\n\n`+
-      `OK = delete ${inside.length>1?"them":"it"} with the track\nCancel = keep as standalone waypoint${inside.length>1?"s":""}`)){
-    for(const w of inside){ w.deleted=true; w.marker.remove(); }
-  }
+  const many=inside.length>1;
+  if(inside.length){
+    const kill=await askConfirm(
+      `This section has waypoint${many?"s":""} ${inside.map(w=>w.name).join(", ")} in it.`,
+      {title:"Cut the waypoint"+(many?"s":"")+" out too?",
+       yes:"🗑 Delete "+(many?"them":"it")+" as well", no:"Keep "+(many?"them":"it")});
+    snapshot();
+    if(kill) for(const w of inside){ w.deleted=true; w.marker.remove(); }
+  } else snapshot();
   pts.splice(a+1,b-a-1);
   clearTrackSel(); redraw();
 }
@@ -4464,8 +4576,9 @@ function renderTabs(){
     bar.append(tab);
   });
 }
-function closeRoute(i){
-  if(!confirm("Close this route? Unsaved edits to it are lost."))return;
+async function closeRoute(i){
+  if(!await askConfirm("Any edits you haven't saved to it are lost.",
+      {title:"Close this route?", yes:"Close it", no:"Keep it open"})) return;
   if(i===activeRoute){
     wps.forEach(w=>w.marker&&w.marker.remove());
     if(line){line.remove();line=null;} if(casing){casing.remove();casing=null;}
@@ -5032,8 +5145,9 @@ function openMyRoutes(){
             body:JSON.stringify({id:r.id,name:nn.trim(),data:j.route})}))
             .then(openMyRoutes).catch(e=>toast("Couldn't rename: "+e.message,5000));
         },
-        onDel:()=>{
-          if(!confirm("Delete “"+r.name+"” from your ACCOUNT?\n\nAny copy kept in this browser stays.")) return;
+        onDel:async ()=>{
+          if(!await askConfirm("Any copy kept in this browser stays where it is.",
+              {title:"Delete “"+r.name+"” from your account?", yes:"🗑 Delete it", no:"Cancel"})) return;
           api("/routes/"+r.id,{method:"DELETE"}).then(openMyRoutes)
             .catch(e=>toast("Couldn't delete: "+e.message,5000));
         }});
@@ -5053,8 +5167,9 @@ function openMyRoutes(){
           const nn=prompt("Rename this route:",r.name); if(!nn||nn===r.name) return;
           tmGet(r.id).then(v=>tmPut(r.id,nn.trim(),v)).then(openMyRoutes);
         },
-        onDel:()=>{
-          if(!confirm("Delete “"+r.name+"” from My routes?\n\nThis only removes the copy kept in this browser.")) return;
+        onDel:async ()=>{
+          if(!await askConfirm("This only removes the copy kept in this browser.",
+              {title:"Delete “"+r.name+"” from My routes?", yes:"🗑 Delete it", no:"Cancel"})) return;
           tmDel(r.id).then(openMyRoutes);
         }});
     }
