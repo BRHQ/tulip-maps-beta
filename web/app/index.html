@@ -286,6 +286,12 @@
   .elevinfo { font-size:10.5px; color:var(--mut); text-align:center; margin:1px 0 0; line-height:1.25; }
   #elevpanel .mpc { padding:5px 6px 4px; gap:2px; }
   .rbtickrow { display:flex; gap:6px; margin-top:2px; }
+  .rbcolors { display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; margin-top:4px; }
+  .rbcolors label { display:flex; align-items:center; justify-content:space-between; gap:8px;
+    font-size:12px; color:var(--char); background:#fff; border:1px solid var(--hair);
+    border-radius:8px; padding:5px 8px; }
+  .rbcolors input[type=color] { width:30px; height:22px; border:1px solid var(--hair);
+    border-radius:5px; padding:0; background:none; cursor:pointer; }
   .statlbl { font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--mut); font-weight:800; margin-bottom:2px; }
   .statrows { font-size:11.5px; }
   .statrow { display:flex; justify-content:space-between; gap:10px; padding:1px 0; }
@@ -930,8 +936,9 @@
     <div class="rbsteps" id="rb_steps">
       <button class="rbstep on" data-step="0"><b>1</b>The book</button>
       <button class="rbstep" data-step="1"><b>2</b>Columns</button>
-      <button class="rbstep" data-step="2"><b>3</b>Extra pages</button>
-      <button class="rbstep" data-step="3"><b>4</b>Export</button>
+      <button class="rbstep" data-step="2"><b>3</b>Style</button>
+      <button class="rbstep" data-step="3"><b>4</b>Extra pages</button>
+      <button class="rbstep" data-step="4"><b>5</b>Export</button>
     </div>
     <div class="rbbody">
       <div class="rbleft">
@@ -954,8 +961,6 @@
       <span class="seg" id="rb_mototulip" style="display:none"><button data-v="left">Left</button><button data-v="right">Right</button></span>
       <div class="field" id="rb_motorow2" style="display:none">Notes</div>
       <span class="seg" id="rb_motonotes" style="display:none"><button data-v="under">Under</button><button data-v="beside">Beside</button></span>
-      <div class="field" id="rb_themerow">Style</div>
-      <span class="seg" id="rb_theme"><button data-v="dark">1 · Stage Dark</button><button data-v="green">2 · VM Green</button></span>
       <div class="field">Tulip size</div>
       <span class="seg" id="rb_tulip"><button data-v="none">none</button><button data-v="small">small</button><button data-v="normal">normal</button><button data-v="large">large</button></span>
       <div class="field">Rows per page</div>
@@ -973,6 +978,37 @@
       
         </div>
         <div class="rbstepbox" data-step="2" style="display:none">
+          <p class="stepnote">The look of the printed page — type, colours and where the words sit.</p>
+          <div class="field" id="rb_themerow">Theme <span style="font-weight:400;color:var(--mut)">— the starting colours</span></div>
+          <span class="seg" id="rb_theme"><button data-v="dark">1 · Stage Dark</button><button data-v="green">2 · VM Green</button></span>
+          <div class="field">Font</div>
+          <span class="seg" id="rb_font">
+            <button data-v="helvetica">Helvetica</button>
+            <button data-v="times">Times</button>
+            <button data-v="courier">Courier</button></span>
+          <div class="field">Colours</div>
+          <div class="rbcolors">
+            <label>Text<input type="color" id="rb_c_ink"></label>
+            <label>Small text<input type="color" id="rb_c_grey"></label>
+            <label>Lines<input type="color" id="rb_c_line"></label>
+            <label>Heading bar<input type="color" id="rb_c_band"></label>
+            <label>Heading text<input type="color" id="rb_c_bandtext"></label>
+            <label>Accent<input type="color" id="rb_c_accent"></label>
+          </div>
+          <button class="rc-s" id="rb_c_reset" style="margin-top:6px">↺ back to the theme colours</button>
+          <div class="field">Column headings</div>
+          <div class="rbtickrow">
+            <button class="rc-s" id="rb_headbold">Bold</button>
+            <button class="rc-s" id="rb_headcaps">CAPITALS</button>
+          </div>
+          <div class="field">Where the text sits</div>
+          <span class="seg" id="rb_align">
+            <button data-v="left">Left</button>
+            <button data-v="center">Middle</button>
+            <button data-v="right">Right</button></span>
+          <div class="hint" style="margin-top:6px">Directions always start on the left — they're sentences.</div>
+        </div>
+        <div class="rbstepbox" data-step="3" style="display:none">
           <p class="stepnote">A map of the whole route as page one, and a height profile along the foot of every page.</p>
           <div class="field">Title page</div>
       <div class="rbtickrow">
@@ -1008,7 +1044,7 @@
       </div>
       
         </div>
-        <div class="rbstepbox" data-step="3" style="display:none">
+        <div class="rbstepbox" data-step="4" style="display:none">
           <p class="stepnote">Check the pages alongside, then write the PDF. Everything you've set is remembered for next time.</p>
           <div class="field">Ready</div>
           <div class="hint" id="rb_summary" style="line-height:1.6"></div>
@@ -1117,7 +1153,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 3 Aug · 1";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 3 Aug · 2";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -4623,6 +4659,7 @@ function saveGPXf(){
    embedded PNG, the instruction as an embedded SVG note, the exit CAP
    heading, and danger level where the tulip carries a warning. */
 function saveOpenRallyF(){
+  const F="helvetica";
   maybeApply(); rbFillDistances();
   const esc=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const cvs=document.createElement("canvas"); cvs.width=376; cvs.height=320;
@@ -4999,6 +5036,8 @@ const RB_COLS_ALL=[["inter","INTER"],["total","TOTAL"],["togo","TO GO"],["tulip"
 const RB_COLW={inter:50,total:52,togo:56,gps:74,info:92,street:92,height:54,climb:68,wp:49};
 const RB_DEF={title:"Grand Prix of South America",type:"tulip",page:"a4",theme:"dark",rowsPP:12,tulip:"normal",togoIn:0,wpIn:0,gpsIn:0,streetIn:1,badge:"Day 1",motoTulip:"right",motoNotes:"under",scope:"day",
               caps:"", mapPage:0, mapElev:1, mapMarks:"wp", mapDistKm:5, pageElev:0, units:"km",
+              style:{font:"helvetica", ink:"#131315", grey:"#73767c", line:"#d9dade",
+                     band:"", bandText:"", accent:"", headBold:1, headCaps:1, align:"center"},
               titlePage:0, tpNote:"", tpShow:{sub:1,dist:1,wps:1,date:1,badge:1},
               mapCaption:1, mapNote:"", profileBars:1,
               cols:[{k:"inter",on:1},{k:"total",on:1},{k:"togo",on:0},{k:"tulip",on:1},
@@ -5203,7 +5242,17 @@ function rbMigrateNesting(o){
   if(o.gpsIn){ set("gps","info"); o.gpsIn=0; }
   if(o.streetIn){ set("street","direction"); o.streetIn=0; }
 }
-/* ---- units: kilometres, miles, or both ---- */
+/* ---- the look: font, colours, headings, where the text sits ---- */
+const RB_STYLE_DEF={font:"helvetica", ink:"#131315", grey:"#73767c", line:"#d9dade",
+                    band:"", bandText:"", accent:"", headBold:1, headCaps:1, align:"center"};
+function rbStyle(o){ return {...RB_STYLE_DEF, ...((o&&o.style)||{})}; }
+function rbRGB(hex,fallback){
+  if(!hex||!/^#?[0-9a-f]{6}$/i.test(hex.replace("#",""))) return fallback;
+  const h=hex.replace("#","");
+  return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+}
+function rbHeadTxt(t,st){ return st.headCaps?String(t||"").toUpperCase():String(t||""); }
+/* ---- units: kilometres or miles ---- */
 function rbUnits(o){ return (o&&o.units)||"km"; }
 function rbDistTxt(km,o,dp){                       // one distance, in the chosen unit(s)
   if(km==null||isNaN(km)) return "";
@@ -5264,9 +5313,15 @@ function buildRoadbook(o,previewOnly,onlyPage){
   const FS=n=>doc.setFontSize(n*S);
   const classic=o.type==="classic", raid=o.type==="raid";
   const dark=o.theme!=="green";
-  const BANDC=classic||raid?[255,255,255]:(dark?[28,28,33]:[20,61,46]);
-  const SUBC=classic||raid?[19,19,21]:(dark?[245,166,35]:[142,183,146]);
-  const INK=[19,19,21], GREY=[115,118,124];
+  const ST=rbStyle(o), F=ST.font||"helvetica";
+  const BANDC=rbRGB(ST.band, classic||raid?[255,255,255]:(dark?[28,28,33]:[20,61,46]));
+  const SUBC =rbRGB(ST.accent, classic||raid?[19,19,21]:(dark?[245,166,35]:[142,183,146]));
+  const INK=rbRGB(ST.ink,[19,19,21]), GREY=rbRGB(ST.grey,[115,118,124]);
+  const LINE=rbRGB(ST.line,[217,218,222]);
+  const BANDTXT=rbRGB(ST.bandText,[255,255,255]);
+  const AL=ST.align||"center";                    // where the data sits in its box
+  const alignX=(X,CW)=>AL==="left"?X+7:AL==="right"?X+CW-7:X+CW/2;
+  const alignOpt=AL==="center"?{align:"center"}:{align:AL};
   const BAND=(classic||raid?58:64)*S, HEAD=96*S;
   /* the enabled columns, in order; DIRECTIONS flexes, everything else fixed */
   const cols=rbEnabledCols(o); cols.forEach(c=>c.w*=S);
@@ -5277,7 +5332,7 @@ function buildRoadbook(o,previewOnly,onlyPage){
   fixed=cols.filter(c=>c.k!=="direction").reduce((a,c)=>a+c.w,0);
   cols.forEach(c=>{ if(c.k==="direction") c.w=W-2*M-fixed; });
   const XS=[M]; cols.forEach(c=>XS.push(XS[XS.length-1]+c.w));
-  const caps=cols.map(c=>c.t||RB_COLS_ALL.find(x=>x[0]===c.k)[1]);
+  const caps=cols.map(c=>rbHeadTxt(c.t||RB_COLS_ALL.find(x=>x[0]===c.k)[1],ST));
   /* the optional thin height-profile strip along the foot of every page takes
      its space from the rows, so nothing overflows the paper */
   const PELEV=(o.pageElev && pts.some(p=>p.ele)) ? Math.max(26*S, H*0.055) : 0;
@@ -5296,26 +5351,26 @@ function buildRoadbook(o,previewOnly,onlyPage){
     doc.setFillColor(...(classic||raid?[255,255,255]:BANDC));
     if(!classic&&!raid) doc.rect(0,0,W,H*0.42,"F");
     doc.setTextColor(...(classic||raid?INK:[255,255,255]));
-    doc.setFont("helvetica","bold"); FS(34);
+    doc.setFont(F,"bold"); FS(34);
     doc.splitTextToSize(o.title||"Roadbook",W-2*M).forEach((ln,i)=>doc.text(ln,M,H*0.17+i*40*S));
-    if(sh.sub!==0){ doc.setFont("helvetica","normal"); FS(15);
+    if(sh.sub!==0){ doc.setFont(F,"normal"); FS(15);
       doc.setTextColor(...(classic||raid?GREY:SUBC));
       doc.text((o.sub||baseName||"route"),M,H*0.30); }
     if(sh.badge!==0 && o.badge){
       doc.setFillColor(245,166,35); doc.roundedRect(M,H*0.33,86*S,30*S,6*S,6*S,"F");
-      doc.setTextColor(28,28,33); doc.setFont("helvetica","bold"); FS(12);
+      doc.setTextColor(28,28,33); doc.setFont(F,"bold"); FS(12);
       doc.text(o.badge,M+43*S,H*0.33+20*S,{align:"center"}); }
     let y=H*0.52;
-    const fact=(k,v)=>{ doc.setTextColor(...GREY); doc.setFont("helvetica","normal"); FS(9.5);
+    const fact=(k,v)=>{ doc.setTextColor(...GREY); doc.setFont(F,"normal"); FS(9.5);
       doc.text(k.toUpperCase(),M,y);
-      doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(19);
+      doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(19);
       doc.text(v,M,y+24*S); y+=52*S; };
     if(sh.dist!==0) fact("Distance", rbDistTxt(totKm,o,1)+" "+rbDistUnitLabel(o));
     if(sh.wps!==0)  fact("Waypoints", String(rows.length));
     if(sh.date!==0) fact("Date", new Date().toLocaleDateString());
-    if(o.tpNote){ doc.setTextColor(...GREY); doc.setFont("helvetica","normal"); FS(11);
+    if(o.tpNote){ doc.setTextColor(...GREY); doc.setFont(F,"normal"); FS(11);
       doc.splitTextToSize(o.tpNote,W-2*M).forEach((ln,i)=>doc.text(ln,M,y+i*15*S)); }
-    doc.setFont("helvetica","normal"); FS(6.2); doc.setTextColor(...GREY);
+    doc.setFont(F,"normal"); FS(6.2); doc.setTextColor(...GREY);
     doc.text("\u00a9 Tulip Maps \u2014 tulipmaps.com",W/2,H-8*S,{align:"center"});
   }
   /* the MAP page: the whole route on real map tiles, fitted to the
@@ -5328,15 +5383,15 @@ function buildRoadbook(o,previewOnly,onlyPage){
     const sc=Math.min(availW/rbMapCache.imgW, availH/rbMapCache.imgH);
     const dw=rbMapCache.imgW*sc, dh=rbMapCache.imgH*sc, dx=M+(availW-dw)/2;
     if(o.mapCaption!==0){
-      doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(17);
+      doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(17);
       doc.text(o.mapNote||o.title||"Roadbook",M,26*S);
-      doc.setFont("helvetica","normal"); FS(10); doc.setTextColor(...GREY);
+      doc.setFont(F,"normal"); FS(10); doc.setTextColor(...GREY);
       doc.text(((o.sub||baseName||"route")+"   \u00b7   "+rbDistTxt((cum[cum.length-1]||0)/1000,o,1)+" "+rbDistUnitLabel(o)).toUpperCase(),M,43*S);
     }
     doc.addImage(rbMapCache.img,"JPEG",dx,top,dw,dh);
     doc.setDrawColor(...GREY); doc.setLineWidth(.6); doc.rect(dx,top,dw,dh);
     if(rbMapCache.elev) doc.addImage(rbMapCache.elev,"PNG",M,H-M-elevH,availW,elevH);
-    doc.setFont("helvetica","normal"); FS(6.5); doc.setTextColor(...GREY);
+    doc.setFont(F,"normal"); FS(6.5); doc.setTextColor(...GREY);
     doc.text("\u00a9 OpenStreetMap contributors",M,H-M-elevH-4*S);
   }
   days.forEach(day=>{
@@ -5348,15 +5403,15 @@ function buildRoadbook(o,previewOnly,onlyPage){
     for(let pg=pgFrom;pg<pgTo;pg++){
       if(!firstPage)doc.addPage(); firstPage=false;
       if(classic||raid){
-        doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(17);
+        doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(17);
         doc.text(o.title||"Roadbook",M,26*S);
-        doc.setFont("helvetica","normal"); FS(10);
+        doc.setFont(F,"normal"); FS(10);
         doc.text((day.sub||"route").toUpperCase()+"   \u00b7   "+rbDistTxt(total,o,1)+" "+rbDistUnitLabel(o),M,43*S);
         doc.setDrawColor(...INK); doc.setLineWidth(1.4); doc.line(M-4,BAND-8*S,W-M+4,BAND-8*S);
         doc.setLineWidth(.5); doc.line(M-4,BAND-4*S,W-M+4,BAND-4*S);
       } else {
         doc.setFillColor(...BANDC); doc.rect(0,0,W,BAND,"F");
-        doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); FS(19);
+        doc.setTextColor(...BANDTXT); doc.setFont(F,"bold"); FS(19);
         doc.text(o.title||"Roadbook",M,30*S);
         doc.setTextColor(...SUBC); FS(11);
         doc.text((day.sub||"route").toUpperCase()+"   \u00b7   "+rbDistTxt(total,o,1)+" "+rbDistUnitLabel(o),M,50*S);
@@ -5366,9 +5421,9 @@ function buildRoadbook(o,previewOnly,onlyPage){
         if(/^day\s*\d*$/i.test(badge.trim())&&days.length>1) badge="Day "+(days.indexOf(day)+1);
         doc.text(badge.slice(0,10)||"VM",W-M-32*S,36*S,{align:"center"});
       }
-      doc.setTextColor(...GREY); FS(8); doc.setFont("helvetica","bold");
+      doc.setTextColor(...GREY); FS(8); doc.setFont(F,ST.headBold?"bold":"normal");
       caps.forEach((l,i)=>{ if(cols[i].w>0) doc.text(l,XS[i]+cols[i].w/2,HEAD-10*S,{align:"center"}); });
-      doc.setFont("helvetica","normal");
+      doc.setFont(F,"normal");
       doc.text("pg "+(pg+1)+"/"+allPages,W-M,HEAD-24*S,{align:"right"});
       const chunk=ordered.slice(pg*NR,(pg+1)*NR);
       chunk.forEach((r,i)=>{
@@ -5379,7 +5434,7 @@ function buildRoadbook(o,previewOnly,onlyPage){
           doc.setFillColor(255,244,186);
           doc.rect(M,top,W-2*M,ROW_H,"F");
         }
-        if(classic||raid){ doc.setDrawColor(...INK); doc.setLineWidth(.9);
+        if(classic||raid){ doc.setDrawColor(...LINE); doc.setLineWidth(.9);
           cols.forEach((c,ci)=>doc.rect(XS[ci],top,c.w,ROW_H)); }
         cols.forEach((c,ci)=>{
           const X=XS[ci], CW=c.w;
@@ -5387,20 +5442,20 @@ function buildRoadbook(o,previewOnly,onlyPage){
           const kid=rbChildOf(o,c.k);
           if(kid && !(c.k==="tulip"&&kid.k==="wp")){          // the wp chip has its own look
             const txt=rbCellText(kid.k,r,o,total);
-            if(txt){ doc.setFont("helvetica","normal"); FS(kid.k==="gps"?6:7.5);
+            if(txt){ doc.setFont(F,"normal"); FS(kid.k==="gps"?6:7.5);
               doc.setTextColor(...GREY);
               doc.text(String(txt).slice(0,42), c.k==="direction"?X+10*S:X+CW/2,
                        top+ROW_H-5*S, c.k==="direction"?undefined:{align:"center"}); }
           }
-          if(c.k==="inter"&&r.inter_km){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
-            FS(raid?16:14); doc.text(rbDistTxt(parseFloat(r.inter_km),o),X+CW/2,mid+4*S,{align:"center"}); }
+          if(c.k==="inter"&&r.inter_km){ doc.setTextColor(...INK); doc.setFont(F,"bold");
+            FS(raid?16:14); doc.text(rbDistTxt(parseFloat(r.inter_km),o),alignX(X,CW),mid+4*S,alignOpt); }
           else if(c.k==="total"){ const tk=parseFloat(r.total_km);
-            if(!isNaN(tk)){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
+            if(!isNaN(tk)){ doc.setTextColor(...INK); doc.setFont(F,"bold");
               const two=!!rbChildOf(o,"total");
-              FS(raid?14:11); doc.text(rbDistTxt(tk,o),X+CW/2,mid+(two?-2:3)*S,{align:"center"}); } }
+              FS(raid?14:11); doc.text(rbDistTxt(tk,o),alignX(X,CW),mid+(two?-2:3)*S,alignOpt); } }
           else if(c.k==="togo"){ const tk=parseFloat(r.total_km);
-            if(!isNaN(tk)){ doc.setTextColor(...GREY); doc.setFont("helvetica","bold");
-              FS(raid?13:10.5); doc.text(rbDistTxt(total-tk,o,1),X+CW/2,mid+3*S,{align:"center"}); } }
+            if(!isNaN(tk)){ doc.setTextColor(...GREY); doc.setFont(F,"bold");
+              FS(raid?13:10.5); doc.text(rbDistTxt(total-tk,o,1),alignX(X,CW),mid+3*S,alignOpt); } }
           else if(c.k==="tulip"&&CW>0){
             cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,564,480); cctx.setTransform(3,0,0,3,0,0);
             const sp=parseSpec(r.tulip)||specFromText(r.direction||"");
@@ -5418,33 +5473,33 @@ function buildRoadbook(o,previewOnly,onlyPage){
               const cy=(k==="tl"||k==="tr") ? top+3*S   : top+ROW_H-19*S;
               doc.setFillColor(255,255,255); doc.rect(cx,cy,26*S,16*S,"F");
               doc.setDrawColor(...INK); doc.setLineWidth(.9); doc.rect(cx,cy,26*S,16*S);
-              doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(9.5);
+              doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(9.5);
               doc.text(String(r.wp),cx+13*S,cy+12*S,{align:"center"}); }
           }
           else if(c.k==="direction"){
-            if(r.direction){ doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(13.5);
+            if(r.direction){ doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(13.5);
               const lines=doc.splitTextToSize(r.direction,CW-18*S);
               const startY=mid+4*S-(lines.length-1)*7.5*S;
               lines.forEach((ln,j)=>doc.text(ln,X+10*S,startY+j*15*S)); }
-            if(r.flag){ doc.setFont("helvetica","italic"); FS(7.5); doc.setTextColor(...GREY);
+            if(r.flag){ doc.setFont(F,"italic"); FS(7.5); doc.setTextColor(...GREY);
               doc.text("["+r.flag+"]",X+10*S,top+ROW_H-5*S); }
           }
           else if(c.k==="info"){
-            if(r.info){ doc.setFont("helvetica","normal"); FS(9.5); doc.setTextColor(...GREY);
+            if(r.info){ doc.setFont(F,"normal"); FS(9.5); doc.setTextColor(...GREY);
               doc.splitTextToSize(r.info,CW-8*S).forEach((ln,j)=>
-                doc.text(ln,X+CW/2,mid-2*S+j*11*S,{align:"center"})); }
+                doc.text(ln,alignX(X,CW),mid-2*S+j*11*S,alignOpt)); }
           }
           else if(c.k==="street"){
-            if(r.street){ doc.setFont("helvetica","normal"); FS(9.5); doc.setTextColor(...GREY);
+            if(r.street){ doc.setFont(F,"normal"); FS(9.5); doc.setTextColor(...GREY);
               doc.splitTextToSize(r.street,CW-8*S).forEach((ln,j)=>
-                doc.text(ln,X+CW/2,mid-2*S+j*11*S,{align:"center"})); } }
+                doc.text(ln,alignX(X,CW),mid-2*S+j*11*S,alignOpt)); } }
           else if(c.k==="height"){
-            if(r.height_m!=null){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
-              FS(raid?13:10.5); doc.text(rbHeightTxt(r.height_m,o),X+CW/2,mid+3*S,{align:"center"}); } }
+            if(r.height_m!=null){ doc.setTextColor(...INK); doc.setFont(F,"bold");
+              FS(raid?13:10.5); doc.text(rbHeightTxt(r.height_m,o),alignX(X,CW),mid+3*S,alignOpt); } }
           else if(c.k==="climb"){        // up / down on the leg TO THE NEXT waypoint
             if(r.climb_up!=null){
               const cu=rbUnits(o)==="mi"?"ft":"m", cxm=X+CW/2, tw=4.5*S;
-              doc.setFont("helvetica","bold"); FS(raid?10.5:8.5);
+              doc.setFont(F,"bold"); FS(raid?10.5:8.5);
               /* the arrows are DRAWN — the triangle characters aren't in the
                  PDF's standard font and came out as fraction signs */
               doc.setFillColor(22,122,58); doc.setTextColor(22,122,58);
@@ -5454,22 +5509,22 @@ function buildRoadbook(o,previewOnly,onlyPage){
               doc.triangle(cxm-13*S,mid+3.5*S, cxm-13*S+2*tw,mid+3.5*S, cxm-13*S+tw,mid+3.5*S+6*S,"F");
               doc.text(rbClimbTxt(r.climb_dn,o)+cu, cxm-3*S, mid+9.5*S); } }
           else if(c.k==="gps"){ const w=rbWpFor(r);
-            if(w){ doc.setFont("helvetica","normal"); FS(6.8); doc.setTextColor(...GREY);
+            if(w){ doc.setFont(F,"normal"); FS(6.8); doc.setTextColor(...GREY);
               doc.text(w.lat.toFixed(5),X+CW/2,mid-1*S,{align:"center"});
               doc.text(w.lon.toFixed(5),X+CW/2,mid+7*S,{align:"center"}); } }
           else if(c.k==="wp"){
             if(classic||raid){ doc.setDrawColor(...INK); doc.setLineWidth(1.2);
               doc.rect(X+7*S,mid-11*S,CW-16*S,22*S);
-              doc.setTextColor(...INK); doc.setFont("helvetica","bold"); FS(12);
+              doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(12);
               doc.text(String(r.wp),X+7*S+(CW-16*S)/2,mid+4*S,{align:"center"});
             } else {
               doc.setFillColor(...BANDC); doc.roundedRect(X+6*S,mid-11*S,CW-16*S,22*S,5*S,5*S,"F");
-              doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); FS(12);
+              doc.setTextColor(...BANDTXT); doc.setFont(F,"bold"); FS(12);
               doc.text(String(r.wp),X+6*S+(CW-16*S)/2,mid+4*S,{align:"center"});
             }
           }
         });
-        if(!classic&&!raid&&i){ doc.setDrawColor(217,218,222); doc.setLineWidth(.6); doc.line(M-4,top,W-M+4,top); }
+        if(!classic&&!raid&&i){ doc.setDrawColor(...LINE); doc.setLineWidth(.6); doc.line(M-4,top,W-M+4,top); }
       });
       if(!classic&&!raid){ doc.setDrawColor(...SUBC); doc.setLineWidth(2);
         const gy=HEAD+chunk.length*ROW_H+2; doc.line(M-4,gy,W-M+4,gy); }
@@ -5479,7 +5534,7 @@ function buildRoadbook(o,previewOnly,onlyPage){
         const img=rbPageElevStrip(first?first.pos:0, last?last.pos:0, chunk, o);
         if(img) doc.addImage(img,"PNG",M,H-M-PELEV+2*S,W-2*M,PELEV-6*S);
       }
-      doc.setFont("helvetica","normal"); FS(6.2); doc.setTextColor(...GREY);
+      doc.setFont(F,"normal"); FS(6.2); doc.setTextColor(...GREY);
       doc.text("\u00a9 Tulip Maps \u2014 tulipmaps.com",W/2,H-8*S,{align:"center"});
     }
   });
@@ -5492,6 +5547,7 @@ function rbWpFor(r){
 }
 /* ── the motorbike ROLL: a 72 mm strip, one cell per waypoint ─────────────── */
 function buildMotoRoll(o,previewOnly,onlyPage){
+  const ST=rbStyle(o), F=ST.font||"helvetica";
   const { jsPDF } = window.jspdf;
   const RW=204, RH=841.89, M=8;                     // 72mm-wide strip, A4-length pieces
   const CH=({small:88,none:88,normal:112,large:146})[o.tulip]??112;
@@ -5511,7 +5567,7 @@ function buildMotoRoll(o,previewOnly,onlyPage){
     const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:allPages);
     for(let pg=pgFrom;pg<pgTo;pg++){
       if(!firstPage)doc.addPage([RW,RH]); firstPage=false;
-      doc.setTextColor(...GREY); doc.setFont("helvetica","bold"); doc.setFontSize(6.5);
+      doc.setTextColor(...GREY); doc.setFont(F,"bold"); doc.setFontSize(6.5);
       doc.text((o.title||"Roadbook")+" · "+(day.sub||"")+" · strip "+(pg+1)+"/"+allPages, RW/2, M+2, {align:"center"});
       const on=k=>(o.cols||RB_DEF.cols).some(c=>c.k===k&&c.on);
       const tulRight=(o.motoTulip||"right")!=="left";
@@ -5522,7 +5578,7 @@ function buildMotoRoll(o,previewOnly,onlyPage){
         doc.setDrawColor(...INK); doc.setLineWidth(1); doc.line(M,top,RW-M,top);
         const tk=parseFloat(r.total_km);
         const numX=tulRight?M+2:RW-M-46;              // numbers sit opposite the tulip
-        doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+        doc.setTextColor(...INK); doc.setFont(F,"bold"); doc.setFontSize(15);
         if(on("total")&&!isNaN(tk)) doc.text(tk.toFixed(2),numX,top+18);
         doc.setTextColor(...GREY); doc.setFontSize(9);
         if(on("inter")&&r.inter_km) doc.text(String(r.inter_km),numX,top+30);
@@ -5531,7 +5587,7 @@ function buildMotoRoll(o,previewOnly,onlyPage){
           if(w){ doc.setFontSize(5.8); doc.text(w.lat.toFixed(4),numX,top+50); doc.text(w.lon.toFixed(4),numX,top+57); } }
         if(on("wp")){ const wx=tulRight?M+11:RW-M-11;
           doc.setDrawColor(...INK); doc.setLineWidth(.8); doc.circle(wx,top+CH-14,8);
-          doc.setTextColor(...INK); doc.setFontSize(8.5); doc.setFont("helvetica","bold");
+          doc.setTextColor(...INK); doc.setFontSize(8.5); doc.setFont(F,"bold");
           doc.text(String(r.wp),wx,top+CH-11,{align:"center"}); }
         let tw2=0;
         if(on("tulip")){
@@ -5541,7 +5597,7 @@ function buildMotoRoll(o,previewOnly,onlyPage){
           const th=Math.min(notesBeside?CH-14:CH-34,86); tw2=th*188/160;
           doc.addImage(cvs.toDataURL("image/png"),"PNG",tulRight?RW-M-tw2-2:M+2,top+4,tw2,th);
         }
-        if(on("direction")&&r.direction){ doc.setTextColor(...INK); doc.setFont("helvetica","bold"); doc.setFontSize(8.5);
+        if(on("direction")&&r.direction){ doc.setTextColor(...INK); doc.setFont(F,"bold"); doc.setFontSize(8.5);
           if(notesBeside){
             const nx=tulRight?M+50:M+tw2+8;
             const lines=doc.splitTextToSize(r.direction,RW-2*M-tw2-56).slice(0,4);
@@ -5555,7 +5611,7 @@ function buildMotoRoll(o,previewOnly,onlyPage){
       doc.setLineDashPattern([3,3],0);
       doc.line(M,RH-M,RW-M,RH-M);                   // cut here, glue the next strip on
       doc.setLineDashPattern([],0);
-      doc.setFont("helvetica","normal"); doc.setFontSize(5.5); doc.setTextColor(...GREY);
+      doc.setFont(F,"normal"); doc.setFontSize(5.5); doc.setTextColor(...GREY);
       doc.text("© Tulip Maps",RW/2,RH-2,{align:"center"});
     }
   });
@@ -5821,7 +5877,7 @@ $("rb_dsave").onclick=()=>{
     titlePage:rbOpts.titlePage, tpShow:rbOpts.tpShow, tpNote:rbOpts.tpNote,
     mapPage:rbOpts.mapPage, mapElev:rbOpts.mapElev, mapMarks:rbOpts.mapMarks,
     mapDistKm:rbOpts.mapDistKm, mapCaption:rbOpts.mapCaption, mapNote:rbOpts.mapNote,
-    pageElev:rbOpts.pageElev, profileBars:rbOpts.profileBars,
+    pageElev:rbOpts.pageElev, profileBars:rbOpts.profileBars, style:rbOpts.style,
     cols:rbOpts.cols };
   const name=(rbOpts.title||"roadbook").replace(/[^\w \-]+/g,"").trim().slice(0,40)||"roadbook";
   download(JSON.stringify(d,null,1),name+".tulipbook.json","application/json");
@@ -5835,7 +5891,7 @@ $("rb_dfile").onchange=e=>{
     if(!d||d.tulipbook!==1) throw new Error("not a roadbook design file");
     ["type","page","theme","tulip","rowsPP","togoIn","wpIn","gpsIn","streetIn","mapPage","mapElev",
      "mapMarks","mapDistKm","pageElev","units","titlePage","tpNote","tpShow","mapCaption","mapNote",
-     "profileBars","badge"].forEach(k=>{ if(d[k]!=null) rbOpts[k]=d[k]; });
+     "profileBars","style","badge"].forEach(k=>{ if(d[k]!=null) rbOpts[k]=d[k]; });
     if(Array.isArray(d.cols)&&d.cols.length) rbOpts.cols=d.cols;
     rbLoad&&localStorage.setItem("vmstudio_rb",JSON.stringify(rbOpts));
     rbSeg("rb_page","page"); rbSeg("rb_type","type"); rbSeg("rb_theme","theme"); rbSeg("rb_tulip","tulip");
@@ -5847,19 +5903,50 @@ $("rb_dfile").onchange=e=>{
 };
 /* ---- the maker's four steps: one group of controls at a time ---- */
 let rbStep=0;
-const RB_STEPNAMES=["The book","Columns","Extra pages","Export"];
+const RB_STEPNAMES=["The book","Columns","Style","Extra pages","Export"];
+const RB_LASTSTEP=RB_STEPNAMES.length-1;
 function rbGoStep(n){
-  rbStep=Math.max(0,Math.min(3,n));
+  rbStep=Math.max(0,Math.min(RB_LASTSTEP,n));
   document.querySelectorAll("#rbmodal .rbstepbox").forEach(b=>{
     b.style.display = (+b.dataset.step===rbStep) ? "block" : "none"; });
   document.querySelectorAll("#rbmodal .rbstep").forEach(b=>{
     b.classList.toggle("on", +b.dataset.step===rbStep); });
   $("rb_back").style.visibility = rbStep===0 ? "hidden" : "visible";
-  $("rb_next").style.display    = rbStep===3 ? "none" : "inline-block";
-  $("rb_export").style.display  = rbStep===3 ? "inline-block" : "none";
-  $("rb_next").textContent = "Next: "+RB_STEPNAMES[Math.min(3,rbStep+1)]+" ›";
-  $("rb_steplbl").textContent = "Step "+(rbStep+1)+" of 4 — "+RB_STEPNAMES[rbStep];
-  if(rbStep===3) rbSummary();
+  $("rb_next").style.display    = rbStep===RB_LASTSTEP ? "none" : "inline-block";
+  $("rb_export").style.display  = rbStep===RB_LASTSTEP ? "inline-block" : "none";
+  $("rb_next").textContent = "Next: "+RB_STEPNAMES[Math.min(RB_LASTSTEP,rbStep+1)]+" ›";
+  $("rb_steplbl").textContent = "Step "+(rbStep+1)+" of "+RB_STEPNAMES.length+" — "+RB_STEPNAMES[rbStep];
+  if(rbStep===2) rbStyleUI();
+  if(rbStep===RB_LASTSTEP) rbSummary();
+}
+function rbStyleUI(){
+  rbOpts.style=rbStyle(rbOpts);
+  const st=rbOpts.style;
+  document.querySelectorAll("#rb_font button").forEach(b=>{
+    b.classList.toggle("on",(st.font||"helvetica")===b.dataset.v);
+    b.onclick=()=>{ st.font=b.dataset.v; rbStyleUI(); rbPreview(); };
+  });
+  document.querySelectorAll("#rb_align button").forEach(b=>{
+    b.classList.toggle("on",(st.align||"center")===b.dataset.v);
+    b.onclick=()=>{ st.align=b.dataset.v; rbStyleUI(); rbPreview(); };
+  });
+  /* the theme's own colours show through until you pick one */
+  const dflt={ink:"#131315",grey:"#73767c",line:"#d9dade",
+              band:rbOpts.type==="tulip"&&rbOpts.theme!=="green"?"#1c1c21":"#143d2e",
+              bandText:"#ffffff",accent:"#f5a623"};
+  const pick=(id,key)=>{ const el=$(id); if(!el) return;
+    el.value=(st[key]&&/^#/.test(st[key]))?st[key]:dflt[key];
+    el.oninput=()=>{ st[key]=el.value; rbPreview(); }; };
+  pick("rb_c_ink","ink"); pick("rb_c_grey","grey"); pick("rb_c_line","line");
+  pick("rb_c_band","band"); pick("rb_c_bandtext","bandText"); pick("rb_c_accent","accent");
+  const rs=$("rb_c_reset");
+  if(rs) rs.onclick=()=>{ st.ink=RB_STYLE_DEF.ink; st.grey=RB_STYLE_DEF.grey; st.line=RB_STYLE_DEF.line;
+    st.band=""; st.bandText=""; st.accent=""; rbStyleUI(); rbPreview(); };
+  const hb=$("rb_headbold"), hc=$("rb_headcaps");
+  if(hb){ hb.classList.toggle("on",st.headBold!==0);
+          hb.onclick=()=>{ st.headBold=st.headBold===0?1:0; rbStyleUI(); rbPreview(); }; }
+  if(hc){ hc.classList.toggle("on",st.headCaps!==0);
+          hc.onclick=()=>{ st.headCaps=st.headCaps===0?1:0; rbStyleUI(); rbPreview(); }; }
 }
 function rbSummary(){
   const el=$("rb_summary"); if(!el) return;
@@ -5870,7 +5957,8 @@ function rbSummary(){
     ({a4:"A4",a5:"A5",moto:"Moto roll"}[rbOpts.page]||rbOpts.page)+" · "+
     ({tulip:"Tulip",classic:"Classic",raid:"Raid"}[rbOpts.type]||rbOpts.type)+" · "+
     rbOpts.rowsPP+" rows a page · tulips "+rbOpts.tulip+"<br>"+
-    "Distances in "+({km:"kilometres",mi:"miles"}[rbUnits(rbOpts)]||"kilometres")+"<br>"+
+    "Distances in "+({km:"kilometres",mi:"miles"}[rbUnits(rbOpts)]||"kilometres")+
+    " · "+({helvetica:"Helvetica",times:"Times",courier:"Courier"}[rbStyle(rbOpts).font]||"Helvetica")+"<br>"+
     "Columns: "+(on.join(", ")||"none")+"<br>"+
     (rbOpts.mapPage?"Map page first"+(rbOpts.mapElev?" with the height profile":"")+"<br>":"")+
     (rbOpts.pageElev?"Height profile on every page<br>":"")+
