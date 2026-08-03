@@ -510,6 +510,70 @@
   .wprowflex .wpfield { flex:1; width:auto; }   /* stacked inputs now carry their own heading as placeholder */
   #tulipcard { height:auto; overflow:visible; }
   #wplist { max-height:300px; overflow-y:auto; }   /* WP list never grows unbounded */
+  /* ── THE WELCOME BOX ──
+     The tool loads normally behind it; this sits over the top on a first visit
+     so the choice of signing in is made once, properly, instead of being
+     buried in a menu. */
+  #welcomemodal { display:none; position:fixed; inset:0; z-index:3600;
+    background:rgba(12,20,15,.62); backdrop-filter:blur(2px);
+    align-items:center; justify-content:center; padding:20px; }
+  #welcomemodal .wcard { background:#fff; border-radius:18px; width:520px; max-width:100%;
+    max-height:92vh; overflow-y:auto; box-shadow:0 22px 60px rgba(0,0,0,.5); }
+  #welcomemodal .whead { display:flex; align-items:center; gap:14px;
+    background:var(--green); color:var(--cream,#FBF7EE); padding:20px 24px; border-radius:18px 18px 0 0; }
+  #welcomemodal .wbloom { width:38px; height:46px; }
+  #welcomemodal h2 { margin:0; font-size:22px; font-weight:700; letter-spacing:-.2px; }
+  #welcomemodal .wsub { margin:2px 0 0; font-size:13px; opacity:.8; }
+  #welcomemodal .wintro { margin:20px 24px 0; font-size:14px; line-height:1.6; color:var(--char); }
+  #welcomemodal .wbenefits { margin:16px 24px 0; background:#F7F3EA; border:1px solid #ECE3D2;
+    border-radius:12px; padding:13px 16px 14px; }
+  #welcomemodal .wbtitle { font-size:11px; font-weight:800; letter-spacing:.6px;
+    text-transform:uppercase; color:var(--green); margin-bottom:7px; }
+  #welcomemodal .wbenefits ul { margin:0; padding-left:18px; }
+  #welcomemodal .wbenefits li { font-size:13px; line-height:1.55; margin-bottom:3px; color:var(--char); }
+  #welcomemodal .wbtns { display:flex; flex-direction:column; gap:8px; margin:20px 24px 0; }
+  #welcomemodal .wbtn { font:inherit; font-size:14.5px; font-weight:700; border-radius:10px;
+    padding:12px 16px; cursor:pointer; border:1px solid var(--hair); background:#fff; color:var(--char); }
+  #welcomemodal .wbtn:hover { border-color:var(--amber); }
+  #welcomemodal .wbtn.primary { background:var(--coral,#E1694F); border-color:var(--coral,#E1694F); color:#fff; }
+  #welcomemodal .wbtn.primary:hover { filter:brightness(1.06); }
+  #welcomemodal .wbtn.ghost { border-color:transparent; color:var(--mut); font-weight:600; font-size:13.5px; padding:8px; }
+  #welcomemodal .wbtn.ghost:hover { color:var(--char); background:#f3f5f2; }
+  #welcomemodal .wfoot { margin:12px 24px 22px; font-size:12px; color:var(--mut); text-align:center; line-height:1.5; }
+  #welcomemodal #wform { padding:22px 24px 24px; }
+  #welcomemodal #wform h3 { margin:0 0 14px; font-size:17px; color:var(--green); }
+  #welcomemodal label { display:block; font-size:12px; font-weight:700; color:var(--char); margin:0 0 4px; }
+  #welcomemodal .wnote { font-weight:400; color:var(--mut); }
+  #welcomemodal input { width:100%; font:inherit; font-size:15px; padding:11px 12px; margin-bottom:13px;
+    border:1px solid var(--hair); border-radius:9px; background:#fff; }
+  #welcomemodal input:focus { outline:2px solid var(--coral,#E1694F); outline-offset:-1px; border-color:transparent; }
+  #welcomemodal .wmsg { font-size:12.5px; margin:-4px 0 11px; min-height:1em; color:#b3402f; }
+  #welcomemodal .wmsg.good { color:#2c6b39; }
+  #welcomemodal .wlinks { display:flex; justify-content:space-between; margin-top:12px; font-size:12.5px; }
+  #welcomemodal .wlinks a { color:var(--mut); text-decoration:none; }
+  #welcomemodal .wlinks a:hover { color:var(--coral,#E1694F); text-decoration:underline; }
+  /* ── the account box, in the window rather than a new tab ── */
+  #acctmodal { display:none; position:fixed; inset:0; z-index:3500; background:rgba(12,20,15,.55);
+    align-items:center; justify-content:center; padding:20px; }
+  #acctmodal .acard { background:#fff; border-radius:15px; width:470px; max-width:100%;
+    max-height:90vh; display:flex; flex-direction:column; box-shadow:0 18px 50px rgba(0,0,0,.45); }
+  #acctmodal .ahead { display:flex; align-items:center; gap:8px; background:var(--green);
+    color:var(--cream,#FBF7EE); padding:11px 14px; border-radius:15px 15px 0 0; font-size:14px; }
+  #acctmodal .abody { padding:6px 20px 20px; overflow-y:auto; }
+  #acctmodal .asec { border-bottom:1px solid var(--hair); padding:15px 0 14px; }
+  #acctmodal .asec:last-child { border-bottom:none; }
+  #acctmodal .alab { font-size:11px; font-weight:800; letter-spacing:.6px; text-transform:uppercase;
+    color:var(--green); margin-bottom:8px; }
+  #acctmodal .arow { display:flex; justify-content:space-between; align-items:baseline; gap:14px;
+    font-size:13px; padding:3px 0; }
+  #acctmodal .arow > span { color:var(--mut); }
+  #acctmodal .arow > span i { font-style:normal; opacity:.75; }
+  #acctmodal .arow > b { color:var(--char); text-align:right; }
+  #acctmodal .arow2 { display:flex; gap:8px; margin-bottom:8px; }
+  #acctmodal .ahint { font-size:12px; color:var(--mut); line-height:1.5; margin-top:8px; }
+  #acctmodal .rc-s { margin-top:9px; padding:7px 11px; font-size:11.5px; }
+  #acctmodal .a-del { color:#b3402f; border-color:#e8c5bd; }
+  #acctmodal .a-del:hover { background:#fbe3df; }
   /* our own "are you sure?" box, so a question never arrives as the browser's
      own alarming grey dialog */
   #askmodal { display:none; position:fixed; inset:0; z-index:3400; background:rgba(12,18,14,.55);
@@ -1166,6 +1230,97 @@
     <div class="expsub">Pick a format. Your route stays open either way.</div>
     <div id="expopts"></div>
     <div class="exprow"><button class="expcancel" id="expcancel">Cancel</button></div>
+  </div>
+</div>
+<div id="welcomemodal">
+  <div class="wcard">
+    <div class="whead">
+      <svg class="tm-bloom wbloom" viewBox="30 40 60 100" aria-hidden="true"><path class="p1" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)"/><path class="p3" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)"/><path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/></svg>
+      <div>
+        <h2>Welcome to Tulip&nbsp;Maps</h2>
+        <p class="wsub">Plan the route, draw the roadbook.</p>
+      </div>
+    </div>
+
+    <div id="wchoose">
+      <p class="wintro">Draw a route on the map or bring in one you've recorded, put the
+        waypoints exactly where they belong, and turn the whole thing into a roadbook your
+        crews can actually navigate by.</p>
+      <div class="wbenefits">
+        <div class="wbtitle">With an account you also get</div>
+        <ul>
+          <li><b>Your routes kept safe</b> — not just in this browser, so they survive a lost laptop</li>
+          <li><b>The same routes on every machine</b> — and in the phone app when you record</li>
+          <li><b>Pick up where you left off</b> — open a route from anywhere and carry on</li>
+        </ul>
+      </div>
+      <div class="wbtns">
+        <button class="wbtn primary" id="w_signup">Create an account</button>
+        <button class="wbtn" id="w_signin">Sign in</button>
+        <button class="wbtn ghost" id="w_skip">Have a look around first</button>
+      </div>
+      <p class="wfoot">No account needed to try it — everything works, it's just kept in this browser only.</p>
+    </div>
+
+    <div id="wform" style="display:none">
+      <h3 id="wformtitle">Sign in</h3>
+      <form id="wf" autocomplete="on">
+        <label for="w_email">Email <span class="wnote">— this is your username</span></label>
+        <input id="w_email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        <label for="w_pw">Password</label>
+        <input id="w_pw" type="password" autocomplete="current-password" required minlength="8">
+        <div class="wmsg" id="w_msg"></div>
+        <button class="wbtn primary" type="submit" id="w_go">Sign in</button>
+        <div class="wlinks">
+          <a href="#" id="w_forgot">Forgotten your password?</a>
+          <a href="#" id="w_back">‹ Back</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<div id="acctmodal">
+  <div class="acard">
+    <div class="ahead"><b>👤 Your account</b><span class="grow"></span>
+      <button class="rs-hbtn rs-x" id="acct_x" title="close">✕</button></div>
+    <div class="abody">
+      <div class="asec">
+        <div class="alab">Signing in</div>
+        <div class="arow"><span>Email <i>(your username)</i></span><b id="a_email">—</b></div>
+        <div class="arow"><span>Email confirmed</span><b id="a_verified">—</b></div>
+        <div class="ahint" id="a_verifynote" style="display:none">
+          We sent you a confirming email when you signed up. Not arrived? It's the one thing
+          on the server that isn't switched on yet — it doesn't stop you using anything.
+        </div>
+      </div>
+      <div class="asec">
+        <div class="alab">Your routes</div>
+        <div class="arow"><span>Kept in your account</span><b id="a_routes">—</b></div>
+        <div class="arow"><span>Kept in this browser</span><b id="a_local">—</b></div>
+        <button class="rc-s" id="a_open">📁 Open My routes</button>
+      </div>
+      <div class="asec">
+        <div class="alab">Password</div>
+        <div class="ahint">Your password is never stored in a readable form, so nobody — not
+          even us — can look it up. Changing it sends you a link by email.</div>
+        <button class="rc-s" id="a_pw">✉ Send me a change-password link</button>
+        <div class="ahint" id="a_pwmsg" style="display:none"></div>
+      </div>
+      <div class="asec" id="a_subsec">
+        <div class="alab">Subscription</div>
+        <div class="arow"><span>Plan</span><b id="a_plan">Free — everything, while Tulip Maps is in beta</b></div>
+        <div class="ahint">There's nothing to pay yet. When there is, it'll be managed here.</div>
+      </div>
+      <div class="asec danger">
+        <div class="alab">Leaving</div>
+        <div class="arow2">
+          <button class="rc-s" id="a_out">Sign out</button>
+          <button class="rc-s a-del" id="a_del">🗑 Delete my account</button>
+        </div>
+        <div class="ahint">Deleting takes your account and the routes kept in it. Copies kept
+          in this browser stay where they are.</div>
+      </div>
+    </div>
   </div>
 </div>
 <div id="askmodal">
@@ -5100,6 +5255,123 @@ function acctRefresh(){
   return api("/me").then(j=>{ acctUser=j.user; acctPaint(); })
     .catch(()=>{ acctUser=null; acctPaint(); });   // offline → just signed out
 }
+/* ── THE WELCOME BOX ──
+   The tool loads normally underneath; this comes over the top so the choice of
+   signing in gets made once, properly, instead of hiding in a menu. It shows
+   when you arrive signed out and haven't already said "look around first" —
+   never again after that, and never at all once you're signed in. */
+function welcomeSeen(){ try{ return localStorage.getItem("vmstudio_welcomed")==="1"; }catch(_){ return false; } }
+function welcomeDone(){ try{ localStorage.setItem("vmstudio_welcomed","1"); }catch(_){} }
+function welcomeShow(mode){
+  const box=$("welcomemodal"); if(!box) return;
+  $("wchoose").style.display = mode?"none":"block";
+  $("wform").style.display   = mode?"block":"none";
+  if(mode){
+    const up=(mode==="signup");
+    $("wformtitle").textContent = up?"Create your account":"Sign in";
+    $("w_go").textContent       = up?"Create account":"Sign in";
+    $("w_pw").setAttribute("autocomplete", up?"new-password":"current-password");
+    $("w_forgot").style.display = up?"none":"";        // nothing to forget yet when signing up
+    $("w_pw").placeholder = up?"at least 8 characters":"";
+    $("w_msg").textContent=""; $("w_msg").className="wmsg";
+    setTimeout(()=>{ try{ $("w_email").focus(); }catch(_){} },30);
+  }
+  box.style.display="flex";
+}
+function welcomeHide(){ const b=$("welcomemodal"); if(b) b.style.display="none"; welcomeDone(); }
+function welcomeMaybe(){
+  if(acctUser||welcomeSeen()) return;
+  welcomeShow(null);
+}
+(function(){
+  const wmsg=(t,good)=>{ const m=$("w_msg"); if(!m) return; m.textContent=t; m.className="wmsg"+(good?" good":""); };
+  const b=(id,fn)=>{ const e=$(id); if(e) e.onclick=ev=>{ ev.preventDefault(); fn(); }; };
+  b("w_signin",()=>welcomeShow("signin"));
+  b("w_signup",()=>welcomeShow("signup"));
+  b("w_skip",()=>welcomeHide());
+  b("w_back",()=>welcomeShow(null));
+  b("w_forgot",()=>{
+    const em=$("w_email").value.trim();
+    if(!em){ wmsg("Put your email in the box first, then press this again."); return; }
+    api("/forgot",{method:"POST",body:JSON.stringify({email:em})})
+      .then(()=>wmsg("If that email has an account, a link is on its way.",true))
+      .catch(e=>wmsg(e.message));
+  });
+  const form=$("wf");
+  if(form) form.onsubmit=ev=>{
+    ev.preventDefault();
+    const up=$("w_go").textContent.indexOf("Create")===0;
+    const em=$("w_email").value.trim(), pw=$("w_pw").value;
+    if(!em||!pw){ wmsg("Both boxes need filling in."); return; }
+    if(up&&pw.length<8){ wmsg("Pick a password of at least 8 characters."); return; }
+    wmsg(up?"Creating your account…":"Signing in…",true);
+    api(up?"/signup":"/signin",{method:"POST",body:JSON.stringify({email:em,password:pw})})
+      .then(()=>acctRefresh())
+      .then(()=>{
+        welcomeHide();
+        toast(up? "Account made — your routes will be kept safe from now on."
+                : "Signed in as "+em+".", 4500);
+        if(typeof openMyRoutes==="function"&&$("mrmodal").style.display==="flex") openMyRoutes();
+      })
+      .catch(e=>wmsg(e.message||"That didn't work."));
+  };
+})();
+/* ── THE ACCOUNT BOX ── in the window, not a new tab: navigating away would
+   lose an unsaved route, which is why it used to open a second tab. */
+function acctBoxOpen(){
+  const box=$("acctmodal"); if(!box) return;
+  box.style.display="flex";
+  if(acctUser) acctBoxPaint();                  // fill it in at once if we already know who you are
+  acctRefresh().then(acctBoxPaint).catch(acctBoxPaint);   // …then check with the server
+}
+function acctBoxClose(){ const b=$("acctmodal"); if(b) b.style.display="none"; }
+function acctBoxPaint(){
+  if(!$("acctmodal")) return;
+  if(!acctUser){ acctBoxClose(); welcomeShow("signin"); return; }   // signed out → a clean sign-in
+  $("a_email").textContent=acctUser.email||"—";
+  const ok=!!acctUser.verified;
+  $("a_verified").textContent=ok?"Yes":"Not yet";
+  $("a_verified").style.color=ok?"#2c6b39":"#b3402f";
+  $("a_verifynote").style.display=ok?"none":"block";
+  api("/routes").then(j=>{ $("a_routes").textContent=(j.routes||[]).length+" saved"; }).catch(()=>{});
+  tmList().then(l=>{ $("a_local").textContent=(l||[]).length+" saved"; }).catch(()=>{});
+}
+(function(){
+  const on=(id,fn)=>{ const e=$(id); if(e) e.onclick=fn; };
+  on("acct_x",acctBoxClose);
+  const box=$("acctmodal");
+  if(box) box.onclick=e=>{ if(e.target===box) acctBoxClose(); };
+  on("a_open",()=>{ acctBoxClose(); openMyRoutes(); });
+  on("a_out",async ()=>{
+    if(!await askConfirm("Routes kept in your account stay there — you'll just need to sign in again to see them.",
+        {title:"Sign out?", yes:"Sign out", no:"Stay signed in"})) return;
+    api("/signout",{method:"POST"}).catch(()=>{}).then(()=>{
+      acctUser=null; acctPaint(); acctBoxClose(); toast("Signed out.",3000); });
+  });
+  on("a_pw",()=>{
+    if(!acctUser) return;
+    const m=$("a_pwmsg"); m.style.display="block"; m.textContent="Sending…";
+    api("/forgot",{method:"POST",body:JSON.stringify({email:acctUser.email})})
+      .then(()=>{ m.textContent="A link is on its way to "+acctUser.email+
+        ". If it doesn't arrive, that's the email sending that isn't switched on yet."; })
+      .catch(e=>{ m.textContent="Couldn't send that: "+e.message; });
+  });
+  on("a_del",async ()=>{
+    if(!acctUser) return;
+    if(!await askConfirm("Your account and every route kept in it are deleted for good. "+
+        "Copies kept in this browser stay where they are.\n\nThis cannot be undone.",
+        {title:"Delete your account?", yes:"🗑 Delete it", no:"Cancel"})) return;
+    const pw=prompt("Type your password to confirm you want the account deleted:");
+    if(!pw) return;
+    api("/delete-account",{method:"POST",body:JSON.stringify({password:pw})})
+      .then(()=>{ acctUser=null; acctPaint(); acctBoxClose();
+                  toast("Your account has been deleted.",5000); })
+      .catch(e=>toast("Couldn't delete the account: "+e.message,5000));
+  });
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&$("acctmodal")&&$("acctmodal").style.display==="flex") acctBoxClose();
+  });
+})();
 function acctPaint(){
   const out=$("acctout"), inn=$("acctin");
   if(out){
@@ -5250,7 +5522,7 @@ $("acctforgot").onclick=ev=>{ ev.preventDefault();
 $("acctsignout").onclick=()=>{
   api("/signout",{method:"POST"}).catch(()=>{}).then(()=>{ acctUser=null; openMyRoutes(); });
 };
-acctRefresh();   // so Save knows about the account even before the panel is opened
+acctRefresh().then(welcomeMaybe).catch(welcomeMaybe);   // Save knows about the account before the panel opens — then greet a new visitor
 /* ---------- rally: many day-routes saved together as one .vmrally ---------- */
 function buildRallyBundle(){
   const keep=activeRoute, days=[];
@@ -6819,9 +7091,10 @@ if(qp.get("csv")) fetch(qp.get("csv")).then(r=>r.text()).then(t=>loadCSVtext(t,q
       else if(a==="save") saveToMyRoutes();          /* Save keeps it here; Export writes a file */
       else if(a==="myroutes") openMyRoutes();
       else if(a==="account"){
-        /* a new tab, deliberately — navigating away would lose an unsaved route */
-        if(acctUser) window.open("/account/","_blank");
-        else openMyRoutes();                         /* signed out → the sign-in box is right there */
+        /* in the window — it used to open a second tab because navigating away
+           would lose an unsaved route; a box does the same job without leaving */
+        if(acctUser) acctBoxOpen();
+        else welcomeShow("signin");                  /* signed out → straight to a clean sign-in */
       }
       else if(a==="renumber") renumberWaypoints();
       else if(a==="names") fillAllNames(false);
