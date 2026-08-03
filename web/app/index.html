@@ -1997,7 +1997,7 @@ let rallyName="";                   // name of the current group of day-routes
 let header=[], rows=[];
 let pts=[], cum=[], wps=[], line=null, casing=null, hitline=null;
 let selWp=-1, undoStack=[];
-let vertexHandle=null, vertexIdx=-1, rangeB=-1, rangeLine=null;
+let selDot=null, vertexIdx=-1, rangeB=-1, rangeLine=null;
 let cur=null, els=null, esel=-1, snap=true, dirty=false;   // snap on by default — neat angles are what you want almost always
 let armDrag=null, armSel=-1, cornDrag=null, hideHandles=false;   // quick-mode side road: drag {i,mode}, selected index, corner-symbol drag, "nothing shown" toggle
 let tulipBlank=false;   // this waypoint has no tulip yet — show an empty canvas until the user actually draws one
@@ -2187,30 +2187,38 @@ function redraw(){
 let allTpOn=false; try{ allTpOn=localStorage.getItem("vmstudio_alltp")==="1"; }catch(_){}
 let allTpLayer=null;
 let allTpArr=[];
-/* the same dot in two moods: selection just swaps the fill — the circle never
-   moves or gets replaced, so the centre stays exactly under the pointer */
+/* THE SELECTED TRACK POINT IS DRAWN ONE WAY, ALWAYS.
+   It used to be two things — a canvas circle when "show all track points" was
+   on, a marker with an HTML dot when it was off — which is why it appeared to
+   shift when you toggled, and why clicking it behaved differently in the two
+   modes. Now there is a single circle (selDot) that is always on the map
+   wherever the selection is, whether the pale dots are showing or not, and all
+   the input comes from one place (the container hit-test below). */
 const TP_PALE={color:"#fff",weight:1.5,fillColor:"#ff9aa2",fillOpacity:.9,opacity:1};
 const TP_SEL ={color:"#fff",weight:2,  fillColor:"#ff1f30",fillOpacity:1, opacity:1};
 function refreshAllTp(){
   if(allTpLayer){ allTpLayer.remove(); allTpLayer=null; } allTpArr=[];
-  if(!allTpOn || !pts || pts.length<2){ syncSelHandle(); return; }
+  if(!allTpOn || !pts || pts.length<2){ syncSelDot(); return; }
   ensureTpPanes();
   const rend=L.canvas({padding:.3,pane:"alltp"});
   const g=L.layerGroup();
   for(let i=0;i<pts.length;i++){
     const m=L.circleMarker([pts[i].lat,pts[i].lon],
-      {renderer:rend,pane:"alltp",radius:6,interactive:false,
-       ...(i===vertexIdx?TP_SEL:TP_PALE)});
+      {renderer:rend,pane:"alltp",radius:6,interactive:false,...TP_PALE});
     allTpArr[i]=m; g.addLayer(m);
   }
   allTpLayer=g.addTo(map);
-  syncSelHandle();
+  syncSelDot();
 }
-/* selection changed: recolour in place */
-function allTpSel(oldIdx,newIdx){
-  if(!allTpLayer) return;
-  if(oldIdx>=0&&allTpArr[oldIdx]) allTpArr[oldIdx].setStyle(TP_PALE);
-  if(newIdx>=0&&allTpArr[newIdx]){ allTpArr[newIdx].setStyle(TP_SEL); if(allTpArr[newIdx].bringToFront) allTpArr[newIdx].bringToFront(); }
+/* the one selected-point circle: put it where the selection is, or take it away */
+function syncSelDot(){
+  if(vertexIdx<0||!pts[vertexIdx]){ if(selDot){ selDot.remove(); selDot=null; } return; }
+  ensureTpPanes();
+  const ll=[pts[vertexIdx].lat,pts[vertexIdx].lon];
+  if(!selDot){
+    selDot=L.circleMarker(ll,{renderer:L.canvas({padding:.3,pane:"alltpsel"}),
+      pane:"alltpsel",radius:6,interactive:false,...TP_SEL}).addTo(map);
+  } else selDot.setLatLng(ll);
 }
 /* ONE place that moves a track point — the marker drag and the direct dot drag both use it */
 function moveVertexTo(i,ll,wpi){
@@ -2219,7 +2227,7 @@ function moveVertexTo(i,ll,wpi){
   if(w&&!w.deleted){ w.lat=ll.lat; w.lon=ll.lng; if(w.marker) w.marker.setLatLng([ll.lat,ll.lng]); }
   const arr=pts.map(p=>[p.lat,p.lon]);
   line.setLatLngs(arr); casing.setLatLngs(arr); if(hitline) hitline.setLatLngs(arr);
-  if(vertexHandle&&vertexIdx===i) vertexHandle.setLatLng([ll.lat,ll.lng]);
+  if(selDot&&vertexIdx===i) selDot.setLatLng([ll.lat,ll.lng]);
   if(allTpArr[i]) allTpArr[i].setLatLng([ll.lat,ll.lng]);
 }
 function vertexMoveDone(){
@@ -2259,12 +2267,15 @@ function beginDotDrag(i,downEv){
    pointer-transparent, so the line, waypoints and boxes all keep their own
    events — we only step in when the cursor is genuinely on a dot. ---- */
 function tpDotAt(cx,cy){                    // container px → index of the dot under the cursor, or -1
-  if(!allTpOn||!allTpLayer) return -1;
+  /* which dots are actually on the map: all of them when "show all" is on,
+     otherwise just the selected one — but either way this is the ONLY place
+     that decides what the pointer is over */
   let bi=-1,bd=81;                          // 9px grab radius
-  for(let i=0;i<pts.length;i++){
+  const test=i=>{ if(!pts[i]) return;
     const p=map.latLngToContainerPoint([pts[i].lat,pts[i].lon]);
-    const d=(p.x-cx)**2+(p.y-cy)**2; if(d<bd){bd=d;bi=i;}
-  }
+    const d=(p.x-cx)**2+(p.y-cy)**2; if(d<bd){bd=d;bi=i;} };
+  if(allTpOn&&allTpLayer) for(let i=0;i<pts.length;i++) test(i);
+  else if(vertexIdx>=0) test(vertexIdx);
   return bi;
 }
 function tpTargetOk(e){                     // never steal events meant for pins, boxes or controls
@@ -2284,7 +2295,23 @@ function initTpInput(){
     const i=tpDotAt(e.clientX-r.left,e.clientY-r.top);
     if(i<0) return;
     e.stopPropagation(); e.preventDefault();           // the map never sees it — no pan, no line click
+    /* shift-click marks the other end of a section to cut — the same gesture
+       the bare line has. It used to be swallowed here and turn into a drag. */
+    if(e.shiftKey && vertexIdx>=0 && i!==vertexIdx){ setRange(i); return; }
     beginDotDrag(i,e);
+  },true);
+  /* double-click the SELECTED point to delete it — the gesture the old marker
+     had. Pale dots are left alone: a stray double-click near the track must
+     never quietly remove a point. */
+  mc.addEventListener("dblclick",e=>{
+    if(routing||measuring||pendingAction) return;
+    if(!tpTargetOk(e)) return;
+    if(vertexIdx<0) return;
+    const r=mc.getBoundingClientRect();
+    if(tpDotAt(e.clientX-r.left,e.clientY-r.top)!==vertexIdx) return;
+    e.stopPropagation(); e.preventDefault();
+    if(Date.now()-lastDragEnd<500) return;             // a quick grab-and-drop is a move, never a delete
+    deleteTrackPoint(vertexIdx);
   },true);
   mc.addEventListener("contextmenu",e=>{
     if(routing||measuring||pendingAction) return;
@@ -2300,16 +2327,7 @@ function initTpInput(){
      a second hand-setter at container level just strobed against it */
 }
 initTpInput();
-/* when the pale dots are showing, the SELECTED look and all the input come
-   from the recoloured dot itself — the marker leaves the map entirely, so
-   there is no invisible hover zone to touch the cursor. Without the dots,
-   the marker is the visible red dot exactly as before. */
-function syncSelHandle(){
-  if(!vertexHandle||vertexIdx<0) return;
-  const hasDot=!!(allTpOn&&allTpArr[vertexIdx]);
-  if(hasDot){ if(map.hasLayer(vertexHandle)) map.removeLayer(vertexHandle); }
-  else if(!map.hasLayer(vertexHandle)) vertexHandle.addTo(map);
-}
+
 window.setAllTp=function(on){ allTpOn=!!on; try{ localStorage.setItem("vmstudio_alltp",on?"1":"0"); }catch(_){ } refreshAllTp(); };
 /* ---------- colour the track by speed / altitude / slope ----------
    Same idea as the app: the recorded track carries a speed + altitude at every
@@ -2450,8 +2468,7 @@ function makeMarker(w){
     const pr=nearestSegProjInRange(m.getLatLng(),w._pn[0],w._pn[1]);
     m.setLatLng([pr.lat,pr.lon]);
     const near=wpLandingPoint(pr,false);        // only light a point up if it's really there
-    if(near>=0 && vertexIdx!==near){ allTpSel(vertexIdx,near); vertexIdx=near;
-      if(vertexHandle) vertexHandle.setLatLng([pts[near].lat,pts[near].lon]); }
+    if(near>=0 && vertexIdx!==near){ vertexIdx=near; syncSelDot(); }
   });
   m.on("dragend",()=>{
     const pr=nearestSegProjInRange(m.getLatLng(),w._pn[0],w._pn[1]);
@@ -3236,35 +3253,14 @@ function onLineDblClick(ev){
   L.DomEvent.stop(ev);
   const pr=nearestSegProj(ev.latlng);          // insert INTO the clicked segment, ON the line —
   snapshot();                                  // a raw click sits beside the line and used to bend it
-  pts.splice(pr.i+1,0,{lat:pr.lat,lon:pr.lon});
+  pts.splice(pr.i+1,0,newTrackPoint(pr.lat,pr.lon,pts[pr.i],pts[pr.i+1]));   // …carrying a height
   redraw(); selectVertex(pr.i+1);
 }
 function selectVertex(idx){
   clearRange();
-  if(vertexHandle) vertexHandle.remove();
-  const prevSel=vertexIdx;
   vertexIdx=idx;
-  allTpSel(prevSel,idx);                       // the dot itself turns vibrant — it never moves or doubles
+  syncSelDot();                                // one circle, moved to the new spot
   updateTpStats(idx);
-  vertexHandle=L.marker([pts[idx].lat,pts[idx].lon],
-    {draggable:true,zIndexOffset:1000,
-     /* MUST match the pale-dot circle exactly (TP_SEL: radius 6, 2px white
-        ring) or the selected point appears to shift a couple of pixels when
-        "show all track points" is turned on and off. The page sets
-        box-sizing:border-box, so this div is 14px INCLUDING its border — same
-        14px outer circle — and the icon is anchored on its true centre. */
-     icon:L.divIcon({className:"",html:'<div style="width:14px;height:14px;border-radius:50%;background:#ff1f30;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.45)"></div>',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
-  syncSelHandle();                             // with the dots showing, the handle goes invisible — the recoloured dot IS the visual
-  vertexHandle.on("dragstart",()=>{ snapshot(); vertexHandle._wp=wpAtPoint(vertexIdx); });
-  vertexHandle.on("drag",()=>{ moveVertexTo(vertexIdx, vertexHandle.getLatLng(), vertexHandle._wp); });
-  vertexHandle.on("dragend",()=>vertexMoveDone());
-  vertexHandle.on("dblclick",()=>{
-    if(Date.now()-lastDragEnd<500) return;     // a quick grab-and-drop is a move, never a delete
-    deleteTrackPoint(vertexIdx); });
-  vertexHandle.on("contextmenu",ev=>{
-    L.DomEvent.stop(ev); ev.originalEvent.preventDefault();
-    showCtx(ev,ctxOnPoint(vertexIdx));
-  });
   updateCutChip();
   updateSV();
 }
@@ -3279,8 +3275,7 @@ function setRange(idx){
 function clearRange(){ rangeB=-1; if(rangeLine){rangeLine.remove();rangeLine=null;} }
 function clearTrackSel(){
   clearRange();
-  allTpSel(vertexIdx,-1);                      // deselected: its pale dot comes back
-  if(vertexHandle){vertexHandle.remove();vertexHandle=null;} vertexIdx=-1;
+  vertexIdx=-1; syncSelDot();                  // deselected: the circle comes off the map
   if(cutChipEl) cutChipEl.style.display="none";
 }
 /* The section-cut tool lives on the map now, not in a sidebar card: a chip
