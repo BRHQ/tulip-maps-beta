@@ -321,6 +321,10 @@
   .statcols { display:flex; gap:14px; }
   .statcol { flex:1; min-width:0; }
   .stylebtn-wrap { position:relative; display:flex; }
+  /* the fly-out lives inside the Tools box, so its own z-index only competes
+     with that box's contents — the box itself has to be lifted above the other
+     panels while the fly-out is showing, or they cover it */
+  .mpanel:has(.stylebtn-wrap:hover) { z-index:1700; }
   .stylefly { position:absolute; left:100%; top:0; margin-left:5px; display:none; z-index:1600;
     background:#fff; border:1px solid var(--hair); border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,.22); padding:4px; }
   .stylebtn-wrap:hover .stylefly { display:block; }
@@ -466,10 +470,8 @@
      the column headings pinned above them. The waypoint you're on is washed
      pale yellow and the strip jumps to it. */
   #rblivecard { width:252px; display:flex; flex-direction:column; min-height:220px; }
-  #rbhead { display:block; width:100%; flex:0 0 auto; background:#fff;
-    border:1px solid var(--hair); border-bottom:none; border-radius:6px 6px 0 0; }
-  #rbstrip { flex:1 1 auto; min-height:120px; height:330px; overflow-y:auto; overflow-x:hidden;
-    border:1px solid var(--hair); border-radius:0 0 6px 6px; background:#fff;
+  #rbstrip { flex:1 1 auto; min-height:80px; height:330px; overflow-y:auto; overflow-x:hidden;
+    border:1px solid var(--hair); border-radius:6px; background:#fff;
     overscroll-behavior:contain; }
   #rbstripcv { display:block; width:100%; position:sticky; top:0; z-index:1; pointer-events:none; }
   #rbspacer { width:1px; }
@@ -958,7 +960,6 @@
     </div>
 
     <div class="card" id="rblivecard">
-      <canvas id="rbhead"></canvas>
       <div id="rbstrip">
         <canvas id="rbstripcv"></canvas>
         <div id="rbspacer"></div>
@@ -3191,7 +3192,7 @@ function finishRouting(){       // commit routed / manually-added line into the 
     /* heights read off the line the run lands on, so the elevation graph and
        the climb figures don't dip to sea level where the new points are */
     const before=pts[anchor], after=pts[anchor+1];
-    pts.splice(anchor+1,0,...rest.map(([la,lo])=>newTrackPoint(la,lo,before,after)));
+    pts.splice(anchor+1,0,...rest.map(([la,lo,el])=>newTrackPoint(la,lo,before,after,el)));
     cancelRouting(); redraw();
     const n=auto.length?placeAutoWaypoints(auto):0;
     if(n){ renumberWaypoints(true); redraw();          // routing waypoints count up 1,2,3 (no decimals)
@@ -3203,7 +3204,9 @@ async function routeLeg(toLat,toLon){
   const [fLat,fLon]=routing.coords[routing.coords.length-1];
   if(ORS_KEY){                                   // OpenRouteService — honours the Routing Preferences
     try{
-      const body={ coordinates:[[fLon,fLat],[toLon,toLat]], preference:routePrefs.preference||"recommended" };
+      /* elevation:true makes ORS hand the geometry back as lon,lat,HEIGHT, so
+         every routed point carries its real height and never needs a guess */
+      const body={ coordinates:[[fLon,fLat],[toLon,toLat]], preference:routePrefs.preference||"recommended", elevation:true };
       if(routePrefs.avoid && routePrefs.avoid.length) body.options={ avoid_features:routePrefs.avoid };
       const r=await fetch(ORS_BASE+"v2/directions/driving-car/geojson",
         { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(body) });
@@ -3222,7 +3225,7 @@ async function routeLeg(toLat,toLon){
             if(c) routing.autoWps.push({lat:c[1], lon:c[0], type:st.type, exit:st.exit_number, name:st.name});
           }); });
         }
-        return coords.map(([lo,la])=>[la,lo]);
+        return coords.map(([lo,la,el])=>[la,lo,el]);
       }
     }catch(e){ /* ORS unreachable / over quota → fall back to OSRM below */ }
   }
@@ -3275,7 +3278,7 @@ map.on("click",async ev=>{
         /* heights read off the two ends, so the joined stretch doesn't drop to
            sea level on the elevation graph */
         const a0=pts[routing.anchor], b0=pts[idx];
-        const newPts=routing.coords.slice(1,-1).map(([la,lo])=>newTrackPoint(la,lo,a0,b0));
+        const newPts=routing.coords.slice(1,-1).map(([la,lo,el])=>newTrackPoint(la,lo,a0,b0,el));
         pts.splice(routing.anchor+1,idx-routing.anchor-1,...newPts);
         cancelRouting(); redraw(); return;
       }
@@ -4699,8 +4702,51 @@ function eleAt(a,b,lat,lon){
   const t=Math.max(0,Math.min(1,d/seg));
   return (a.ele||0)+((b.ele||0)-(a.ele||0))*t;
 }
-function newTrackPoint(lat,lon,a,b){
-  return {lat,lon,ele:eleAt(a,b,lat,lon),spd:0,t:null};
+function newTrackPoint(lat,lon,a,b,ele){
+  const p={lat,lon,ele:(ele!=null&&isFinite(ele))?ele:eleAt(a,b,lat,lon),spd:0,t:null};
+  if(ele==null) queueRealHeight(p);              // …and go and get the true one
+  return p;
+}
+/* THE REAL HEIGHT OF A POINT YOU ADD.
+   Reading across between the two neighbours is only a straight line: fine over
+   a few metres, badly wrong across a hill or a valley. So every point we add
+   is also sent off for a proper lookup against the terrain model, which knows
+   the height of ANY spot — a road, a field, the middle of a moor; it makes no
+   difference, it isn't road data. The guess holds the graph steady until the
+   real figure lands a moment later. Points that come back from the router
+   already carry their height, so those skip this. */
+let heightQ=new Set(), heightT=null;
+function queueRealHeight(p){
+  if(!ORS_KEY||!p) return;
+  heightQ.add(p);
+  clearTimeout(heightT); heightT=setTimeout(runHeightQ,700);
+}
+async function runHeightQ(){
+  const list=[...heightQ]; heightQ.clear();
+  if(!list.length||!ORS_KEY) return;
+  let any=false;
+  for(let s=0;s<list.length;s+=400){
+    const chunk=list.slice(s,s+400);
+    /* the line endpoint needs two positions, so a single point gets a
+       throwaway second one a metre away and we keep the first answer */
+    const coords=chunk.map(p=>[p.lon,p.lat]);
+    if(coords.length===1) coords.push([coords[0][0]+0.00001,coords[0][1]]);
+    try{
+      const r=await fetch(ORS_BASE+"elevation/line",{ method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ format_in:"geojson", format_out:"geojson",
+          geometry:{ type:"LineString", coordinates:coords } }) });
+      const g=(await r.json()).geometry;
+      if(g&&g.coordinates) chunk.forEach((p,i)=>{
+        const c=g.coordinates[i];
+        if(c&&c.length>2&&isFinite(c[2])){ p.ele=c[2]; any=true; }
+      });
+    }catch(_){ /* no answer — the straight-line guess stays */ }
+  }
+  if(!any) return;
+  if(typeof rbFillDistances==="function") rbFillDistances();
+  if(typeof drawElevation==="function") drawElevation();
+  if(typeof rbLiveUpdate==="function") rbLiveUpdate();
 }
 function insertTrackPointAfter(idx,latlng){
   if(!xmlDoc||!pts.length) return;
@@ -6076,27 +6122,27 @@ function rbStripGeom(){
   const pageW=moto?L.RW:L.W, rowH=moto?L.CH:L.ROW_H;
   const cssW=box.clientWidth||240;
   const k=cssW/pageW;                                  // points -> screen pixels
-  return {L,o,box,cssW,k,moto,pageW,rowH,rowPx:rowH*k,list:rbStripRows()};
+  const headPts=moto?0:26*L.S;                         // the roll has no column headings
+  return {L,o,box,cssW,k,moto,pageW,rowH,rowPx:rowH*k,headPts,list:rbStripRows()};
 }
 function rbStripDraw(){
   if(!rbStripOn()) return;
-  const cv=$("rbstripcv"), hc=$("rbhead"), note=$("rbstripnote");
-  if(!cv||!hc) return;
+  const cv=$("rbstripcv"), note=$("rbstripnote");
+  if(!cv) return;
   const g=rbStripGeom(); if(!g) return;
   const {L,o,box,cssW,k,rowPx,rowH,list}=g;
   if(!list.length){
-    cv.style.display="none"; hc.style.display="none";
+    cv.style.display="none";
     note.style.display="block"; note.textContent="No waypoints yet.";
     $("rbspacer").style.height="0px"; return;
   }
   cv.style.display="block"; note.style.display="none";
-  /* the moto roll has no column headings — the roll itself is the layout */
-  hc.style.display=g.moto?"none":"block";
   const dpr=Math.min(2,window.devicePixelRatio||1);
   const visPx=Math.max(60,box.clientHeight);
   /* the spacer gives the scrollbar its travel; the canvas is pinned on top of
      it, so its own height must be taken back off */
-  $("rbspacer").style.height=Math.max(0,list.length*rowPx-visPx)+"px";
+  const headPx=g.headPts*k;
+  $("rbspacer").style.height=Math.max(0,headPx+list.length*rowPx-visPx)+"px";
   if(cv.width!==Math.round(cssW*dpr)||cv.height!==Math.round(visPx*dpr)){
     cv.width=Math.round(cssW*dpr); cv.height=Math.round(visPx*dpr);
     cv.style.height=visPx+"px";
@@ -6109,29 +6155,25 @@ function rbStripDraw(){
   ctx.translate(0,-scrollPts);
   const doc=rbCanvasDoc(ctx);
   const total=Math.max(0,...list.map(r=>parseFloat(r.total_km)||0));
-  const first=Math.max(0,Math.floor(scrollPts/rowH));
-  const last=Math.min(list.length-1,Math.ceil((scrollPts+visPx/k)/rowH));
+  const headPts=g.headPts;
+  /* the column headings sit at the very top of the strip and scroll away with
+     it, the way they do on a printed page — pinning them ate space in a box
+     that is usually short */
+  if(headPts && scrollPts<headPts){
+    doc.setTextColor(...L.GREY); doc.setFontSize(8*L.S);
+    doc.setFont(L.F,L.ST.headBold?"bold":"normal");
+    L.caps.forEach((l,ci)=>{ if(L.cols[ci].w>0)
+      doc.text(l,L.XS[ci]+L.cols[ci].w/2,headPts-14*L.S,{align:"center"}); });
+    doc.setDrawColor(...(L.classic||L.raid?L.INK:L.SUBC)); doc.setLineWidth(2);
+    doc.line(L.M-4,headPts-3*L.S,L.W-L.M+4,headPts-3*L.S);
+  }
+  const top0=Math.max(0,scrollPts-headPts);
+  const first=Math.max(0,Math.floor(top0/rowH));
+  const last=Math.min(list.length-1,Math.ceil((scrollPts-headPts+visPx/k)/rowH));
   for(let j=first;j<=last;j++){
-    if(g.moto) rbDrawMotoRow(doc,L,list[j],j*rowH,j,total);
-    else       rbDrawRow(doc,L,list[j],j*rowH,j,total);
+    if(g.moto) rbDrawMotoRow(doc,L,list[j],headPts+j*rowH,j,total);
+    else       rbDrawRow(doc,L,list[j],headPts+j*rowH,j,total);
   }
-  if(g.moto) return;                                   // no headings strip on the roll
-  /* the column headings, pinned above the strip */
-  const headPts=26*L.S;
-  if(hc.width!==Math.round(cssW*dpr)||hc.height!==Math.round(headPts*k*dpr)){
-    hc.width=Math.round(cssW*dpr); hc.height=Math.round(headPts*k*dpr);
-    hc.style.height=(headPts*k)+"px";
-  }
-  const hx=hc.getContext("2d");
-  hx.setTransform(1,0,0,1,0,0); hx.fillStyle="#fff"; hx.fillRect(0,0,hc.width,hc.height);
-  hx.setTransform(dpr*k,0,0,dpr*k,0,0);
-  const hdoc=rbCanvasDoc(hx);
-  hdoc.setTextColor(...L.GREY); hdoc.setFontSize(8*L.S);
-  hdoc.setFont(L.F,L.ST.headBold?"bold":"normal");
-  L.caps.forEach((l,ci)=>{ if(L.cols[ci].w>0)
-    hdoc.text(l,L.XS[ci]+L.cols[ci].w/2,headPts-14*L.S,{align:"center"}); });
-  hdoc.setDrawColor(...(L.classic||L.raid?L.INK:L.SUBC)); hdoc.setLineWidth(2);
-  hdoc.line(L.M-4,headPts-3*L.S,L.W-L.M+4,headPts-3*L.S);
 }
 /* bring the waypoint you're on to the top of the strip */
 function rbStripJump(){
@@ -6140,7 +6182,7 @@ function rbStripJump(){
   const hi=rbLiveHiWp(); if(hi==null) return;
   const idx=g.list.findIndex(r=>String(r.wp)===String(hi));
   if(idx<0) return;
-  g.box.scrollTop=idx*g.rowPx;
+  g.box.scrollTop=g.headPts*g.k+idx*g.rowPx;
 }
 function rbLiveUpdate(force){
   if(!rbStripOn()) return;
@@ -6150,6 +6192,19 @@ function rbLiveUpdate(force){
   if(force||hi!==rbStripLast){ rbStripLast=hi; rbStripJump(); }
   rbStripDraw();
 }
+/* The box never gets shorter than the WP info box next to it — Chris's ask, so
+   the two sit level rather than one being a stub. Watched, so it keeps up if
+   the WP box changes height. */
+function rbMatchMinHeight(){
+  const card=$("rblivecard"), wp=$("wpcard"); if(!card||!wp) return;
+  const h=Math.round(wp.getBoundingClientRect().height);
+  if(h>40) card.style.minHeight=h+"px";
+}
+(function(){
+  const wp=$("wpcard");
+  if(wp&&window.ResizeObserver) new ResizeObserver(()=>rbMatchMinHeight()).observe(wp);
+  rbMatchMinHeight();
+})();
 /* scrolling the strip just repaints the rows now in view — nothing is rebuilt */
 (function(){
   const b=$("rbstrip"); if(!b) return;
