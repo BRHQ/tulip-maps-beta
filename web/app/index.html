@@ -444,6 +444,9 @@
   .rbcolrow { display:flex; align-items:center; gap:5px; border-radius:7px; padding:1px 2px; }
   .rbcolrow.off .rc-i { opacity:.4; }
   .rbcolrow.dragover { outline:2px dashed var(--green); outline-offset:1px; }
+  .rbcolrow.dropinside { outline:2px solid var(--amber); background:#FBEAE5; }
+  .rbcolrow.rbsub { margin-left:22px; opacity:.92; }
+  .rc-subname { flex:1; font-size:11px; font-weight:600; color:var(--mut); }
   .rc-g { cursor:grab; color:var(--mut); font-size:12px; padding:0 2px; user-select:none; }
   .rc-k { width:24px; height:24px; border:1px solid var(--hair); border-radius:6px;
     background:#fff; cursor:pointer; font-size:12px; padding:0; }
@@ -959,7 +962,7 @@
       <span class="seg" id="rb_rowseg"><button data-v="6">6</button><button data-v="12">12</button><button data-v="24">24</button></span>
       <div class="hint" id="rb_rowsnote" style="margin-top:2px"></div>
       <div class="field">Distances</div>
-      <span class="seg" id="rb_units"><button data-v="km">km</button><button data-v="mi">miles</button><button data-v="both">both</button></span>
+      <span class="seg" id="rb_units"><button data-v="km">km</button><button data-v="mi">miles</button></span>
       
         </div>
         <div class="rbstepbox" data-step="1" style="display:none">
@@ -1114,7 +1117,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 2 Aug · 16";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 3 Aug · 1";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -4993,7 +4996,7 @@ document.addEventListener("keydown",e=>{
 const RB_COLS_ALL=[["inter","INTER"],["total","TOTAL"],["togo","TO GO"],["tulip","TULIP"],
   ["direction","DIRECTIONS"],["info","TOWN"],["street","STREET"],["height","HEIGHT"],
   ["climb","CLIMB"],["gps","GPS"],["wp","WP"]];
-const RB_COLW={inter:50,total:52,togo:56,gps:74,info:92,street:92,height:52,climb:58,wp:49};
+const RB_COLW={inter:50,total:52,togo:56,gps:74,info:92,street:92,height:54,climb:68,wp:49};
 const RB_DEF={title:"Grand Prix of South America",type:"tulip",page:"a4",theme:"dark",rowsPP:12,tulip:"normal",togoIn:0,wpIn:0,gpsIn:0,streetIn:1,badge:"Day 1",motoTulip:"right",motoNotes:"under",scope:"day",
               caps:"", mapPage:0, mapElev:1, mapMarks:"wp", mapDistKm:5, pageElev:0, units:"km",
               titlePage:0, tpNote:"", tpShow:{sub:1,dist:1,wps:1,date:1,badge:1},
@@ -5162,14 +5165,43 @@ function rbPageElevStrip(fromPos,toPos,chunk,o){
   c.fillText(rbHeightTxt(lo,o)+" \u2013 "+rbHeightTxt(hi,o),4,2);
   return cv.toDataURL("image/png");
 }
+/* ---- columns inside columns ----
+   Every column except TULIP and DIRECTIONS can sit inside another one, where
+   it prints small at the foot of that box. A host holds one; a column that is
+   hosting can't itself be nested. (col.in = the key of its host.) */
+const RB_SOLID=["tulip","direction"];        // these two can host, but never be hosted
+function rbCanNest(k){ return RB_SOLID.indexOf(k)<0; }
+function rbChildOf(o,k){ return (o.cols||[]).find(c=>c.on&&c.in===k)||null; }
+function rbIsHost(o,k){ return !!rbChildOf(o,k); }
+function rbCellText(k,r,o,total){            // the short form used when nested
+  switch(k){
+    case "inter":  return r.inter_km?rbDistTxt(parseFloat(r.inter_km),o):"";
+    case "total":  return r.total_km?rbDistTxt(parseFloat(r.total_km),o):"";
+    case "togo":   { const tk=parseFloat(r.total_km); return isNaN(tk)?"":rbDistTxt(total-tk,o,1); }
+    case "info":   return r.info||"";
+    case "street": return r.street||"";
+    case "height": return r.height_m!=null?rbHeightTxt(r.height_m,o):"";
+    case "climb":  { if(r.climb_up==null) return "";
+                     const cu=rbUnits(o)==="mi"?"ft":"m";
+                     return "+"+rbClimbTxt(r.climb_up,o)+cu+"  -"+rbClimbTxt(r.climb_dn,o)+cu; }
+    case "gps":    { const w=rbWpFor(r); return w?(w.lat.toFixed(5)+"  "+w.lon.toFixed(5)):""; }
+    case "wp":     return "WP "+r.wp;
+    default:       return "";
+  }
+}
 function rbEnabledCols(o){
   const tulW=({none:0,small:70,normal:100,large:150})[o.tulip]??100;
-  const hideTogo=o.togoIn&&(o.cols||[]).some(c=>c.k==="total"&&c.on);
-  const hideWp=o.wpIn&&tulW>0&&(o.cols||[]).some(c=>c.k==="tulip"&&c.on);
-  const hideGps=o.gpsIn&&(o.cols||[]).some(c=>c.k==="info"&&c.on);
-  return (o.cols||RB_DEF.cols).filter(c=>c.on&&!(c.k==="tulip"&&!tulW)
-      &&!(c.k==="togo"&&hideTogo)&&!(c.k==="wp"&&hideWp)&&!(c.k==="gps"&&hideGps))
+  /* a column that lives inside another one doesn't get a column of its own */
+  return (o.cols||RB_DEF.cols).filter(c=>c.on&&!c.in&&!(c.k==="tulip"&&!tulW))
     .map(c=>({k:c.k, t:c.t, w:c.k==="tulip"?tulW:(RB_COLW[c.k]||60)}));
+}
+/* older designs used togoIn / wpIn / gpsIn / streetIn — carry them over */
+function rbMigrateNesting(o){
+  const set=(k,host)=>{ const c=(o.cols||[]).find(x=>x.k===k); if(c&&!c.in) c.in=host; };
+  if(o.togoIn){ set("togo","total"); o.togoIn=0; }
+  if(o.wpIn){ set("wp","tulip"); o.wpIn=0; }
+  if(o.gpsIn){ set("gps","info"); o.gpsIn=0; }
+  if(o.streetIn){ set("street","direction"); o.streetIn=0; }
 }
 /* ---- units: kilometres, miles, or both ---- */
 function rbUnits(o){ return (o&&o.units)||"km"; }
@@ -5177,15 +5209,13 @@ function rbDistTxt(km,o,dp){                       // one distance, in the chose
   if(km==null||isNaN(km)) return "";
   const u=rbUnits(o), d=dp==null?2:dp, mi=km*0.621371;
   if(u==="mi") return mi.toFixed(d);
-  if(u==="both") return km.toFixed(d)+" / "+mi.toFixed(d);
   return km.toFixed(d);
 }
-function rbDistUnitLabel(o){ const u=rbUnits(o); return u==="mi"?"mi":u==="both"?"km / mi":"km"; }
+function rbDistUnitLabel(o){ return rbUnits(o)==="mi"?"mi":"km"; }
 function rbHeightTxt(m,o){                         // heights follow the distance unit
   if(m==null||isNaN(m)) return "";
   const u=rbUnits(o), ft=Math.round(m*3.28084);
   if(u==="mi") return ft+" ft";
-  if(u==="both") return Math.round(m)+" m / "+ft+" ft";
   return Math.round(m)+" m";
 }
 function rbClimbTxt(m,o){                          // just the number, unit implied by the arrow
@@ -5353,14 +5383,21 @@ function buildRoadbook(o,previewOnly,onlyPage){
           cols.forEach((c,ci)=>doc.rect(XS[ci],top,c.w,ROW_H)); }
         cols.forEach((c,ci)=>{
           const X=XS[ci], CW=c.w;
+          /* anything nested in this column prints small at the foot of the box */
+          const kid=rbChildOf(o,c.k);
+          if(kid && !(c.k==="tulip"&&kid.k==="wp")){          // the wp chip has its own look
+            const txt=rbCellText(kid.k,r,o,total);
+            if(txt){ doc.setFont("helvetica","normal"); FS(kid.k==="gps"?6:7.5);
+              doc.setTextColor(...GREY);
+              doc.text(String(txt).slice(0,42), c.k==="direction"?X+10*S:X+CW/2,
+                       top+ROW_H-5*S, c.k==="direction"?undefined:{align:"center"}); }
+          }
           if(c.k==="inter"&&r.inter_km){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
             FS(raid?16:14); doc.text(rbDistTxt(parseFloat(r.inter_km),o),X+CW/2,mid+4*S,{align:"center"}); }
           else if(c.k==="total"){ const tk=parseFloat(r.total_km);
             if(!isNaN(tk)){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
-              const two=!!o.togoIn;
-              FS(raid?14:11); doc.text(rbDistTxt(tk,o),X+CW/2,mid+(two?-2:3)*S,{align:"center"});
-              if(two){ doc.setTextColor(...GREY); FS(raid?10:8.5);
-                doc.text(rbDistTxt(total-tk,o,1),X+CW/2,mid+(raid?11:10)*S,{align:"center"}); } } }
+              const two=!!rbChildOf(o,"total");
+              FS(raid?14:11); doc.text(rbDistTxt(tk,o),X+CW/2,mid+(two?-2:3)*S,{align:"center"}); } }
           else if(c.k==="togo"){ const tk=parseFloat(r.total_km);
             if(!isNaN(tk)){ doc.setTextColor(...GREY); doc.setFont("helvetica","bold");
               FS(raid?13:10.5); doc.text(rbDistTxt(total-tk,o,1),X+CW/2,mid+3*S,{align:"center"}); } }
@@ -5370,7 +5407,7 @@ function buildRoadbook(o,previewOnly,onlyPage){
             if(sp.draw)drawElements(cctx,sp.draw); else drawQuick(cctx,sp);
             const th=Math.min(ROW_H-8*S,(CW-10*S)*160/188), tw=th*188/160;
             doc.addImage(cvs.toDataURL("image/png"),"PNG",X+(CW-tw)/2,mid-th/2,tw,th);
-            if(o.wpIn){
+            if(rbChildOf(o,"tulip") && rbChildOf(o,"tulip").k==="wp"){
               /* the number chip dodges any symbol already parked in a corner:
                  bottom-left first, then top-left, bottom-right, top-right */
               const cn=sp.corners||{};
@@ -5389,19 +5426,14 @@ function buildRoadbook(o,previewOnly,onlyPage){
               const lines=doc.splitTextToSize(r.direction,CW-18*S);
               const startY=mid+4*S-(lines.length-1)*7.5*S;
               lines.forEach((ln,j)=>doc.text(ln,X+10*S,startY+j*15*S)); }
-            /* the street rides under the directions only while it has no column of its own */
-            const stIn=o.streetIn && !cols.some(c=>c.k==="street");
-            const foot=[(stIn?r.street:""),(r.flag?"["+r.flag+"]":"")].filter(Boolean).join("  ·  ");
-            if(foot){ doc.setFont("helvetica","italic"); FS(7.5); doc.setTextColor(...GREY);
-              doc.text(foot.slice(0,70),X+10*S,top+ROW_H-5*S); }
+            if(r.flag){ doc.setFont("helvetica","italic"); FS(7.5); doc.setTextColor(...GREY);
+              doc.text("["+r.flag+"]",X+10*S,top+ROW_H-5*S); }
           }
           else if(c.k==="info"){
             if(r.info){ doc.setFont("helvetica","normal"); FS(9.5); doc.setTextColor(...GREY);
               doc.splitTextToSize(r.info,CW-8*S).forEach((ln,j)=>
                 doc.text(ln,X+CW/2,mid-2*S+j*11*S,{align:"center"})); }
-            if(o.gpsIn){ const w=rbWpFor(r);
-              if(w){ doc.setFont("helvetica","normal"); FS(6); doc.setTextColor(...GREY);
-                doc.text(w.lat.toFixed(5)+"  "+w.lon.toFixed(5),X+CW/2,top+ROW_H-5*S,{align:"center"}); } } }
+          }
           else if(c.k==="street"){
             if(r.street){ doc.setFont("helvetica","normal"); FS(9.5); doc.setTextColor(...GREY);
               doc.splitTextToSize(r.street,CW-8*S).forEach((ln,j)=>
@@ -5410,10 +5442,17 @@ function buildRoadbook(o,previewOnly,onlyPage){
             if(r.height_m!=null){ doc.setTextColor(...INK); doc.setFont("helvetica","bold");
               FS(raid?13:10.5); doc.text(rbHeightTxt(r.height_m,o),X+CW/2,mid+3*S,{align:"center"}); } }
           else if(c.k==="climb"){        // up / down on the leg TO THE NEXT waypoint
-            if(r.climb_up!=null){ doc.setFont("helvetica","bold"); FS(raid?11.5:9.5);
-              const cu=rbUnits(o)==="mi"?"ft":"m";
-              doc.setTextColor(22,122,58);  doc.text("\u25b2 "+rbClimbTxt(r.climb_up,o)+cu,X+CW/2,mid-2*S,{align:"center"});
-              doc.setTextColor(184,42,32);  doc.text("\u25bc "+rbClimbTxt(r.climb_dn,o)+cu,X+CW/2,mid+9*S,{align:"center"}); } }
+            if(r.climb_up!=null){
+              const cu=rbUnits(o)==="mi"?"ft":"m", cxm=X+CW/2, tw=4.5*S;
+              doc.setFont("helvetica","bold"); FS(raid?10.5:8.5);
+              /* the arrows are DRAWN — the triangle characters aren't in the
+                 PDF's standard font and came out as fraction signs */
+              doc.setFillColor(22,122,58); doc.setTextColor(22,122,58);
+              doc.triangle(cxm-13*S,mid-1.5*S, cxm-13*S+2*tw,mid-1.5*S, cxm-13*S+tw,mid-1.5*S-6*S,"F");
+              doc.text(rbClimbTxt(r.climb_up,o)+cu, cxm-3*S, mid-1.5*S);
+              doc.setFillColor(184,42,32); doc.setTextColor(184,42,32);
+              doc.triangle(cxm-13*S,mid+3.5*S, cxm-13*S+2*tw,mid+3.5*S, cxm-13*S+tw,mid+3.5*S+6*S,"F");
+              doc.text(rbClimbTxt(r.climb_dn,o)+cu, cxm-3*S, mid+9.5*S); } }
           else if(c.k==="gps"){ const w=rbWpFor(r);
             if(w){ doc.setFont("helvetica","normal"); FS(6.8); doc.setTextColor(...GREY);
               doc.text(w.lat.toFixed(5),X+CW/2,mid-1*S,{align:"center"});
@@ -5687,51 +5726,62 @@ function rbFits(cols){
 let rbDragIdx=null;
 function rbColsUI(){
   const box=$("rb_cols"); if(!box) return; box.innerHTML="";
+  const label=k=>{ const e=RB_COLS_ALL.find(x=>x[0]===k); return e?e[1]:k; };
   rbOpts.cols.forEach((c,i)=>{
+    if(c.in) return;                                   // nested ones are drawn under their host
     const row=document.createElement("div"); row.className="rbcolrow"+(c.on?"":" off");
     row.draggable=true;
     row.addEventListener("dragstart",e=>{ rbDragIdx=i; e.dataTransfer.effectAllowed="move"; });
-    row.addEventListener("dragover",e=>{ e.preventDefault(); row.classList.add("dragover"); });
-    row.addEventListener("dragleave",()=>row.classList.remove("dragover"));
-    row.addEventListener("drop",e=>{ e.preventDefault(); row.classList.remove("dragover");
+    row.addEventListener("dragover",e=>{ e.preventDefault();
+      const rr=row.getBoundingClientRect(), mid=rr.top+rr.height/2;
+      row.classList.toggle("dropinside", e.clientY>mid-7 && e.clientY<mid+7);   // middle = drop INSIDE
+      row.classList.add("dragover"); });
+    row.addEventListener("dragleave",()=>row.classList.remove("dragover","dropinside"));
+    row.addEventListener("drop",e=>{ e.preventDefault();
+      const inside=row.classList.contains("dropinside");
+      row.classList.remove("dragover","dropinside");
       if(rbDragIdx==null||rbDragIdx===i) return;
-      rbOpts.cols.splice(i,0,rbOpts.cols.splice(rbDragIdx,1)[0]);
+      const drag=rbOpts.cols[rbDragIdx];
+      if(inside){
+        if(!rbCanNest(drag.k)){ toast(label(drag.k)+" can't go inside another column.",4000); rbDragIdx=null; return; }
+        if(rbIsHost(rbOpts,drag.k)){ toast(label(drag.k)+" already holds a column, so it can't go inside one.",4500); rbDragIdx=null; return; }
+        const held=rbChildOf(rbOpts,c.k);
+        if(held){ toast(label(c.k)+" already holds "+label(held.k)+" — take that out first.",4500); rbDragIdx=null; return; }
+        drag.in=c.k; drag.on=1;
+      } else {
+        rbOpts.cols.splice(i,0,rbOpts.cols.splice(rbDragIdx,1)[0]);
+      }
       rbDragIdx=null; rbColsUI(); rbPreview(); });
     const grip=document.createElement("span"); grip.className="rc-g"; grip.textContent="⠿";
-    grip.title="drag to reorder — top of this list is the left of the page";
+    grip.title="drag to reorder — or drop onto the middle of another column to tuck it inside";
     const tick=document.createElement("button"); tick.className="rc-k"; tick.textContent=c.on?"☑":"☐";
     tick.title="show / hide this column";
     tick.onclick=()=>{
       if(!c.on){ const trial=rbOpts.cols.map(x=>x===c?{...x,on:1}:x);
         if(!rbFits(trial)){ toast("No room left on this page at this tulip size — turn something off (or shrink the tulips) first.",5000); return; } }
       c.on=c.on?0:1; rbColsUI(); rbPreview(); };
-    const lab=RB_COLS_ALL.find(x=>x[0]===c.k)[1];
+    const lab=label(c.k);
     const ti=document.createElement("input"); ti.className="rc-i"; ti.value=c.t||lab;
     ti.title="the printed column title — edit it";
     ti.onchange=()=>{ c.t=(ti.value.trim()===lab)?"":ti.value.trim(); rbPreview(); };
     row.append(grip,tick,ti);
-    if(c.k==="togo"){ const sub=document.createElement("button");
-      sub.className="rc-s"+(rbOpts.togoIn?" on":""); sub.textContent="in TOTAL";
-      sub.title="print the to-go under the total, in the same box";
-      sub.onclick=()=>{ rbOpts.togoIn=rbOpts.togoIn?0:1; rbColsUI(); rbPreview(); };
-      row.append(sub); }
-    if(c.k==="gps"){ const sub=document.createElement("button");
-      sub.className="rc-s"+(rbOpts.gpsIn?" on":""); sub.textContent="in TOWN";
-      sub.title="print the position small at the foot of the Town / Sign box";
-      sub.onclick=()=>{ rbOpts.gpsIn=rbOpts.gpsIn?0:1; rbColsUI(); rbPreview(); };
-      row.append(sub); }
-    if(c.k==="wp"){ const sub=document.createElement("button");
-      sub.className="rc-s"+(rbOpts.wpIn?" on":""); sub.textContent="in TULIP";
-      sub.title="print the number in the tulip box's corner instead";
-      sub.onclick=()=>{ rbOpts.wpIn=rbOpts.wpIn?0:1; rbColsUI(); rbPreview(); };
-      row.append(sub); }
-    if(c.k==="street"){ const sub=document.createElement("button");
-      sub.className="rc-s"+(rbOpts.streetIn?" on":""); sub.textContent="in DIRECTIONS";
-      sub.title="print the street small under the directions instead of in its own column";
-      sub.onclick=()=>{ rbOpts.streetIn=rbOpts.streetIn?0:1; rbColsUI(); rbPreview(); };
-      row.append(sub); }
     box.append(row);
+    const kid=rbChildOf(rbOpts,c.k);
+    if(kid){
+      const sub=document.createElement("div"); sub.className="rbcolrow rbsub";
+      const arrow=document.createElement("span"); arrow.className="rc-g"; arrow.textContent="↳";
+      const name=document.createElement("span"); name.className="rc-subname";
+      name.textContent="inside — "+(kid.t||label(kid.k));
+      const out=document.createElement("button"); out.className="rc-s"; out.textContent="take out";
+      out.title="give it its own column again";
+      out.onclick=()=>{ kid.in=null; rbColsUI(); rbPreview(); };
+      sub.append(arrow,name,out);
+      box.append(sub);
+    }
   });
+  const hint=document.createElement("div"); hint.className="hint"; hint.style.marginTop="7px";
+  hint.textContent="Drag a column onto the MIDDLE of another to tuck it inside it; drop above or below to reorder. Tulip and Directions can hold others, but can't go inside anything.";
+  box.append(hint);
 }
 $("pdfbtn").onclick=()=>{
   maybeApply();
@@ -5820,7 +5870,7 @@ function rbSummary(){
     ({a4:"A4",a5:"A5",moto:"Moto roll"}[rbOpts.page]||rbOpts.page)+" · "+
     ({tulip:"Tulip",classic:"Classic",raid:"Raid"}[rbOpts.type]||rbOpts.type)+" · "+
     rbOpts.rowsPP+" rows a page · tulips "+rbOpts.tulip+"<br>"+
-    "Distances in "+({km:"kilometres",mi:"miles",both:"kilometres and miles"}[rbUnits(rbOpts)])+"<br>"+
+    "Distances in "+({km:"kilometres",mi:"miles"}[rbUnits(rbOpts)]||"kilometres")+"<br>"+
     "Columns: "+(on.join(", ")||"none")+"<br>"+
     (rbOpts.mapPage?"Map page first"+(rbOpts.mapElev?" with the height profile":"")+"<br>":"")+
     (rbOpts.pageElev?"Height profile on every page<br>":"")+
