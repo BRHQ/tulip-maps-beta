@@ -1238,7 +1238,7 @@ map.getContainer().addEventListener("contextmenu",e=>e.preventDefault());
 map.on("contextmenu",ev=>{
   if(routing){ const nm=routing.manual?"Points":"Routing";
     showCtx(ev,[["✓ Save "+nm,finishRouting],["✕ Cancel "+nm,cancelRouting]]); return; }
-  showCtx(ev, ctxCore(null, ev.latlng));      // bare map — the three core actions
+  showCtx(ev, ctxOffTrack(ev.latlng));        // bare map — grow the line from its end
 });
 // Standard OSM is the default for now (Chris, 30 Jul) — our own vector map
 // stays one click away in the picker. Before the tool is ever CHARGED for,
@@ -2293,9 +2293,7 @@ function initTpInput(){
     const i=tpDotAt(e.clientX-r.left,e.clientY-r.top);
     if(i<0) return;
     e.stopPropagation(); e.preventDefault();
-    const items=ctxCore(i,{lat:pts[i].lat,lng:pts[i].lon});
-    items.push("---",["🗑 Delete this track point",()=>deleteTrackPoint(i)]);
-    showCtx({originalEvent:e},items);
+    showCtx({originalEvent:e},ctxOnPoint(i));
   },true);
   /* no cursor juggling here: the dots always sit on the line, and the wide
      invisible click-line already shows the pointer hand over the whole track —
@@ -2433,24 +2431,37 @@ function makeMarker(w){
     L.DomEvent.stop(ev); ev.originalEvent.preventDefault();
     const wi=wps.indexOf(w);
     const idx=pts.length?nearestVertex({lat:w.lat,lng:w.lon}):null;
-    const items=ctxCore(idx, {lat:w.lat,lng:w.lon});      // the three core actions…
+    /* the same actions as the track point it sits on, but its own delete —
+       two "delete" lines meaning different things would be a trap */
+    const items=(idx!=null?ctxOnPoint(idx).filter(it=>it!=="---"&&!/Delete This Point/.test(it[0]))
+                          :ctxNoRoute({lat:w.lat,lng:w.lon}));
     items.push("---",                                     // …then the waypoint's own extras
-      ["🗑 Delete waypoint",()=>{ selectWp(wi); deleteWp(); }],
-      ["👁 Street view here",()=>{ selectWp(wi); toggleSV(true); }]);
+      ["🗑 Delete Waypoint",()=>{ selectWp(wi); deleteWp(); }],
+      ["👁 Street View Here",()=>{ selectWp(wi); toggleSV(true); }]);
     showCtx(ev,items);
   });
   m.on("dragstart",()=>{ snapshot(); w._pn=neighbours(w);
     selectVertex(nearestVertexInRange(m.getLatLng(),w._pn[0],w._pn[1])); });   // light up the connected point from the off
-  m.on("drag",()=>{        // a waypoint is pinned to a track point — snap to the nearest one
-    const idx=nearestVertexInRange(m.getLatLng(),w._pn[0],w._pn[1]);
-    m.setLatLng([pts[idx].lat,pts[idx].lon]);
-    if(vertexHandle && vertexIdx!==idx){ allTpSel(vertexIdx,idx); vertexIdx=idx; vertexHandle.setLatLng([pts[idx].lat,pts[idx].lon]); }   // red dot follows the waypoint
+  /* A waypoint slides along the WHOLE line, not from one recorded point to the
+     next — on a straight stretch with no points in it, it used to jump to
+     whichever end was nearer. It follows the line under the cursor, and when
+     you let go it takes the point it landed on, or drops a new one there. */
+  m.on("drag",()=>{
+    const pr=nearestSegProjInRange(m.getLatLng(),w._pn[0],w._pn[1]);
+    m.setLatLng([pr.lat,pr.lon]);
+    const near=wpLandingPoint(pr,false);        // only light a point up if it's really there
+    if(near>=0 && vertexIdx!==near){ allTpSel(vertexIdx,near); vertexIdx=near;
+      if(vertexHandle) vertexHandle.setLatLng([pts[near].lat,pts[near].lon]); }
   });
   m.on("dragend",()=>{
-    const idx=nearestVertexInRange(m.getLatLng(),w._pn[0],w._pn[1]);
+    const pr=nearestSegProjInRange(m.getLatLng(),w._pn[0],w._pn[1]);
+    const made=wpLandingPoint(pr,false)<0;
+    const idx=wpLandingPoint(pr,true);
     w.lat=pts[idx].lat; w.lon=pts[idx].lon; w.moved=true;
     m.setLatLng([w.lat,w.lon]);
-    m.setIcon(icon(w)); recompute(); renderList(); if(wps[selWp]===w) fillInfo(w);
+    m.setIcon(icon(w));
+    if(made) redraw();                          // a new track point joined the line
+    recompute(); renderList(); if(wps[selWp]===w) fillInfo(w);
     selectVertex(idx);                          // leave the connected point highlighted where it landed
   });
   w.marker=m;
@@ -2808,6 +2819,36 @@ function nearestVertexInRange(latlng,lo,hi){   // nearest track point whose dist
     const d=hav({lat:latlng.lat,lon:latlng.lng},pts[i]); if(d<bd){bd=d;bi=i;} }
   return bi<0 ? nearestVertex(latlng) : bi;
 }
+/* THE SPOT ON THE LINE, not the nearest recorded point — used while dragging a
+   waypoint so it slides along the whole track instead of hopping between the
+   points that happen to exist. Kept between the waypoints either side of it so
+   it can't jump onto another pass of the same road. */
+function nearestSegProjInRange(latlng,lo,hi){
+  let best=null,bd=1e15;
+  const k=Math.cos(latlng.lat*rad), mx=latlng.lng*k*111320, my=latlng.lat*110540;
+  for(let i=0;i<pts.length-1;i++){
+    if(cum[i+1]<=lo||cum[i]>=hi) continue;      // this stretch isn't between the neighbours
+    const ax=pts[i].lon*k*111320, ay=pts[i].lat*110540;
+    const bx=pts[i+1].lon*k*111320, by=pts[i+1].lat*110540;
+    const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy||1;
+    let t=((mx-ax)*dx+(my-ay)*dy)/L2; t=Math.max(0,Math.min(1,t));
+    const px=ax+t*dx, py=ay+t*dy, d=Math.hypot(mx-px,my-py);
+    if(d<bd){ bd=d; best={i,t,lat:py/110540,lon:px/(k*111320)}; }
+  }
+  return best || (()=>{ const p=nearestSegProj(latlng); return {i:p.i,t:0,lat:p.lat,lon:p.lon}; })();
+}
+/* where a dragged waypoint should sit: the point on the line, and the track
+   point it belongs to — creating one at that spot if there isn't one already */
+function wpLandingPoint(pr,make){
+  const a=pts[pr.i], b=pts[pr.i+1];
+  const dA=a?hav(a,{lat:pr.lat,lon:pr.lon}):1e9;
+  const dB=b?hav(b,{lat:pr.lat,lon:pr.lon}):1e9;
+  if(dA<=1.5) return pr.i;                       // already a point right there
+  if(dB<=1.5) return pr.i+1;
+  if(!make) return -1;
+  pts.splice(pr.i+1,0,newTrackPoint(pr.lat,pr.lon,a,b));   // drop a new one where you let go
+  return pr.i+1;
+}
 function wpAtPoint(idx){                        // a waypoint pinned to this exact track point, if any
   if(!pts[idx]) return -1;
   const la=pts[idx].lat, lo=pts[idx].lon;
@@ -2834,31 +2875,49 @@ function showCtx(ev,items){
   box.style.top=ev.originalEvent.pageY+"px";
   box.style.display="block";
 }
-// The three route-building actions, identical on every right-click menu (Chris's ask).
-function ctxCore(idx, ll, segIdx){
-  if(!xmlDoc) return [
-    ["➕ Add track points",()=>{ newRoute(); startAddPoints(ll); }],
-    ["📍 Add waypoint here",()=>{ newRoute(); appendTrackPoint(ll); addWaypointAt(pts.length-1); }],
-    ["🧭 Route from here",()=>{ newRoute(); appendTrackPoint(ll); startRouting(0); }]];
-  if(idx!=null) return [
-    /* insert into the CLICKED segment, at the point ON the line — the nearest
-       vertex can sit on another pass, and a raw click sits beside the line */
-    ["➕ Add track points",()=>{
-      const pr=(segIdx!=null&&ll)?nearestSegProj(ll):null;
-      insertTrackPointAfter(pr?pr.i:idx, pr?{lat:pr.lat,lng:pr.lon}:(ll||{lat:pts[idx].lat,lng:pts[idx].lon})); }],
-    ["📍 Add waypoint here",()=>addWaypointAt(idx)],
-    ["🧭 Route from here",()=>startRouting(idx)]];
+/* ---- the right-click menus ----
+   Two of them, because the two places you can click want different things:
+   a plain stretch of track drops ONE point where you clicked, while a point
+   you already have offers the run-of-several mode and can be deleted. */
+function ctxNoRoute(ll){                        // nothing loaded yet — every action starts the route
   return [
-    ["➕ Add track points",()=>startAddPoints(ll)],
-    ["📍 Add waypoint here",()=>{ appendTrackPoint(ll); addWaypointAt(pts.length-1); }],
-    ["🧭 Route from here",()=>{ appendTrackPoint(ll); startRouting(pts.length-1); }]];
+    ["➕ Add Point Here",()=>{ newRoute(); appendTrackPoint(ll); }],
+    ["📍 Add Waypoint Here",()=>{ newRoute(); appendTrackPoint(ll); addWaypointAt(pts.length-1); }],
+    ["🧭 Route From Here",()=>{ newRoute(); appendTrackPoint(ll); startRouting(0); }]];
+}
+function ctxOnLine(ll){                         // right-click on a bare bit of the purple line
+  if(!xmlDoc) return ctxNoRoute(ll);
+  /* go in at the point ON the line: the nearest recorded point can belong to
+     the far side of a bend, or to another pass along the same road */
+  const pr=nearestSegProj(ll);
+  return [
+    ["➕ Add Point Here",()=>{ const i=insertTrackPointAfter(pr.i,{lat:pr.lat,lng:pr.lon});
+                              if(i!=null) selectVertex(i); }],
+    ["📍 Add Waypoint Here",()=>{ const i=insertTrackPointAfter(pr.i,{lat:pr.lat,lng:pr.lon});
+                                  addWaypointAt(i==null?pr.i:i); }],
+    ["🧭 Route From Here",()=>startRouting(pr.i)]];
+}
+function ctxOnPoint(idx){                       // right-click on a track point, pale or vibrant
+  return [
+    ["➕ Add Points",()=>startAddPoints({lat:pts[idx].lat,lng:pts[idx].lon},idx)],
+    ["📍 Add Waypoint Here",()=>addWaypointAt(idx)],
+    ["🧭 Route From Here",()=>startRouting(idx)],
+    "---",
+    ["🗑 Delete This Point",()=>deleteTrackPoint(idx)]];
+}
+function ctxOffTrack(ll){                       // right-click on bare map — grow the line
+  if(!xmlDoc) return ctxNoRoute(ll);
+  return [
+    ["➕ Add Point Here",()=>appendTrackPoint(ll)],
+    ["➕ Add Points",()=>startAddPoints(ll)],
+    ["📍 Add Waypoint Here",()=>{ appendTrackPoint(ll); addWaypointAt(pts.length-1); }],
+    ["🧭 Route From Here",()=>{ appendTrackPoint(ll); startRouting(pts.length-1); }]];
 }
 document.addEventListener("click",()=>{ $("ctx").style.display="none"; });
 function onLineContext(ev){
   L.DomEvent.stop(ev);
   ev.originalEvent.preventDefault();
-  const idx=nearestVertex(ev.latlng);
-  const items=ctxCore(idx, ev.latlng, nearestSegIdx(ev.latlng));
+  const items=ctxOnLine(ev.latlng);
   if(rangeB>=0 && vertexIdx>=0){
     const a=Math.min(vertexIdx,rangeB), b=Math.max(vertexIdx,rangeB);
     items.push("---", [`✂ Cut this section (${((cum[b]-cum[a])/1000).toFixed(2)} km)`,()=>cutRange()]);
@@ -2936,11 +2995,14 @@ function startRouting(idx){
   drawRouting();
 }
 /* manual "Add track points" — straight lines between clicks, no road-snapping */
-function startAddPoints(latlng){
+/* Adding a RUN of points. From the toolbox (or bare map) it carries on from
+   the end of the track; from a right-clicked point it carries on from THAT
+   point, and the run is dropped into the line there. */
+function startAddPoints(latlng,fromIdx){
   clearTrackSel();
-  const anchor=pts.length-1;
+  const anchor=(fromIdx!=null&&pts[fromIdx])?fromIdx:pts.length-1;
   const coords = anchor>=0 ? [[pts[anchor].lat,pts[anchor].lon]] : [];
-  coords.push([latlng.lat,latlng.lng]);
+  if(fromIdx==null) coords.push([latlng.lat,latlng.lng]);   // starting on a point adds nothing yet
   routing={anchor,coords,busy:false,manual:true};
   showRouteBox();
   $("routehint").textContent="ADDING TRACK POINTS · click to drop more · Enter or right‑click to save · Esc cancels";
@@ -3053,7 +3115,10 @@ function finishRouting(){       // commit routed / manually-added line into the 
   const rest = anchor>=0 ? routing.coords.slice(1) : routing.coords.slice();
   if(rest.length){
     snapshot();
-    pts.splice(anchor+1,0,...rest.map(([la,lo])=>({lat:la,lon:lo,ele:0,spd:0,t:null})));
+    /* heights read off the line the run lands on, so the elevation graph and
+       the climb figures don't dip to sea level where the new points are */
+    const before=pts[anchor], after=pts[anchor+1];
+    pts.splice(anchor+1,0,...rest.map(([la,lo])=>newTrackPoint(la,lo,before,after)));
     cancelRouting(); redraw();
     const n=auto.length?placeAutoWaypoints(auto):0;
     if(n){ renumberWaypoints(true); redraw();          // routing waypoints count up 1,2,3 (no decimals)
@@ -3183,7 +3248,12 @@ function selectVertex(idx){
   updateTpStats(idx);
   vertexHandle=L.marker([pts[idx].lat,pts[idx].lon],
     {draggable:true,zIndexOffset:1000,
-     icon:L.divIcon({className:"",html:'<div style="width:12px;height:12px;border-radius:50%;background:#ff1f30;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.45)"></div>',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map);
+     /* MUST match the pale-dot circle exactly (TP_SEL: radius 6, 2px white
+        ring) or the selected point appears to shift a couple of pixels when
+        "show all track points" is turned on and off. The page sets
+        box-sizing:border-box, so this div is 14px INCLUDING its border — same
+        14px outer circle — and the icon is anchored on its true centre. */
+     icon:L.divIcon({className:"",html:'<div style="width:14px;height:14px;border-radius:50%;background:#ff1f30;border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,.45)"></div>',iconSize:[14,14],iconAnchor:[7,7]})}).addTo(map);
   syncSelHandle();                             // with the dots showing, the handle goes invisible — the recoloured dot IS the visual
   vertexHandle.on("dragstart",()=>{ snapshot(); vertexHandle._wp=wpAtPoint(vertexIdx); });
   vertexHandle.on("drag",()=>{ moveVertexTo(vertexIdx, vertexHandle.getLatLng(), vertexHandle._wp); });
@@ -3193,10 +3263,7 @@ function selectVertex(idx){
     deleteTrackPoint(vertexIdx); });
   vertexHandle.on("contextmenu",ev=>{
     L.DomEvent.stop(ev); ev.originalEvent.preventDefault();
-    const idx=vertexIdx;
-    const items=ctxCore(idx, {lat:pts[idx].lat,lng:pts[idx].lon});   // core actions…
-    items.push("---", ["🗑 Delete this track point",()=>deleteTrackPoint(idx)]);   // …then delete
-    showCtx(ev,items);
+    showCtx(ev,ctxOnPoint(vertexIdx));
   });
   updateCutChip();
   updateSV();
@@ -4507,15 +4574,33 @@ function newRoute(){
 function appendTrackPoint(latlng){
   if(!xmlDoc) return;
   snapshot();
-  pts.push({lat:latlng.lat,lon:latlng.lng,ele:0,spd:0,t:null});
+  pts.push(newTrackPoint(latlng.lat,latlng.lng,pts[pts.length-1],null));
   redraw();
+}
+/* A POINT YOU ADD HAS TO CARRY A HEIGHT.
+   With none it counts as zero, so the elevation graph dives to sea level at
+   that spot and the climb figures in the roadbook follow it down. A new point
+   therefore takes the height of the line it lands on — read straight off
+   between the two points either side of it. At the very end of the track
+   there's nothing to read across to, so it carries the last height on. */
+function eleAt(a,b,lat,lon){
+  if(!a&&!b) return 0;
+  if(!a) return b.ele||0;
+  if(!b) return a.ele||0;
+  const seg=hav(a,b)||1, d=hav(a,{lat,lon});
+  const t=Math.max(0,Math.min(1,d/seg));
+  return (a.ele||0)+((b.ele||0)-(a.ele||0))*t;
+}
+function newTrackPoint(lat,lon,a,b){
+  return {lat,lon,ele:eleAt(a,b,lat,lon),spd:0,t:null};
 }
 function insertTrackPointAfter(idx,latlng){
   if(!xmlDoc||!pts.length) return;
   snapshot();
   const i=Math.max(0,Math.min(pts.length-1,idx));
-  pts.splice(i+1,0,{lat:latlng.lat,lon:latlng.lng,ele:0,spd:0,t:null});
+  pts.splice(i+1,0,newTrackPoint(latlng.lat,latlng.lng,pts[i],pts[i+1]));
   redraw();
+  return i+1;
 }
 $("autotulipbtn").onclick=()=>{
   const n=autoTulips();
@@ -5761,35 +5846,16 @@ function rbWpFor(r){
   return null;
 }
 /* ── the motorbike ROLL: a 72 mm strip, one cell per waypoint ─────────────── */
-function buildMotoRoll(o,previewOnly,onlyPage){
-  const ST=rbStyle(o), F=ST.font||"helvetica";
-  const { jsPDF } = window.jspdf;
-  const RW=204, RH=841.89, M=8;                     // 72mm-wide strip, A4-length pieces
-  const CH=({small:88,none:88,normal:112,large:146})[o.tulip]??112;
-  const doc=new jsPDF({unit:"pt",format:[RW,RH]});
-  const perPage=Math.floor((RH-2*M)/CH);
-  const INK=[19,19,21], GREY=[115,118,124];
-  const cvs=document.createElement("canvas"); cvs.width=564; cvs.height=480;
-  const cctx=cvs.getContext("2d");
-  const days=(o.scope==="rally"&&!previewOnly)?rbGatherDays()
-            :[{sub:(o.sub||baseName||"route"), rows}];
-  let firstPage=true;
-  days.forEach(day=>{
-    const ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
-    const total=Math.max(0,...ordered.map(r=>parseFloat(r.total_km)||0));
-    const allPages=Math.ceil(ordered.length/perPage)||1;
-    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,allPages-1)):0;
-    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:allPages);
-    for(let pg=pgFrom;pg<pgTo;pg++){
-      if(!firstPage)doc.addPage([RW,RH]); firstPage=false;
-      doc.setTextColor(...GREY); doc.setFont(F,"bold"); doc.setFontSize(6.5);
-      doc.text((o.title||"Roadbook")+" · "+(day.sub||"")+" · strip "+(pg+1)+"/"+allPages, RW/2, M+2, {align:"center"});
-      const on=k=>(o.cols||RB_DEF.cols).some(c=>c.k===k&&c.on);
-      const tulRight=(o.motoTulip||"right")!=="left";
-      const notesBeside=(o.motoNotes||"under")==="beside";
-      const chunk=ordered.slice(pg*perPage,(pg+1)*perPage);
-      chunk.forEach((r,i)=>{
-        const top=M+8+i*CH;
+/* THE MOTO ROLL'S MEASUREMENTS — the same idea as rbLayout, for the narrow
+   strip that gets printed in A4-length pieces and glued end to end. Shared so
+   the working box can draw the roll with the very same numbers. */
+/* ONE ROW OF THE MOTO ROLL, drawn at `top`. As with the page rows, the
+   printed roll and the strip in the working box both call this, so the narrow
+   roll can't look like one thing on paper and another on screen. */
+function rbDrawMotoRow(doc,ML,r,top,i,total){
+  const {o,F,RW,M,CH,INK,GREY,cvs,cctx,on,tulRight,notesBeside}=ML;
+  if(o.hiWp!=null && String(r.wp)===String(o.hiWp)){      // the waypoint you're working on
+    doc.setFillColor(255,244,186); doc.rect(M,top,RW-2*M,CH,"F"); }
         doc.setDrawColor(...INK); doc.setLineWidth(1); doc.line(M,top,RW-M,top);
         const tk=parseFloat(r.total_km);
         const numX=tulRight?M+2:RW-M-46;              // numbers sit opposite the tulip
@@ -5810,7 +5876,7 @@ function buildMotoRoll(o,previewOnly,onlyPage){
           cctx.setTransform(1,0,0,1,0,0); cctx.clearRect(0,0,564,480); cctx.setTransform(3,0,0,3,0,0);
           if(sp.draw)drawElements(cctx,sp.draw); else drawQuick(cctx,sp);
           const th=Math.min(notesBeside?CH-14:CH-34,86); tw2=th*188/160;
-          doc.addImage(cvs.toDataURL("image/png"),"PNG",tulRight?RW-M-tw2-2:M+2,top+4,tw2,th);
+          rbPutCanvas(doc,cvs,tulRight?RW-M-tw2-2:M+2,top+4,tw2,th);
         }
         if(on("direction")&&r.direction){ doc.setTextColor(...INK); doc.setFont(F,"bold"); doc.setFontSize(8.5);
           if(notesBeside){
@@ -5821,7 +5887,40 @@ function buildMotoRoll(o,previewOnly,onlyPage){
             const lines=doc.splitTextToSize(r.direction,RW-2*M-58).slice(0,2);
             lines.forEach((ln,j)=>doc.text(ln,tulRight?M+52:M+2,top+CH-22+j*10));
           } }
-      });
+}
+function rbMotoLayout(o){
+  const ST=rbStyle(o), F=ST.font||"helvetica";
+  const RW=204, RH=841.89, M=8;                     // 72mm-wide strip, A4-length pieces
+  const CH=({small:88,none:88,normal:112,large:146})[o.tulip]??112;
+  const perPage=Math.floor((RH-2*M)/CH);
+  const INK=[19,19,21], GREY=[115,118,124];
+  const cvs=document.createElement("canvas"); cvs.width=564; cvs.height=480;
+  const cctx=cvs.getContext("2d");
+  const on=k=>(o.cols||RB_DEF.cols).some(c=>c.k===k&&c.on);
+  const tulRight=(o.motoTulip||"right")!=="left";
+  const notesBeside=(o.motoNotes||"under")==="beside";
+  return {o,ST,F,RW,RH,M,CH,perPage,INK,GREY,cvs,cctx,on,tulRight,notesBeside};
+}
+function buildMotoRoll(o,previewOnly,onlyPage){
+  const { jsPDF } = window.jspdf;
+  const ML=rbMotoLayout(o);
+  const {ST,F,RW,RH,M,CH,perPage,INK,GREY,cvs,cctx}=ML;
+  const doc=new jsPDF({unit:"pt",format:[RW,RH]});
+  const days=(o.scope==="rally"&&!previewOnly)?rbGatherDays()
+            :[{sub:(o.sub||baseName||"route"), rows}];
+  let firstPage=true;
+  days.forEach(day=>{
+    const ordered=[...day.rows].sort((a,b)=>parseFloat(a.wp)-parseFloat(b.wp));
+    const total=Math.max(0,...ordered.map(r=>parseFloat(r.total_km)||0));
+    const allPages=Math.ceil(ordered.length/perPage)||1;
+    const pgFrom=(onlyPage!=null)?Math.max(0,Math.min(onlyPage,allPages-1)):0;
+    const pgTo=(onlyPage!=null)?pgFrom+1:(previewOnly?1:allPages);
+    for(let pg=pgFrom;pg<pgTo;pg++){
+      if(!firstPage)doc.addPage([RW,RH]); firstPage=false;
+      doc.setTextColor(...GREY); doc.setFont(F,"bold"); doc.setFontSize(6.5);
+      doc.text((o.title||"Roadbook")+" · "+(day.sub||"")+" · strip "+(pg+1)+"/"+allPages, RW/2, M+2, {align:"center"});
+      const chunk=ordered.slice(pg*perPage,(pg+1)*perPage);
+      chunk.forEach((r,i)=>rbDrawMotoRow(doc,ML,r,M+8+i*CH,i,total));
       doc.setDrawColor(...GREY); doc.setLineWidth(.5);
       doc.setLineDashPattern([3,3],0);
       doc.line(M,RH-M,RW-M,RH-M);                   // cut here, glue the next strip on
@@ -5854,31 +5953,35 @@ function rbStripOn(){
   const card=$("rblivecard");
   return !!card && !card.classList.contains("rs-off") && getComputedStyle(card).display!=="none";
 }
-/* the strip's geometry, worked out from the same layout the page uses */
+/* The strip's geometry, from the same layout the printed page uses. The moto
+   roll is a different shape of page — a narrow strip with tall rows — so it
+   brings its own measurements and its own row drawing, but everything else
+   here works the same way. */
 function rbStripGeom(){
   if(!rbOpts) rbLoad();
   const box=$("rbstrip"); if(!box) return null;
   const o={...rbOpts, sub:baseName||"route", hiWp:rbLiveHiWp()};
-  const L=rbLayout(o);
+  const moto=(o.page==="moto"||o.type==="moto");
+  const L=moto?rbMotoLayout(o):rbLayout(o);
+  const pageW=moto?L.RW:L.W, rowH=moto?L.CH:L.ROW_H;
   const cssW=box.clientWidth||240;
-  const k=cssW/L.W;                                    // points -> screen pixels
-  return {L,o,box,cssW,k,rowPx:L.ROW_H*k,list:rbStripRows()};
+  const k=cssW/pageW;                                  // points -> screen pixels
+  return {L,o,box,cssW,k,moto,pageW,rowH,rowPx:rowH*k,list:rbStripRows()};
 }
 function rbStripDraw(){
   if(!rbStripOn()) return;
   const cv=$("rbstripcv"), hc=$("rbhead"), note=$("rbstripnote");
   if(!cv||!hc) return;
   const g=rbStripGeom(); if(!g) return;
-  const {L,o,box,cssW,k,rowPx,list}=g;
-  /* the moto roll is drawn by its own code, so the strip can't show it */
-  if(rbOpts.page==="moto"||!list.length){
+  const {L,o,box,cssW,k,rowPx,rowH,list}=g;
+  if(!list.length){
     cv.style.display="none"; hc.style.display="none";
-    note.style.display="block";
-    note.textContent = !list.length ? "No waypoints yet."
-      : "The moto roll prints as its own long strip — open the Roadbook maker to see it.";
+    note.style.display="block"; note.textContent="No waypoints yet.";
     $("rbspacer").style.height="0px"; return;
   }
-  cv.style.display="block"; hc.style.display="block"; note.style.display="none";
+  cv.style.display="block"; note.style.display="none";
+  /* the moto roll has no column headings — the roll itself is the layout */
+  hc.style.display=g.moto?"none":"block";
   const dpr=Math.min(2,window.devicePixelRatio||1);
   const visPx=Math.max(60,box.clientHeight);
   /* the spacer gives the scrollbar its travel; the canvas is pinned on top of
@@ -5896,9 +5999,13 @@ function rbStripDraw(){
   ctx.translate(0,-scrollPts);
   const doc=rbCanvasDoc(ctx);
   const total=Math.max(0,...list.map(r=>parseFloat(r.total_km)||0));
-  const first=Math.max(0,Math.floor(scrollPts/L.ROW_H));
-  const last=Math.min(list.length-1,Math.ceil((scrollPts+visPx/k)/L.ROW_H));
-  for(let j=first;j<=last;j++) rbDrawRow(doc,L,list[j],j*L.ROW_H,j,total);
+  const first=Math.max(0,Math.floor(scrollPts/rowH));
+  const last=Math.min(list.length-1,Math.ceil((scrollPts+visPx/k)/rowH));
+  for(let j=first;j<=last;j++){
+    if(g.moto) rbDrawMotoRow(doc,L,list[j],j*rowH,j,total);
+    else       rbDrawRow(doc,L,list[j],j*rowH,j,total);
+  }
+  if(g.moto) return;                                   // no headings strip on the roll
   /* the column headings, pinned above the strip */
   const headPts=26*L.S;
   if(hc.width!==Math.round(cssW*dpr)||hc.height!==Math.round(headPts*k*dpr)){
