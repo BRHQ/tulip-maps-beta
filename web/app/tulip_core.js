@@ -468,6 +468,11 @@ function drawSign(ctx,code,x,y,sc){
 }
 function drawElements(ctx,els){
   ctx.lineCap="round"; ctx.lineJoin="round";
+  drawEls(ctx,els.filter(e=>!e.top));
+  wideCore(ctx,els);
+  drawEls(ctx,els.filter(e=>e.top));      // the bridge sits over everything, white core included
+}
+function drawEls(ctx,els){
   for(const e of els){
     ctx.strokeStyle=e.col||INKC; ctx.fillStyle=e.col||INKC;
     if(e.k==='l'){ const [x1,y1,x2,y2]=e.p; ctx.lineWidth=e.w;
@@ -477,9 +482,9 @@ function drawElements(ctx,els){
       const ang=Math.atan2(x2-x1,y1-y2)*180/Math.PI;
       endcap(ctx,x1,y1,ang+180,e.ss,e.w); endcap(ctx,x2,y2,ang,e.es,e.w);
     } else if(e.k==='q'){ const [x1,y1,cx,cy,x2,y2]=e.p; ctx.lineWidth=e.w;
-      if(e.ds) ctx.setLineDash([e.w*1.1,e.w*1.5]);
+      if(e.ds){ ctx.setLineDash([e.w*1.1,e.w*1.5]); if(e.dof) ctx.lineDashOffset=e.dof; }
       ctx.beginPath(); ctx.moveTo(x1,y1); ctx.quadraticCurveTo(cx,cy,x2,y2); ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.setLineDash([]); ctx.lineDashOffset=0;
       endcap(ctx,x1,y1,Math.atan2(x1-cx,cy-y1)*180/Math.PI,e.ss,e.w);
       endcap(ctx,x2,y2,Math.atan2(x2-cx,cy-y2)*180/Math.PI,e.es,e.w);
     } else if(e.k==='c'){ const [cx,cy,r]=e.p;
@@ -498,9 +503,11 @@ function drawElements(ctx,els){
         IMGCACHE[e.data]=img; }
       if(img.complete&&img.naturalWidth) ctx.drawImage(img,e.p[0],e.p[1],e.w,e.h); }
   }
-  /* WIDE road pass: a white core inside every flagged piece, drawn after all the
-     colour so the joints stay clean. The core stops short of arrowheads and the
-     start ball, so the ends stay solid — white sits INSIDE two thin colour lines. */
+}
+/* WIDE road pass: a white core inside every flagged piece, drawn after all the
+   colour so the joints stay clean. The core stops short of arrowheads and the
+   start ball, so the ends stay solid — white sits INSIDE two thin colour lines. */
+function wideCore(ctx,els){
   let wideOn=false;
   for(const e of els){
     if(!e.wd||(e.k!=='l'&&e.k!=='q')) continue;
@@ -703,12 +710,12 @@ function armGeom(sp,m){ const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp
 function endStyle(sp){ return sp.end===1?3 : sp.end===2?1 : 2; }
 function quickToElements(sp){
   const els=[];
-  const railSeg=(x1,y1,x2,y2)=>{            // a stretch of railway between two points
+  const railSeg=(x1,y1,x2,y2,top)=>{        // a stretch of railway between two points
     const len=Math.hypot(x2-x1,y2-y1)||1, ux=(x2-x1)/len, uy=(y2-y1)/len, px=-uy, py=ux;
     for(const o of [-2,2])
-      els.push({k:'l',p:[x1+px*o,y1+py*o,x2+px*o,y2+py*o],w:1.8,ss:0,es:0});
+      els.push({k:'l',p:[x1+px*o,y1+py*o,x2+px*o,y2+py*o],w:1.8,ss:0,es:0,top:top});
     for(let d=4; d<len-2; d+=7)
-      els.push({k:'l',p:[x1+ux*d+px*4.5,y1+uy*d+py*4.5,x1+ux*d-px*4.5,y1+uy*d-py*4.5],w:1.5,ss:0,es:0});
+      els.push({k:'l',p:[x1+ux*d+px*4.5,y1+uy*d+py*4.5,x1+ux*d-px*4.5,y1+uy*d-py*4.5],w:1.5,ss:0,es:0,top:top});
   };
   if(sp.del){ els.push({k:'l',p:[30,30,158,130],w:10,ss:0,es:0},{k:'l',p:[158,30,30,130],w:10,ss:0,es:0}); return els; }
   // with a bridge the exit can't fold back into the marks: stay within 135° of the stem
@@ -834,8 +841,11 @@ function quickToElements(sp){
     const [pxB,pyB]=brgPivot(), [du,dv2]=stemDirOf(sp);
     const M=(u,v)=>[pxB+du*u-dv2*v, pyB+dv2*u+du*v];          // stem frame → canvas
     const g=brgGeom(sp), uc=g.uc, hh=g.hh, dx=sp.brgL?17:14, cap=sp.brgL?7:6, bw=3.5;
+    /* top:1 — drawn in a final pass, after the wide road's white core. Without
+       it a two-line "wide" road painted its white middle straight through the
+       bridge and left a permanent white slot across the symbol. */
     const seg=(u1,v1,u2,v2,w,col,ds)=>{ const a=M(u1,v1), b=M(u2,v2);
-      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:w||bw,ss:0,es:0,col:col,ds:ds?1:0}); };
+      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:w||bw,ss:0,es:0,col:col,ds:ds?1:0,top:1}); };
     const W=dx+cap;                                          // how far the bridge reaches either side
     if(sp.brgU){
       /* GOING UNDER: the SAME bracket symbol, turned a quarter turn so it lies
@@ -851,7 +861,7 @@ function quickToElements(sp){
          bridge. Drawn short of the ends because the line has round caps. */
       const mw=2*ud, mh=Math.max(0,UW-ud);
       const a=M(uc,-mh), b=M(uc,mh);
-      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:mw,ss:0,es:0,col:"#fff"});
+      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:mw,ss:0,es:0,col:"#fff",top:1});
       for(const sgn of [-1,1]){
         seg(uc+sgn*ud, -UW, uc+sgn*ud, UW);                  // the bracket itself, across the route
         seg(uc+sgn*ud, -UW, uc+sgn*(ud+cap), -UW);           // cap, turned away
@@ -872,7 +882,7 @@ function quickToElements(sp){
          or a footbridge above your head. */
       const vE=W+18;                                          // runs the whole bridge and out both ends
       if(sp.brgx==="rail"){
-        const s0=M(uc,-vE), s1=M(uc,vE); railSeg(s0[0],s0[1],s1[0],s1[1]);   // the one railway drawing
+        const s0=M(uc,-vE), s1=M(uc,vE); railSeg(s0[0],s0[1],s1[0],s1[1],1);   // the one railway drawing
       } else if(sp.brgx==="foot"){
         seg(uc, -vE, uc, vE, 2.2, null, true);                // a footbridge: a dashed way over
       } else {
@@ -890,7 +900,7 @@ function quickToElements(sp){
                      {k:'q',p:[b[0],b[1],m2[0],m2[1],c[0],c[1]],w:2.2,ss:0,es:0});
           }
         }else if(sp.brgx==="rail"){
-          const r0=M(uc,sgn*vs-8), r1=M(uc,sgn*vs+8); railSeg(r0[0],r0[1],r1[0],r1[1]);
+          const r0=M(uc,sgn*vs-8), r1=M(uc,sgn*vs+8); railSeg(r0[0],r0[1],r1[0],r1[1],1);
         }else{
           seg(uc-2.6, sgn*vs-7, uc-2.6, sgn*vs+7, 1.9);
           seg(uc+2.6, sgn*vs-7, uc+2.6, sgn*vs+7, 1.9);
@@ -934,6 +944,31 @@ function quickToElements(sp){
      they're the full-width ones — and drawElements paints a white core inside.
      Side roads, rails and the bridge marks stay solid; dirt wins if both set. */
   if(sp.wide&&!sp.dirt) for(const e of els) if((e.k==='l'||e.k==='q')&&e.w===9) e.wd=1;
+  /* DIRT ROAD: one continuous run of dashes down the whole route.
+     Canvas restarts the pattern at the start of every piece, and a bridge or a
+     roundabout chops the route into half a dozen short pieces — so each one
+     began with a full dash and the lot bunched up until it read as a solid
+     line. Measuring along the route and carrying the offset forward makes the
+     dashes march evenly through the junction, as they should. */
+  if(sp.dirt){
+    const per=9*1.1+9*1.5;                                  // one dash + one gap at route width
+    let run=0;
+    for(const e of els){
+      if(!e.ds||e.w!==9||(e.k!=='l'&&e.k!=='q')) continue;
+      e.dof=run%per;
+      run+=elLen(e);
+    }
+  }
   return els;
+}
+/* how long a piece is, so the dashes can be carried across the joins */
+function elLen(e){
+  const p=e.p;
+  if(e.k==='l') return Math.hypot(p[2]-p[0],p[3]-p[1]);
+  let L=0,px=p[0],py=p[1];                                  // sampled — near enough for a dash pattern
+  for(let i=1;i<=8;i++){ const t=i/8, u=1-t;
+    const x=u*u*p[0]+2*u*t*p[2]+t*t*p[4], y=u*u*p[1]+2*u*t*p[3]+t*t*p[5];
+    L+=Math.hypot(x-px,y-py); px=x; py=y; }
+  return L;
 }
 function drawQuick(ctx,sp){ drawElements(ctx,quickToElements(sp)); }
