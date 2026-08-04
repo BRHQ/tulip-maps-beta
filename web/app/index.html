@@ -3687,14 +3687,12 @@ function drawExitHandle(ctx){
     ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.arc(tx,ty,4.6,0,7); ctx.fill(); ctx.stroke();
   }
-  if(cur.rb&&!cur.rbS){                                          // the exit's bend dot: drag it round the ring to move the exit
-    const [bx,by]=rbBendPt(cur);
-    ctx.fillStyle="#1f9d57"; ctx.strokeStyle="#fff"; ctx.lineWidth=1.8;
-    ctx.beginPath(); ctx.arc(bx,by,4.6,0,7); ctx.fill(); ctx.stroke();
-  }
+  /* a roundabout keeps TWO grabs and no more: the dot in the middle to swing
+     the whole thing, and the ring at the arrow head to move the exit round.
+     There used to be a third on the ring itself doing the moving, with the
+     arrow head bending just the last bit — two dots that looked alike and did
+     different things. The arrow head does the moving now. */
 }
-function rbBendPt(sp){ const turn=Math.max(-160,Math.min(160,sp.turn==null?0:sp.turn)); return rbRot(sp,ray(turn,RBB)); }
-function rbBendHit(sp,x,y){ if(!(sp.rb&&!sp.rbS)) return false; const [bx,by]=rbBendPt(sp); return (x-bx)**2+(y-by)**2 < 49; }
 function exitHit(sp,x,y){ const [ex,ey]=exitTip(sp); return (x-ex)**2+(y-ey)**2 < 64; }   // r8
 function tiltDotPt(sp){
   if(sp.rb&&!sp.rbS) return rbRot(sp,[CXX,CYY]);                 // ring centre, riding the tilt
@@ -4700,7 +4698,6 @@ function quickDown(ev){
   const [x,y]=canvasPt(ev); const hit=armHit(cur,x,y);
   if(hit){ armSel=hit.i; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag=hit; $("big").style.cursor="grabbing"; repaint(); }
   else if(armSel<0 && exitHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'exit'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the main arrow (brings its ring back)
-  else if(armSel<0 && rbBendHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'rbbend'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the roundabout exit's bend dot
   else if(armSel<0 && tiltHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'tilt'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the tilt dot (bridge / roundabout)
   else if(armSel<0 && bendHit(cur,x,y)){ hideHandles=false; try{ev.target.setPointerCapture(ev.pointerId);}catch(_){} armDrag={mode:'bend'}; $("big").style.cursor="grabbing"; repaint(); }   // grab the bend handle
   else if(routeHit(cur,x,y)){ armSel=-1; hideHandles=false; repaint(); }   // click the main route anywhere → select it, dots come back
@@ -4709,27 +4706,21 @@ function quickDown(ev){
 }
 function quickMove(ev){
   const [x,y]=canvasPt(ev);
-  if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)||tiltHit(cur,x,y)||rbBendHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
+  if(!armDrag){ $("big").style.cursor = (armHit(cur,x,y)||(armSel<0&&(exitHit(cur,x,y)||bendHit(cur,x,y)||tiltHit(cur,x,y)))) ? "grab" : (cur&&!tulipBlank&&routeHit(cur,x,y) ? "pointer" : ""); return; }
   if(armDrag.mode==='exit'){ const [pbx,pby]=exitBase(cur);
     let raw=Math.atan2(x-pbx, pby-y)*180/Math.PI;
-    if(cur.rb&&!cur.rbS){                                                    // roundabout: the arrow bends the END of the exit, within 135° of the stub
-      raw-=rbTiltDeg(cur);
-      const t0=cur.turn==null?0:cur.turn;
-      let v=Math.max(t0-135,Math.min(t0+135,snapAngle(raw)));
-      cur.xb=(Math.round(v)===Math.round(t0))?null:Math.round(v);            // dead straight → keep the spec clean
-      showDeg(v); repaint(); return; }
+    if(cur.rb&&!cur.rbS){
+      /* roundabout: the arrow head slides the whole exit round the ring — the
+         job the ring dot used to do. Measured about the ring's centre with the
+         tilt taken out, so it follows the pointer whatever angle it sits at. */
+      const t=rbTiltDeg(cur)*Math.PI/180, [pvx,pvy]=brgPivot();
+      const rx0=pvx+(x-pvx)*Math.cos(-t)-(y-pvy)*Math.sin(-t);
+      const ry0=pvy+(x-pvx)*Math.sin(-t)+(y-pvy)*Math.cos(-t);
+      cur.turn=Math.max(-160,Math.min(160,snapAngle(Math.atan2(rx0-CXX, CYY-ry0)*180/Math.PI)));
+      cur.xb=null;                                                           // the separate end-bend is gone with its dot
+      showDeg(cur.turn); repaint(); return; }
     const lo=cur.brg?Math.max(-160,(cur.tilt||0)-135):-160, hi=cur.brg?Math.min(160,(cur.tilt||0)+135):160;
     cur.turn=Math.max(lo,Math.min(hi,snapAngle(raw))); showDeg(cur.turn); repaint(); return; }   // main arrow → the exit angle (about the true corner, lifted or jogged)
-  if(armDrag.mode==='rbbend'){
-    /* slide the whole exit round the ring: un-tilt the pointer, angle about the centre */
-    const t=rbTiltDeg(cur)*Math.PI/180, [pvx,pvy]=brgPivot();
-    const rx0=pvx+(x-pvx)*Math.cos(-t)-(y-pvy)*Math.sin(-t);
-    const ry0=pvy+(x-pvx)*Math.sin(-t)+(y-pvy)*Math.cos(-t);
-    cur.turn=Math.max(-160,Math.min(160,snapAngle(Math.atan2(rx0-CXX, CYY-ry0)*180/Math.PI)));
-    if(cur.xb!=null){ const t0=cur.turn;                                     // the bent end stays inside its window
-      cur.xb=Math.max(t0-135,Math.min(t0+135,cur.xb));
-      if(Math.round(cur.xb)===Math.round(t0)) cur.xb=null; }
-    showDeg(cur.turn); repaint(); return; }
   if(armDrag.mode==='tilt'){
     /* swing about the pivot: dot sideways = stem+bridge / roundabout angle */
     const [px,py]=brgPivot();
