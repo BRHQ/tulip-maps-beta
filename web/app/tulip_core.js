@@ -838,14 +838,22 @@ function quickToElements(sp){
       els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:w||bw,ss:0,es:0,col:col,ds:ds?1:0}); };
     const W=dx+cap;                                          // how far the bridge reaches either side
     if(sp.brgU){
-      /* GOING UNDER: the bridge lies ACROSS the route instead of along it, and
-         the route disappears beneath it and comes out the other side. The gap is
-         made by laying a white band over the road between the two edges — the
-         same trick the white core of a wide road uses. */
-      const ud=sp.brgL?11:8;                                 // half the depth of the deck
-      const a=M(uc-ud,0), b=M(uc+ud,0);
-      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:13,ss:0,es:0,col:"#fff"});   // the road, hidden under it
-      for(const sgn of [-1,1]) seg(uc+sgn*ud, -W, uc+sgn*ud, W);            // the two edges of the bridge
+      /* GOING UNDER: the SAME bracket symbol, turned a quarter turn so it lies
+         across the route — caps and all — and the route disappears beneath it
+         and comes out the other side. The gap is made by laying a white band
+         over the road, the same trick the white core of a wide road uses.
+         The band is drawn SHORT of the edges because the line has round ends:
+         let it run the full depth and those ends bulge past the bridge and
+         bite two white nicks out of the road either side. */
+      const ud=sp.brgL?11:8, MW=13;                          // half the depth of the deck
+      const half=Math.max(0,ud-MW/2);
+      const a=M(uc-half,0), b=M(uc+half,0);
+      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:MW,ss:0,es:0,col:"#fff"});
+      for(const sgn of [-1,1]){
+        seg(uc+sgn*ud, -W, uc+sgn*ud, W);                    // the bracket itself, across the route
+        seg(uc+sgn*ud, -W, uc+sgn*(ud+cap), -W);             // cap, turned away
+        seg(uc+sgn*ud,  W, uc+sgn*(ud+cap),  W);             // cap, turned away
+      }
     } else {
       for(const sgn of [-1,1]){
         seg(uc-hh, sgn*W,  uc-hh, sgn*dx);                   // cap, turned away
@@ -859,18 +867,16 @@ function quickToElements(sp){
       /* what's carried OVER you — it runs along the bridge and carries on out
          the far side, so you can see at a glance whether it's a road, a railway
          or a footbridge above your head. */
-      for(const sgn of [-1,1]){
-        const v0=sgn*W, v1=sgn*(W+13);
-        if(sp.brgx==="rail"){
-          seg(uc-2.6, v0, uc-2.6, v1, 1.8);
-          seg(uc+2.6, v0, uc+2.6, v1, 1.8);
-          for(const f of [0.3,0.72]) seg(uc-5, v0+(v1-v0)*f, uc+5, v0+(v1-v0)*f, 1.5);
-        } else if(sp.brgx==="foot"){
-          seg(uc, v0, uc, v1, 2.2, null, true);              // a footbridge: a dashed way over
-        } else {
-          seg(uc-3.6, v0, uc-3.6, v1, 1.9);                  // a road over the top
-          seg(uc+3.6, v0, uc+3.6, v1, 1.9);
-        }
+      const vE=W+14;                                          // runs the whole bridge and out both ends
+      if(sp.brgx==="rail"){
+        seg(uc-2.6, -vE, uc-2.6, vE, 1.8);
+        seg(uc+2.6, -vE, uc+2.6, vE, 1.8);
+        for(let v=-vE+5; v<=vE-4; v+=8) seg(uc-5.5, v, uc+5.5, v, 1.5);   // sleepers, the whole way
+      } else if(sp.brgx==="foot"){
+        seg(uc, -vE, uc, vE, 2.2, null, true);                // a footbridge: a dashed way over
+      } else {
+        seg(uc-3.6, -vE, uc-3.6, vE, 1.9);                    // a road over the top
+        seg(uc+3.6, -vE, uc+3.6, vE, 1.9);
       }
     } else if(sp.brgx){
       const vs=dx+cap+9;
