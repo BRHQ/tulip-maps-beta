@@ -845,14 +845,17 @@ function quickToElements(sp){
          The band is drawn SHORT of the edges because the line has round ends:
          let it run the full depth and those ends bulge past the bridge and
          bite two white nicks out of the road either side. */
-      const ud=sp.brgL?11:8, MW=13;                          // half the depth of the deck
-      const half=Math.max(0,ud-MW/2);
-      const a=M(uc-half,0), b=M(uc+half,0);
-      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:MW,ss:0,es:0,col:"#fff"});
+      const ud=sp.brgL?13:10, UW=W+4;                        // half the depth, and how far it reaches
+      /* white out the WHOLE deck, not just the road — a side road running
+         through here passes underneath too, so nothing shows on top of the
+         bridge. Drawn short of the ends because the line has round caps. */
+      const mw=2*ud, mh=Math.max(0,UW-ud);
+      const a=M(uc,-mh), b=M(uc,mh);
+      els.push({k:'l',p:[a[0],a[1],b[0],b[1]],w:mw,ss:0,es:0,col:"#fff"});
       for(const sgn of [-1,1]){
-        seg(uc+sgn*ud, -W, uc+sgn*ud, W);                    // the bracket itself, across the route
-        seg(uc+sgn*ud, -W, uc+sgn*(ud+cap), -W);             // cap, turned away
-        seg(uc+sgn*ud,  W, uc+sgn*(ud+cap),  W);             // cap, turned away
+        seg(uc+sgn*ud, -UW, uc+sgn*ud, UW);                  // the bracket itself, across the route
+        seg(uc+sgn*ud, -UW, uc+sgn*(ud+cap), -UW);           // cap, turned away
+        seg(uc+sgn*ud,  UW, uc+sgn*(ud+cap),  UW);           // cap, turned away
       }
     } else {
       for(const sgn of [-1,1]){
@@ -867,11 +870,9 @@ function quickToElements(sp){
       /* what's carried OVER you — it runs along the bridge and carries on out
          the far side, so you can see at a glance whether it's a road, a railway
          or a footbridge above your head. */
-      const vE=W+14;                                          // runs the whole bridge and out both ends
+      const vE=W+18;                                          // runs the whole bridge and out both ends
       if(sp.brgx==="rail"){
-        seg(uc-2.6, -vE, uc-2.6, vE, 1.8);
-        seg(uc+2.6, -vE, uc+2.6, vE, 1.8);
-        for(let v=-vE+5; v<=vE-4; v+=8) seg(uc-5.5, v, uc+5.5, v, 1.5);   // sleepers, the whole way
+        const s0=M(uc,-vE), s1=M(uc,vE); railSeg(s0[0],s0[1],s1[0],s1[1]);   // the one railway drawing
       } else if(sp.brgx==="foot"){
         seg(uc, -vE, uc, vE, 2.2, null, true);                // a footbridge: a dashed way over
       } else {
@@ -889,9 +890,7 @@ function quickToElements(sp){
                      {k:'q',p:[b[0],b[1],m2[0],m2[1],c[0],c[1]],w:2.2,ss:0,es:0});
           }
         }else if(sp.brgx==="rail"){
-          seg(uc-2, sgn*vs-7, uc-2, sgn*vs+7, 1.8);
-          seg(uc+2, sgn*vs-7, uc+2, sgn*vs+7, 1.8);
-          for(const sv of [-4,0,4]) seg(uc-4.5, sgn*vs+sv, uc+4.5, sgn*vs+sv, 1.5);
+          const r0=M(uc,sgn*vs-8), r1=M(uc,sgn*vs+8); railSeg(r0[0],r0[1],r1[0],r1[1]);
         }else{
           seg(uc-2.6, sgn*vs-7, uc-2.6, sgn*vs+7, 1.9);
           seg(uc+2.6, sgn*vs-7, uc+2.6, sgn*vs+7, 1.9);
@@ -903,10 +902,7 @@ function quickToElements(sp){
     /* level crossing: the railway crossing the road at the junction — wide,
        with plenty of track either side of the route */
     const y=CYY+10, lxw=26;   // below the corner, on the always-vertical stem — so the rails CROSS the road at every exit angle
-    els.push({k:'l',p:[EX-lxw,y-2.5,EX+lxw,y-2.5],w:2,ss:0,es:0},
-             {k:'l',p:[EX-lxw,y+2.5,EX+lxw,y+2.5],w:2,ss:0,es:0});
-    for(let sx=-24;sx<=24;sx+=8)
-      els.push({k:'l',p:[EX+sx,y-5,EX+sx,y+5],w:1.6,ss:0,es:0});
+    railSeg(EX-lxw,y,EX+lxw,y);          // the same railway drawing as everywhere else
   }
   if(sp.rb&&sp.rbS){
     /* small roundabout: the route runs through as a normal corner, with the

@@ -1383,7 +1383,7 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=4aug2"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="tulip_core.js?v=4aug3"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
@@ -3131,14 +3131,14 @@ function ctxOnPoint(idx){                       // right-click on a track point,
     ["➕ Add Points",()=>startAddPoints({lat:pts[idx].lat,lng:pts[idx].lon},idx)],
     ["📍 Add Waypoint Here",()=>addWaypointAt(idx)],
     ["🧭 Route From Here",()=>startRouting(idx)],
+    ["👁 Street View Here",()=>{ selectVertex(idx); toggleSV(true); }],
     "---",
     ["🗑 Delete This Point",()=>deleteTrackPoint(idx)]];
 }
 function ctxOffTrack(ll){                       // right-click on bare map — grow the line
   if(!xmlDoc) return ctxNoRoute(ll);
   return [
-    ["➕ Add Point Here",()=>appendTrackPoint(ll)],
-    ["➕ Add Points",()=>startAddPoints(ll)],
+    ["➕ Add Point Here",()=>appendTrackPoint(ll)],       // one way of adding a point, not two
     ["📍 Add Waypoint Here",()=>{ appendTrackPoint(ll); addWaypointAt(pts.length-1); }],
     ["🧭 Route From Here",()=>{ appendTrackPoint(ll); startRouting(pts.length-1); }]];
 }
@@ -4029,7 +4029,7 @@ function syncQuick(){
 let armType="road";                                     // what ＋ adds — road, railway or track
 const ARMTYPE_ICON={
   road:'<svg class="csi at" viewBox="0 0 14 14"><path d="M4 1.2 V12.8 M10 1.2 V12.8 M7 2.2 V4 M7 6.2 V8 M7 10.2 V12"/></svg>',
-  rail:'<svg class="csi at" viewBox="0 0 14 14"><path d="M4.8 1.2 V12.8 M9.2 1.2 V12.8 M2.8 3.2 H11.2 M2.8 7 H11.2 M2.8 10.8 H11.2"/></svg>',
+  rail:'<svg class="csi at" viewBox="0 0 14 14"><path d="M5 1.2 V12.8 M9 1.2 V12.8 M2.5 3.4 H11.5 M2.5 7 H11.5 M2.5 10.6 H11.5"/></svg>',
   track:'<svg class="csi at" viewBox="0 0 14 14"><path d="M7 1.2 V4 M7 6 V8.4 M7 10.4 V12.8"/></svg>'};
 const ARMTYPE_NAME={road:"a side ROAD", rail:"a RAILWAY", track:"a TRACK (dashed)"};
 const ARMTYPE_SEQ=["road","rail","track"];
