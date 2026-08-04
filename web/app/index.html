@@ -1018,6 +1018,8 @@
           <div class="stampgrid" id="pal_mine"></div>
           <div class="stampgrid" id="pal_junc"></div>
           <div class="stampgrid" id="pal_rb"></div>
+          <div class="stampgrid" id="pal_imp"></div>
+          <input type="file" id="impfile" accept=".tvrx,.gpx,.xml" multiple style="display:none">
           <div class="libempty hint" id="libempty" style="display:none">No stamps match — try another word.</div>
         </div>
       </div>
@@ -4306,7 +4308,7 @@ function presetTile(pal,label,spec){
   pal.append(tile);
 }
 /* Library: category chips + search instead of nine stacked lists. */
-const LIBCATS=[["pal_mine","My Tulips"],["pal_junc","Junctions"],["pal_rb","Roundabouts"]];
+const LIBCATS=[["pal_mine","My Tulips"],["pal_junc","Junctions"],["pal_rb","Roundabouts"],["pal_imp","RiverNotes"]];
 let libCat="pal_junc";
 function buildLibChips(){
   const box=$("libchips"); box.innerHTML="";
@@ -4343,6 +4345,129 @@ $("libsearch").oninput=()=>applyLibView();
   for(const [l,s] of PRESETS.slice(18)) presetTile($("pal_rb"),l,s);
   buildLibChips();
 })();
+/* ── BRINGING A RIVERNOTES LIBRARY IN ──────────────────────────────────────
+   RiverNotes keeps its own library as encrypted .tpy3 files, which can't be
+   read — but the app exports plain GPX (.tvrx), and in that a tulip is a
+   <tripy:figure_tulip> holding positioned <fpicture> images and <ftext>
+   labels. Both map straight onto what our detailed tulips already hold, so a
+   whole exported library converts across without losing anything.
+   NOTE they arrive as PICTURES, not lines: placeable and printable, but not
+   editable shape by shape. There is nothing we can do about that — that is
+   how RiverNotes stores them. */
+let impTulips=[];
+const IMP_W=188, IMP_H=160;                       // our tulip's own drawing space
+function rnParse(xmlText, fileLabel){
+  const doc=new DOMParser().parseFromString(xmlText,"text/xml");
+  if(doc.querySelector("parsererror")) throw new Error("that file isn't readable XML");
+  const out=[], wpts=[...doc.getElementsByTagName("wpt")];
+  const figs=[];
+  wpts.forEach(w=>{
+    [...w.getElementsByTagName("*")].forEach(el=>{
+      if(el.localName==="figure_tulip") figs.push({fig:el,wpt:w});
+    });
+  });
+  if(!figs.length) [...doc.getElementsByTagName("*")].forEach(el=>{
+    if(el.localName==="figure_tulip") figs.push({fig:el,wpt:null}); });
+  figs.forEach(({fig,wpt},n)=>{
+    const pics=[...fig.getElementsByTagName("*")].filter(e=>e.localName==="fpicture");
+    const txts=[...fig.getElementsByTagName("*")].filter(e=>e.localName==="ftext");
+    if(!pics.length&&!txts.length) return;
+    const num=v=>{ const a=String(v||"").trim().split(/\s+/).map(parseFloat); return [a[0]||0,a[1]||0]; };
+    /* work out the box everything sits in, then fit that into our tulip */
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    const items=[];
+    pics.forEach(p=>{
+      const [ax,ay]=num(p.getAttribute("pos")), [bx,by]=num(p.getAttribute("endpos"));
+      const data=(p.textContent||"").replace(/^\s*data:image\/\w+;base64,/,"").trim();
+      if(!data) return;
+      const X=Math.min(ax,bx), Y=Math.min(ay,by), W=Math.abs(bx-ax)||1, H=Math.abs(by-ay)||1;
+      x0=Math.min(x0,X); y0=Math.min(y0,Y); x1=Math.max(x1,X+W); y1=Math.max(y1,Y+H);
+      items.push({t:"i",X,Y,W,H,data});
+    });
+    txts.forEach(t=>{
+      const [ax,ay]=num(t.getAttribute("pos"));
+      const sz=parseFloat(t.getAttribute("size"))||10, tx=t.getAttribute("text")||"";
+      if(!tx) return;
+      x0=Math.min(x0,ax); y0=Math.min(y0,ay-sz); x1=Math.max(x1,ax+tx.length*sz*0.6); y1=Math.max(y1,ay);
+      items.push({t:"t",X:ax,Y:ay,sz,text:tx});
+    });
+    if(!items.length) return;
+    const bw=Math.max(1,x1-x0), bh=Math.max(1,y1-y0);
+    const k=Math.min((IMP_W-16)/bw,(IMP_H-16)/bh);          // fit, keeping the shape
+    const ox=(IMP_W-bw*k)/2-x0*k, oy=(IMP_H-bh*k)/2-y0*k;
+    const els=items.map(it=> it.t==="i"
+      ? {k:'i',p:[it.X*k+ox,it.Y*k+oy],w:it.W*k,h:it.H*k,data:it.data}
+      : {k:'t',p:[it.X*k+ox,it.Y*k+oy],sz:Math.max(7,it.sz*k),text:it.text});
+    let label="";
+    if(wpt){ const nm=wpt.getElementsByTagName("name")[0], cm=wpt.getElementsByTagName("cmt")[0];
+      label=((nm&&nm.textContent)||"").trim()||((cm&&cm.textContent)||"").trim(); }
+    out.push({ id:"rn-"+fileLabel+"-"+n,
+      label: label || (fileLabel+" "+(n+1)),
+      tags: fileLabel.toLowerCase(),
+      spec: drawToString(els) });
+  });
+  return out;
+}
+function rnImportFiles(files){
+  const jobs=[...files].map(f=>f.text().then(t=>{
+    const base=f.name.replace(/\.[^.]+$/,"").trim()||"RiverNotes";
+    try{ return rnParse(t,base); }catch(e){ toast("Couldn't read "+f.name+": "+e.message,5000); return []; }
+  }));
+  return Promise.all(jobs).then(lists=>{
+    const all=lists.flat();
+    if(!all.length){ toast("No tulips found in that — is it a RiverNotes export?",5000); return 0; }
+    return impPutAll(all).then(()=>impAll()).then(l=>{ impTulips=l; buildImported();
+      toast("Brought in "+all.length+" tulip"+(all.length===1?"":"s")+" — they're in the RiverNotes folder.",5000);
+      return all.length; });
+  });
+}
+function buildImported(){
+  const pal=$("pal_imp"); if(!pal) return;
+  pal.innerHTML="";
+  const bar=document.createElement("div");
+  bar.style.cssText="grid-column:1/-1;display:flex;gap:6px;align-items:center;margin-bottom:2px";
+  const add=document.createElement("button"); add.className="rc-s"; add.textContent="📂 Import a RiverNotes export";
+  add.title="a .tvrx or .gpx saved out of RiverNotes";
+  add.onclick=()=>$("impfile").click();
+  bar.append(add);
+  if(impTulips.length){
+    const clr=document.createElement("button"); clr.className="rc-s"; clr.textContent="✕ empty this folder";
+    clr.onclick=async ()=>{ if(!await askConfirm("The imported tulips are removed. The RiverNotes file on your computer isn't touched.",
+        {title:"Empty the RiverNotes folder?",yes:"Empty it",no:"Keep them"})) return;
+      impClear().then(()=>{ impTulips=[]; buildImported(); }); };
+    bar.append(clr);
+    const n=document.createElement("span"); n.className="hint"; n.textContent=impTulips.length+" in here";
+    bar.append(n);
+  }
+  pal.append(bar);
+  if(!impTulips.length){
+    const hint=document.createElement("div"); hint.className="hint"; hint.style.gridColumn="1/-1";
+    hint.textContent="Nothing here yet. Save a roadbook out of RiverNotes as GPX, then bring the file in with the button above.";
+    pal.append(hint); return;
+  }
+  impTulips.forEach(m=>{
+    const tile=document.createElement("div"); tile.className="stamp";
+    tile.dataset.name=((m.label||"")+" "+(m.tags||"")).toLowerCase();
+    tile.title=m.label||"";
+    const cv=document.createElement("canvas"); cv.width=112; cv.height=96;
+    const c2=cv.getContext("2d"); c2.scale(112/188,96/160);
+    const sp=parseSpec(m.spec);
+    if(sp&&sp.draw) drawElements(c2,sp.draw);
+    tile.append(cv);
+    tile.onclick=()=>{
+      noteUse(tile.dataset.name);
+      const sp=parseSpec(m.spec);
+      if(!sp||!sp.draw){ toast("That one didn't come through — try the import again.",4000); return; }
+      els=sp.draw.map(e=>({...e})); cur=null; esel=-1; elsStash=null;   // pictures: straight into the detailed editor
+      mark(); setMode(true); repaint();
+    };
+    pal.append(tile);
+  });
+}
+impAll().then(l=>{ impTulips=l; buildImported(); });
+(function(){ const f=$("impfile"); if(!f) return;
+  f.onchange=e=>{ const list=e.target.files; e.target.value="";
+    if(list&&list.length) rnImportFiles(list); }; })();
 let myTulips=[];
 try{ myTulips=JSON.parse(localStorage.getItem("vmstudio_mytulips")||"[]"); }catch(e){}
 function persistMine(){ try{ localStorage.setItem("vmstudio_mytulips",JSON.stringify(myTulips)); }catch(e){} }
@@ -5219,12 +5344,36 @@ $("savevm").onclick=()=>{
    Metadata and the route body are separate stores so listing stays quick. */
 function tmOpen(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open("tulipmaps",1);
+    const r=indexedDB.open("tulipmaps",2);
     r.onupgradeneeded=()=>{ const db=r.result;
       if(!db.objectStoreNames.contains("meta")) db.createObjectStore("meta",{keyPath:"id"});
-      if(!db.objectStoreNames.contains("data")) db.createObjectStore("data"); };
+      if(!db.objectStoreNames.contains("data")) db.createObjectStore("data");
+      /* imported tulips live here, not in localStorage: they carry their
+         pictures with them and a few hundred would blow the 5 MB the browser
+         allows a page to keep in the small store */
+      if(!db.objectStoreNames.contains("libimp")) db.createObjectStore("libimp",{keyPath:"id"}); };
     r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error||new Error("storage unavailable"));
   });
+}
+function impPutAll(list){
+  return tmOpen().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction("libimp","readwrite"), st=tx.objectStore("libimp");
+    list.forEach(t=>st.put(t));
+    tx.oncomplete=()=>res(list.length); tx.onerror=()=>rej(tx.error);
+  }));
+}
+function impAll(){
+  return tmOpen().then(db=>new Promise((res,rej)=>{
+    const q=db.transaction("libimp").objectStore("libimp").getAll();
+    q.onsuccess=()=>res(q.result||[]); q.onerror=()=>rej(q.error);
+  })).catch(()=>[]);
+}
+function impClear(){
+  return tmOpen().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction("libimp","readwrite");
+    tx.objectStore("libimp").clear();
+    tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
+  }));
 }
 function tmList(){
   return tmOpen().then(db=>new Promise((res,rej)=>{
