@@ -985,6 +985,10 @@
         </div>
       </div>
       <div id="drawui" style="display:none">
+        <div class="csrow" id="stylerow">
+          <button class="tog" id="groundstyle" title="how painted ground looks — everywhere at once, print included">🎨 ground: colour</button>
+          <button class="tog" id="symstyle" title="how pack symbols are drawn — everywhere at once, print included">✒ symbols: solid</button>
+        </div>
         <div class="csrow" id="shaperow">
           <button class="tog ico" onclick="addEl('l')" title="straight line"><svg class="csi" viewBox="0 0 16 16"><path d="M3 13 L13 3"/></svg></button>
           <button class="tog ico" onclick="addEl('q')" title="curved line"><svg class="csi" viewBox="0 0 16 16"><path d="M3 13 Q3 3 13 3"/></svg></button>
@@ -993,6 +997,13 @@
           <button class="tog ico" onclick="addEl('b')" title="box"><svg class="csi" viewBox="0 0 16 16"><rect x="2.8" y="4.2" width="10.4" height="7.6" rx="1.3"/></svg></button>
           <button class="tog ico" onclick="addEl('t')" title="text label"><svg class="csi" viewBox="0 0 16 16"><path d="M3.5 4 H12.5 M8 4 V12.5"/></svg></button>
           <button class="tog ico" onclick="openStampPicker()" title="add a symbol"><svg class="csi" viewBox="0 0 16 16"><path d="M8 3.5 V12.5 M3.5 8 H12.5"/></svg></button>
+          <button class="tog ico" id="paintbtn" onclick="startPaint()" title="paint the ground — pick a surface, drag like a felt-tip; it always stays under the ink"><svg class="csi" viewBox="0 0 16 16"><path d="M2.5 13.5 C2.6 11.2 4.6 11.6 5.6 9.6 M5.6 9.6 L11.6 2.8 C12.6 1.8 14.2 3.3 13.2 4.4 L6.9 10.7 Z"/></svg></button>
+        </div>
+        <div class="csrow" id="paintrow" style="display:none">
+          <span class="seg" id="paintsurfs" title="what to paint"></span>
+          <span class="seg" id="paintsize" title="brush size">
+            <button data-s="2">S</button><button data-s="3">M</button><button data-s="4">L</button>
+          </span>
         </div>
         <div id="eprops">
           <div class="csrow">
@@ -1368,6 +1379,7 @@
       <button class="rs-hbtn" id="signnone">✕ none</button>
       <button class="rs-hbtn rs-x" id="signclose" title="close">✕</button>
     </div>
+    <div style="padding:7px 14px 2px"><input type="text" id="signsearch" placeholder="search — gate, camel, hospital…" style="width:100%"></div>
     <div class="signbody" id="signbody"></div>
   </div>
 </div>
@@ -1393,7 +1405,8 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=4aug4"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="tulip_core.js?v=6aug1"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="packs.js?v=6aug1"></script>        <!-- the symbol packs (animals, buildings, desert…) — same rule -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
@@ -3662,7 +3675,7 @@ function repaint(){
   if(els&&snap){ ctx.strokeStyle="#e6eae6"; ctx.lineWidth=.4;
     for(let x=0;x<=TW;x+=GRID){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,THh); ctx.stroke(); }
     for(let y=0;y<=THh;y+=GRID){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(TW,y); ctx.stroke(); } }
-  if(els){ drawElements(ctx,els); drawHandles(ctx); drawPathPreview(ctx); drawMagnet(ctx); }
+  if(els){ drawElements(ctx,els); drawPaintPreview(ctx); drawHandles(ctx); drawPathPreview(ctx); drawMagnet(ctx); }
   else if(cur && !tulipBlank){ drawQuickEd(ctx,cur); drawArmHandles(ctx); drawExitHandle(ctx);
     if(cornDrag) drawElements(ctx,[{k:'s',name:cornDrag.sym,p:[cornDrag.x,cornDrag.y],sc:1}]); }   // corner symbol following the cursor
   // when tulipBlank the canvas stays empty — the tulip appears the moment a control is touched
@@ -3787,6 +3800,13 @@ function handlePts(e){
 }
 function drawHandles(ctx){
   if(esel<0||!els[esel])return;
+  const se=els[esel];
+  if(se.k==='a'){                                    // paint has no dots — a dashed line down its middle shows it's held
+    ctx.save(); ctx.strokeStyle="#2f6fed"; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
+    const P=se.p; ctx.beginPath(); ctx.moveTo(P[0],P[1]);
+    for(let i=2;i+1<P.length;i+=2) ctx.lineTo(P[i],P[i+1]);
+    ctx.stroke(); ctx.restore();
+  }
   for(const [x,y,kind] of handlePts(els[esel])){
     ctx.fillStyle= kind==='ctl' ? "#fff" : "#2f6fed";
     ctx.strokeStyle="#2f6fed"; ctx.lineWidth=1.5;
@@ -3816,6 +3836,7 @@ function toDraw(){                                   // quick → detailed (keep
   cur=null; esel=-1; mark(); setMode(true); repaint();
 }
 function toQuick(){                                  // detailed → quick (brings back your original quick)
+  cancelPaint();
   if(els) elsStash=JSON.parse(JSON.stringify(els));              // remember the detailed design
   if(curStash){ cur=JSON.parse(JSON.stringify(curStash)); }      // restore the quick you started from…
   else { cur=specFromText($("dirtext").value||""); cur.arms=cur.arms.map(m=>({...m})); }  // …or make one from the note
@@ -3848,7 +3869,8 @@ function signCat(){ if(_signCat)return _signCat;
 function cornerCat(){ if(_cornerCat)return _cornerCat;
   _cornerCat=signCat().concat([
     {g:"Tulip markers",items:[["pump","Fuel"],["lc","Level crossing"],["br","Bridge"],["warn","Caution"],["warnr","Danger"]]}
-  ]); return _cornerCat; }
+  ], (typeof PACK_CAT==="function"?PACK_CAT():[]));   // the symbol packs ride along — corners and stamps alike
+  return _cornerCat; }
 function drawByName(ctx,name,x,y,sc){
   try{ if(name.indexOf("rs_")===0) drawSign(ctx,name.slice(3),x,y,sc); else drawStamp(ctx,name,x,y,sc); }catch(e){}
 }
@@ -3901,6 +3923,7 @@ function symbolNode(name, px){
 let pickTarget=null;
 function buildPicker(cat,current){
   const body=$("signbody"); if(!body)return; body.innerHTML="";
+  const ss=$("signsearch"); if(ss) ss.value="";       // the window always opens showing everything
   for(const grp of cat){
     const h=document.createElement("h4"); h.textContent=grp.g; body.append(h);
     const g=document.createElement("div"); g.className="signgrid"; body.append(g);
@@ -3908,6 +3931,7 @@ function buildPicker(cat,current){
       const name=it[0], label=it[1];
       const on = current instanceof Set ? current.has(name) : name===current;
       const opt=document.createElement("div"); opt.className="signopt"+(on?" on":""); opt.dataset.name=name;
+      opt.dataset.kw=(label+" "+grp.g+" "+((typeof PACK_KW!=="undefined"&&PACK_KW[name])||"")).toLowerCase();
       const s=document.createElement("span"); s.textContent=label;
       opt.append(symbolNode(name,52), s);
       opt.onclick=()=>choosePick(name);
@@ -4237,6 +4261,7 @@ function clearTulip(){
 }
 function addEl(kind){
   if(!els)return;
+  cancelPaint();
   tulipSnap();
   if(kind==='l') els.push({k:'l',p:[60,120,128,60],w:9,ss:0,es:0});
   else if(kind==='q') els.push({k:'q',p:[50,130,94,60,140,110],w:9,ss:0,es:0});
@@ -4248,7 +4273,7 @@ function addEl(kind){
 /* ---- path tool: click point after point, double-click (or the button again) to finish.
    The finished path is normal line/curve pieces, so everything else still edits it. ---- */
 let pathMode=false, pathPts=[];
-function startPath(){ if(!els) return; pathMode=!pathMode; pathPts=[]; syncPathBtn(); repaint(); }
+function startPath(){ if(!els) return; cancelPaint(); pathMode=!pathMode; pathPts=[]; syncPathBtn(); repaint(); }
 function syncPathBtn(){ const b=$("pathbtn"); if(b) b.classList.toggle("on",pathMode);
   const c=$("big"); if(c) c.style.cursor=pathMode?"crosshair":""; }
 function cancelPath(){ pathMode=false; pathPts=[]; syncPathBtn(); repaint(); }
@@ -4280,6 +4305,97 @@ function drawPathPreview(ctx){
   for(const p of pathPts){ ctx.beginPath(); ctx.arc(p[0],p[1],3,0,7); ctx.fill(); }
   ctx.restore();
 }
+/* ---- ground paint: pick a surface, drag like a felt-tip. Strokes are normal
+   pieces (k:'a') so undo, move, copy and delete all just work — and the core
+   always draws them UNDER the ink, so paint can never cover the route. ---- */
+const PAINTW=[12,18,26,38,52];                       // thickness steps; S/M/L in the brush row = 2/3/4
+let paintMode=false, paintSurf="grass", paintWi=26, paintPts=null;
+function startPaint(){
+  if(!els&&cur) toDraw();
+  if(!els) return;
+  paintMode=!paintMode;
+  if(paintMode){ cancelPath(); esel=-1; syncProps(); }
+  paintPts=null; syncPaintUI(); repaint();
+}
+function cancelPaint(){ if(!paintMode&&!paintPts) return; paintMode=false; paintPts=null; syncPaintUI(); }
+function syncPaintUI(){
+  const b=$("paintbtn"); if(b) b.classList.toggle("on",paintMode);
+  const selPaint = els&&esel>=0&&els[esel]&&els[esel].k==='a';
+  const row=$("paintrow"); if(row) row.style.display=(paintMode||selPaint)?"":"none";
+  const c=$("big"); if(c&&!pathMode) c.style.cursor=paintMode?"crosshair":"";
+  document.querySelectorAll("#paintsurfs button").forEach(x=>x.classList.toggle("on",x.dataset.surf===paintSurf));
+  document.querySelectorAll("#paintsize button").forEach(x=>x.classList.toggle("on",PAINTW[+x.dataset.s-1]===paintWi));
+}
+function paintChips(){                               // the little surface squares in the brush row
+  const box=$("paintsurfs"); if(!box) return; box.innerHTML="";
+  for(const [surf,label] of GROUND_SURFS){
+    const b=document.createElement("button"); b.dataset.surf=surf; b.title=label;
+    const cv=document.createElement("canvas"); cv.width=26; cv.height=20; cv.style.display="block"; cv.style.borderRadius="3px";
+    const c2=cv.getContext("2d");
+    c2.fillStyle="#fff"; c2.fillRect(0,0,26,20);     // ink tiles are see-through — give the chip a floor
+    c2.fillStyle=groundPattern(c2,surf,BOOKSTYLE.ground); c2.fillRect(0,0,26,20);
+    b.append(cv);
+    b.onclick=()=>{ paintSurf=surf;
+      if(els&&esel>=0&&els[esel]&&els[esel].k==='a'){ tulipSnap(); els[esel].surf=surf; mark(); repaint(); }
+      syncPaintUI(); };
+    box.append(b);
+  }
+}
+document.querySelectorAll("#paintsize button").forEach(b=>b.onclick=()=>{
+  paintWi=PAINTW[+b.dataset.s-1];
+  if(els&&esel>=0&&els[esel]&&els[esel].k==='a'){ tulipSnap(); els[esel].w=paintWi; mark(); repaint(); }
+  syncPaintUI();
+});
+function finishPaintStroke(){
+  if(!paintPts){ return; }
+  tulipSnap();
+  const flat=[]; let last=null;
+  for(let i=0;i<paintPts.length;i++){ const p=paintPts[i];
+    if(!last||Math.hypot(p[0]-last[0],p[1]-last[1])>=3.2||i===paintPts.length-1){ flat.push(Math.round(p[0]),Math.round(p[1])); last=p; } }
+  while(flat.length>240){                            // a really long scribble: drop every other point
+    for(let i=flat.length-4;i>=2;i-=4) flat.splice(i,2); }
+  if(flat.length===2) flat.push(flat[0]+1,flat[1]);  // a tap = a dab
+  els.push({k:'a',surf:paintSurf,w:paintWi,p:flat});
+  paintPts=null; esel=els.length-1; mark(); syncProps(); repaint();
+}
+function drawPaintPreview(ctx){
+  if(!paintPts||!paintPts.length) return;
+  drawEls(ctx,[{k:'a',surf:paintSurf,w:paintWi,p:paintPts.flat()}]);   // the real stroke, live
+}
+/* the two "book look" switches — saved on this computer, applied everywhere:
+   the editor, the thumbnails, the live strip and the printed roadbook */
+(function(){
+  try{ const s=JSON.parse(localStorage.getItem("tm_bookstyle")||"{}");
+    if(s.ground) BOOKSTYLE.ground=s.ground; if(s.sym) BOOKSTYLE.sym=s.sym; }catch(e){}
+  const g=$("groundstyle"), sy=$("symstyle");
+  const syncStyleBtns=()=>{
+    if(g) g.textContent="🎨 ground: "+(BOOKSTYLE.ground==="ink"?"ink":"colour");
+    if(sy) sy.textContent="✒ symbols: "+(BOOKSTYLE.sym==="line"?"line":"solid");
+  };
+  const refresh=()=>{
+    try{ localStorage.setItem("tm_bookstyle",JSON.stringify(BOOKSTYLE)); }catch(e){}
+    syncStyleBtns(); paintChips(); repaint();
+    try{ renderList(); }catch(e){} try{ rbStripDraw(); }catch(e){}
+  };
+  if(g) g.onclick=()=>{ BOOKSTYLE.ground=BOOKSTYLE.ground==="ink"?"colour":"ink"; refresh(); };
+  if(sy) sy.onclick=()=>{ BOOKSTYLE.sym=BOOKSTYLE.sym==="line"?"solid":"line"; refresh(); };
+  syncStyleBtns(); paintChips();
+})();
+/* search inside the symbol window — label + hidden keywords, every word must match */
+function filterPicker(){
+  const el=$("signsearch"); if(!el) return;
+  const terms=(el.value||"").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  for(const grid of document.querySelectorAll("#signbody .signgrid")){
+    let hit=false;
+    grid.querySelectorAll(".signopt").forEach(o=>{
+      const ok=!terms.length||terms.every(t=>(o.dataset.kw||"").includes(t));
+      o.style.display=ok?"":"none"; if(ok) hit=true;
+    });
+    grid.style.display=hit?"":"none";
+    const h=grid.previousElementSibling; if(h&&h.tagName==="H4") h.style.display=hit?"":"none";
+  }
+}
+{ const ss=$("signsearch"); if(ss) ss.oninput=filterPicker; }
 const SYMBOLS=[["lc","rail xing"],["f","fuel"],["warn","warning"],["dng","danger"],
   ["give","give way"],["tl","lights"],["gate","gate"],["no","no entry"],["stop","stop bar"],
   ["xr","crossroads"],["tj","t-junction"],["mj","motorway"],["onr","on-ramp"],["offr","off-ramp"],
@@ -4651,7 +4767,8 @@ function flipEl(){
 }
 function delEl(){ if(esel>=0){ tulipSnap(); els.splice(esel,1); esel=-1; mark(); syncProps(); repaint(); } }
 function dupEl(){ if(esel>=0){ tulipSnap(); const c=JSON.parse(JSON.stringify(els[esel]));
-  if(c.p.length>=2){c.p[0]+=12;c.p[1]+=12;} if(c.p.length>=4){c.p[2]+=12;c.p[3]+=12;} if(c.p.length>=6){c.p[4]+=12;c.p[5]+=12;}
+  if(c.k==='a'){ for(let i=0;i+1<c.p.length;i+=2){ c.p[i]+=12; c.p[i+1]+=12; } }   // paint: shift the whole stroke
+  else { if(c.p.length>=2){c.p[0]+=12;c.p[1]+=12;} if(c.p.length>=4){c.p[2]+=12;c.p[3]+=12;} if(c.p.length>=6){c.p[4]+=12;c.p[5]+=12;} }
   els.push(c); esel=els.length-1; mark(); syncProps(); repaint(); } }
 function syncProps(){
   const box=$("eprops");
@@ -4665,8 +4782,9 @@ function syncProps(){
   if(e.k==='t'){ $("etext").value=e.text||""; }
   if(isLine){ syncCapBtn("sscapbtn",e.ss||0); syncCapBtn("escapbtn",e.es||0); }
   $("p_fill").classList.toggle("on",e.k==='c'&&!!e.fill);
-  const step = e.k==='t' ? nearestStep(TEXTSZ, e.sz||18) : nearestStep(WSTEPS, e.w||9);
+  const step = e.k==='t' ? nearestStep(TEXTSZ, e.sz||18) : e.k==='a' ? nearestStep(PAINTW, e.w||26) : nearestStep(WSTEPS, e.w||9);
   [...$("ewseg").children].forEach(b=>b.classList.toggle("on",+b.dataset.s===step));
+  syncPaintUI();                                     // a held paint stroke shows the surface row too
 }
 /* line thickness in 5 plain steps — 2 is a side road, 4 is the main route */
 const WSTEPS=[3,5,7,9,12], TEXTSZ=[12,15,18,22,28];
@@ -4690,7 +4808,7 @@ function openStampPicker(){
 $("p_fill").onclick=()=>{ const e=els[esel]; e.fill=e.fill?0:1; mark(); syncProps(); repaint(); };
 [...document.querySelectorAll("#ewseg button")].forEach(b=>b.onclick=()=>{
   if(esel<0)return; const el=els[esel], s=+b.dataset.s;
-  if(el.k==='t') el.sz=TEXTSZ[s-1]; else el.w=WSTEPS[s-1];
+  if(el.k==='t') el.sz=TEXTSZ[s-1]; else if(el.k==='a') el.w=PAINTW[s-1]; else el.w=WSTEPS[s-1];
   mark(); syncProps(); repaint();
 });
 $("etext").oninput=e=>{ if(esel>=0&&els[esel].k==='t'){ els[esel].text=e.target.value; mark(); repaint(); } };
@@ -4712,6 +4830,9 @@ function distToEl(e,x,y){
   if(e.k==='c') return Math.abs(Math.hypot(x-e.p[0],y-e.p[1])-e.p[2]);
   if(e.k==='b'){ const [bx,by,bw,bh]=e.p;
     return Math.min(seg(bx,by,bx+bw,by),seg(bx+bw,by,bx+bw,by+bh),seg(bx+bw,by+bh,bx,by+bh),seg(bx,by+bh,bx,by)); }
+  if(e.k==='a'){ const P=e.p; let m=P.length>=2?Math.hypot(x-P[0],y-P[1]):99;
+    for(let i=0;i+3<P.length;i+=2) m=Math.min(m,seg(P[i],P[i+1],P[i+2],P[i+3]));
+    return m<=(e.w||30)/2 ? 6 : 99; }               // inside the stroke counts, but anything ON it wins the click
   if(e.k==='s') return Math.hypot(x-e.p[0],y-e.p[1])<24?0:99;
   if(e.k==='t'){ const w=(e.text||"").length*(e.sz||18)*0.62;
     return (x>=e.p[0]-6&&x<=e.p[0]+w+6&&y>=e.p[1]-(e.sz||18)-6&&y<=e.p[1]+8)?0:99; }
@@ -4824,6 +4945,10 @@ $("big").addEventListener("pointerdown",ev=>{
     if(snap){ px=Math.round(px/GRID)*GRID; py=Math.round(py/GRID)*GRID; }
     pathPts.push([px,py]); repaint(); return;
   }
+  if(paintMode){                                                  // painting: start a stroke, no grid — it's freehand
+    ev.target.setPointerCapture(ev.pointerId);
+    paintPts=[canvasPt(ev)]; repaint(); return;
+  }
   ev.target.setPointerCapture(ev.pointerId);
   const [x,y]=canvasPt(ev);
   if(esel>=0&&els[esel]){
@@ -4837,6 +4962,11 @@ $("big").addEventListener("pointerdown",ev=>{
 });
 $("big").addEventListener("pointermove",ev=>{
   if(!els){ if(cur) quickMove(ev); return; }
+  if(paintMode&&paintPts){
+    const [px,py]=canvasPt(ev), L=paintPts[paintPts.length-1];
+    if(Math.hypot(px-L[0],py-L[1])>2.5){ paintPts.push([px,py]); repaint(); }
+    return;
+  }
   if(!drag||esel<0)return;
   const [x,y]=canvasPt(ev);
   const e=els[esel];
@@ -4871,6 +5001,7 @@ $("big").addEventListener("pointermove",ev=>{
 });
 $("big").addEventListener("pointerup",()=>{
   if(!els){ quickUp(); return; }
+  if(paintMode&&paintPts){ finishPaintStroke(); return; }
   drag=null;          // no snap-to-gridline on release — the movement was already stepped
   if(magHit){ magHit=null; repaint(); }
 });

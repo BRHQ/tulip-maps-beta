@@ -115,6 +115,7 @@ function parseDraw(s){
       else if(kind==="s") els.push({k:'s',name:a[0],p:[+a[1],+a[2]],sc:+(a[3]??1)});
       else if(kind==="t") els.push({k:'t',p:[+a[0],+a[1]],sz:+(a[2]??18),text:decodeURIComponent(a.slice(3).join(","))});
       else if(kind==="i") els.push({k:'i',p:[+a[0],+a[1]],w:+a[2],h:+a[3],data:a.slice(4).join(",")});
+      else if(kind==="a") els.push({k:'a',surf:a[0],w:+a[1]||30,p:a.slice(2).map(Number)});
     }catch(e){}
   }
   return els;
@@ -129,6 +130,7 @@ function drawToString(els){
     if(e.k==='s') return `s:${e.name},${n(e.p[0])},${n(e.p[1])},${(e.sc||1).toFixed(2)}`;
     if(e.k==='t') return `t:${n(e.p[0])},${n(e.p[1])},${n(e.sz||18)},${encodeURIComponent(e.text||"")}`;
     if(e.k==='i') return `i:${n(e.p[0])},${n(e.p[1])},${n(e.w)},${n(e.h)},${e.data}`;
+    if(e.k==='a') return `a:${e.surf||"grass"},${n(e.w||30)},${e.p.map(n).join(",")}`;
   }).join(" ");
 }
 
@@ -171,6 +173,77 @@ function specFromText(text){
 const TW=188,THh=160,CXX=94,CYY=86,EX=94,EY=148;
 const IMGCACHE={};
 const INKC="#14141a", AMBC="#e9940c";
+
+/* ---- ground paint (the detailed tab's brush) ------------------------------
+   A paint stroke is the piece {k:'a', surf, w, p:[x,y,x,y,…]} and is always
+   drawn UNDER every other piece, so painted ground can never cover the route
+   ink. Each surface is a repeating tile of MARKS, not just a colour, so a
+   black-and-white photocopy still tells gravel from grass.
+   BOOKSTYLE swaps the whole book's look everywhere at once (screen, strip,
+   print): ground "colour" ⇄ "ink", and symbol packs "solid" ⇄ "line"
+   (packs.js reads .sym). Chris picked having BOTH looks, switchable. */
+let BOOKSTYLE={ground:"colour", sym:"solid"};
+const GROUND_SURFS=[["tarmac","tarmac"],["gravel","gravel"],["grass","grass"],["mud","mud"],
+                    ["sand","sand"],["water","water"],["wood","woodland"],["rock","rocks"]];
+const _gtile={};
+function groundTile(surf,mode){
+  const key=surf+"|"+mode; if(_gtile[key]) return _gtile[key];
+  const ink=mode==="ink";
+  const sizes={tarmac:[26,26],gravel:[28,26],grass:[30,27],mud:[28,24],sand:[24,22],water:[30,22],wood:[34,30],rock:[30,26]};
+  const [w,h]=sizes[surf]||[28,26];
+  const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+  const c=cv.getContext("2d"); c.lineCap="round"; c.lineJoin="round";
+  const bg=col=>{ c.fillStyle=col; c.fillRect(0,0,w,h); };
+  if(surf==="tarmac"){ bg(ink?"#e9e9e7":"#63676c"); c.fillStyle=ink?"#c9c9c6":"#7d8187";
+    for(const [x,y] of [[4,6],[14,3],[22,9],[8,16],[19,19],[3,23],[13,24]]){ c.beginPath(); c.arc(x,y,.9,0,7); c.fill(); } }
+  else if(surf==="gravel"){ if(!ink) bg("#e8e4da");
+    const P=[[5,6,2.1],[15,4,1.6],[24,8,1.9],[9,14,1.5],[20,16,2.2],[4,21,1.7],[14,23,1.9],[25,22,1.4]];
+    if(ink){ c.strokeStyle=INKC; c.lineWidth=1.1;
+      for(const [x,y,r] of P){ c.beginPath(); c.arc(x,y,r,0,7); c.stroke(); } }
+    else P.forEach(([x,y,r],i)=>{ c.fillStyle=i%2?"#7b786f":"#97948b"; c.beginPath(); c.arc(x,y,r,0,7); c.fill(); }); }
+  else if(surf==="grass"||surf==="wood"){
+    /* woodland's wash is clearly darker than grass (Chris's call, 6 Aug) */
+    if(!ink) bg(surf==="grass"?"#bcd6a2":"#a9c489");
+    c.strokeStyle=ink?INKC:(surf==="grass"?"#567f3e":"#3d6a2e"); c.lineWidth=ink?1.3:1.5; c.fillStyle="none";
+    if(surf==="grass"){
+      for(const [tx,ty] of [[7,10],[21,23],[25,9],[10,24]]){
+        c.beginPath();
+        c.moveTo(tx-2,ty); c.lineTo(tx-3.6,ty-4.4);
+        c.moveTo(tx,ty);   c.lineTo(tx,ty-5.4);
+        c.moveTo(tx+2,ty); c.lineTo(tx+3.6,ty-4.4);
+        c.stroke(); }
+    } else {
+      for(const [bx,by] of [[9,8],[25,13],[13,23]]){
+        c.beginPath(); c.arc(bx,by,3.4,0,7); c.stroke();
+        c.beginPath(); c.moveTo(bx,by+3.4); c.lineTo(bx,by+6); c.stroke(); }
+    } }
+  else if(surf==="mud"){ if(!ink) bg("#c7a074");
+    c.strokeStyle=ink?INKC:"#7d5f3c"; c.lineWidth=ink?1.4:1.6;
+    for(const [mx,my] of [[3,6],[15,4],[9,12],[20,17],[3,19]]){
+      c.beginPath(); c.moveTo(mx,my); c.quadraticCurveTo(mx+3.5,my-2,mx+7,my); c.stroke(); }
+    c.fillStyle=ink?INKC:"#7d5f3c";
+    for(const [dx,dy] of [[24,10],[14,21]]){ c.beginPath(); c.arc(dx,dy,1,0,7); c.fill(); } }
+  else if(surf==="sand"){ if(!ink) bg("#eeddb4");
+    c.fillStyle=ink?INKC:"#b99e66";
+    for(const [dx,dy,r] of [[3,4,.8],[10,2,.7],[17,5,.8],[22,10,.7],[6,10,.7],[13,9,.8],[2,16,.7],[9,18,.8],[16,15,.7],[21,19,.8],[12,21,.7]]){
+      c.beginPath(); c.arc(dx,dy,ink?r*.85:r,0,7); c.fill(); } }
+  else if(surf==="water"){ if(!ink) bg("#cfe4ef");
+    c.strokeStyle=ink?INKC:"#5f9dc0"; c.lineWidth=ink?1.3:1.6;
+    for(const oy of [7,16]){ const ox=oy===7?2:6;
+      c.beginPath(); c.moveTo(ox,oy);
+      for(let s=0;s<(oy===7?3:2);s++) c.quadraticCurveTo(ox+s*8+4,oy-3,ox+s*8+8,oy);
+      c.stroke(); } }
+  else if(surf==="rock"){ if(!ink) bg("#e0dacc");
+    const T=[[[4,11],[8,5],[13,11]],[[13,11],[16,7.5],[19,11]],[[17,23],[21,17],[26,23]],[[5,22],[7.5,19],[10,22]]];
+    T.forEach((t,i)=>{ c.beginPath(); c.moveTo(t[0][0],t[0][1]); c.lineTo(t[1][0],t[1][1]); c.lineTo(t[2][0],t[2][1]); c.closePath();
+      if(ink){ c.strokeStyle=INKC; c.lineWidth=1.2; c.stroke(); }
+      else { c.fillStyle=i%2?"#6f665a":"#93897a"; c.fill(); } }); }
+  _gtile[key]=cv; return cv;
+}
+function groundPattern(ctx,surf,mode){
+  try{ return ctx.createPattern(groundTile(surf,mode||BOOKSTYLE.ground),"repeat"); }
+  catch(e){ return "#d8d3c4"; }
+}
 function ray(a,len,fx=CXX,fy=CYY){ const r=a*Math.PI/180; return [fx+len*Math.sin(r), fy-len*Math.cos(r)]; }
 function endcap(ctx,x,y,ang,style,w){
   if(style===1){ ctx.beginPath(); ctx.arc(x,y,8,0,7); ctx.fill(); }
@@ -182,6 +255,7 @@ function endcap(ctx,x,y,ang,style,w){
     ctx.beginPath(); ctx.moveTo(...p1); ctx.lineTo(...p2); ctx.stroke(); }
 }
 function drawStamp(ctx,name,x,y,sc){
+  if(name.startsWith("pk_")){ if(typeof drawPackSymbol==="function") drawPackSymbol(ctx,name,x,y,sc); return; }
   if(name.startsWith("rs_")){ drawSign(ctx,name.slice(3),x,y,sc); return; }
   ctx.strokeStyle=INKC; ctx.fillStyle=INKC; ctx.lineWidth=4;
   if(name==="br"){ ctx.lineWidth=3.5;
@@ -468,9 +542,10 @@ function drawSign(ctx,code,x,y,sc){
 }
 function drawElements(ctx,els){
   ctx.lineCap="round"; ctx.lineJoin="round";
-  drawEls(ctx,els.filter(e=>!e.top));
+  drawEls(ctx,els.filter(e=>e.k==='a'));                // painted ground first — always under the ink
+  drawEls(ctx,els.filter(e=>e.k!=='a'&&!e.top));
   wideCore(ctx,els);
-  drawEls(ctx,els.filter(e=>e.top));      // the bridge sits over everything, white core included
+  drawEls(ctx,els.filter(e=>e.k!=='a'&&e.top));         // the bridge sits over everything, white core included
 }
 function drawEls(ctx,els){
   for(const e of els){
@@ -492,7 +567,17 @@ function drawEls(ctx,els){
       else { ctx.fillStyle="#fff"; ctx.lineWidth=e.w||6;
         if(e.ds) ctx.setLineDash([(e.w||6)*1.1,(e.w||6)*1.5]);
         ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill(); ctx.stroke(); ctx.setLineDash([]); }
-    } else if(e.k==='b'){ const [x,y,w,h]=e.p; ctx.lineWidth=e.w||4; ctx.strokeRect(x,y,w,h); }
+    } else if(e.k==='a'){ const P=e.p; if(P&&P.length>=2){ ctx.save();
+      ctx.strokeStyle=groundPattern(ctx,e.surf||"grass",BOOKSTYLE.ground);
+      ctx.lineWidth=e.w||30; ctx.lineCap="round"; ctx.lineJoin="round";
+      ctx.beginPath(); ctx.moveTo(P[0],P[1]);
+      if(P.length<4) ctx.lineTo(P[0]+.01,P[1]);
+      else if(P.length===4) ctx.lineTo(P[2],P[3]);
+      else { let i=2;                              // smooth through the clicked points, like the path tool
+        for(;i+3<P.length;i+=2) ctx.quadraticCurveTo(P[i],P[i+1],(P[i]+P[i+2])/2,(P[i+1]+P[i+3])/2);
+        ctx.lineTo(P[P.length-2],P[P.length-1]); }
+      ctx.stroke(); ctx.restore();
+    } } else if(e.k==='b'){ const [x,y,w,h]=e.p; ctx.lineWidth=e.w||4; ctx.strokeRect(x,y,w,h); }
     else if(e.k==='s'){ drawStamp(ctx,e.name,e.p[0],e.p[1],e.sc||1); }
     else if(e.k==='t'){ ctx.fillStyle=INKC; ctx.font=`700 ${e.sz||18}px Helvetica`;
       ctx.fillText(e.text||"",e.p[0],e.p[1]); }
