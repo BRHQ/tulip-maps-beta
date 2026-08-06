@@ -658,7 +658,8 @@
   #signmodal { display:none; position:fixed; left:50%; top:86px; transform:translateX(-50%); z-index:3200;
     width:560px; max-width:94vw; }
   #signmodal .signcard { background:var(--card,#fff); border:1px solid var(--hair); border-radius:14px;
-    box-shadow:0 12px 30px rgba(20,61,46,.25); max-height:74vh; display:flex; flex-direction:column; overflow:hidden; }
+    box-shadow:0 12px 30px rgba(20,61,46,.25); max-height:92vh; display:flex; flex-direction:column; overflow:hidden;
+    resize:both; min-width:300px; min-height:220px; }   /* drag the bottom-right corner to make the window any size */
   #signmodal .signhd { display:flex; align-items:center; gap:6px; padding:2px 9px; min-height:24px;
     background:#f6f8f5; border-bottom:1px solid var(--hair); border-radius:14px 14px 0 0; cursor:grab; touch-action:none; }
   #signmodal .signhd:active { cursor:grabbing; }
@@ -676,6 +677,14 @@
   .signopt canvas, .signopt img { display:block; }
   .signopt img { border-radius:4px; }
   .signopt span { font-size:10.5px; color:var(--mut); line-height:1.15; }
+  /* the ground-paint bar: one full-width strip that scrolls sideways on its own
+     (never the page), colour/ink switch hard on its left */
+  #paintrow { display:flex; flex-wrap:nowrap; align-items:center; gap:6px; width:100%;
+    overflow-x:auto; overscroll-behavior-x:contain; touch-action:pan-x pan-y;
+    padding:2px 0 4px; scrollbar-width:thin; }
+  #paintrow > * { flex:none; }
+  #paintsurfs { display:inline-flex; flex-wrap:nowrap; }
+  #paintsurfs button { padding:3px 4px; }
   #toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:3300;
     background:var(--green); color:#fff; padding:11px 20px; border-radius:10px; font-weight:700;
     font-size:14px; box-shadow:0 6px 20px rgba(0,0,0,.35); display:none; }
@@ -985,10 +994,6 @@
         </div>
       </div>
       <div id="drawui" style="display:none">
-        <div class="csrow" id="stylerow">
-          <button class="tog" id="groundstyle" title="how painted ground looks — everywhere at once, print included">🎨 ground: colour</button>
-          <button class="tog" id="symstyle" title="how pack symbols are drawn — everywhere at once, print included">✒ symbols: solid</button>
-        </div>
         <div class="csrow" id="shaperow">
           <button class="tog ico" onclick="addEl('l')" title="straight line"><svg class="csi" viewBox="0 0 16 16"><path d="M3 13 L13 3"/></svg></button>
           <button class="tog ico" onclick="addEl('q')" title="curved line"><svg class="csi" viewBox="0 0 16 16"><path d="M3 13 Q3 3 13 3"/></svg></button>
@@ -999,10 +1004,11 @@
           <button class="tog ico" onclick="openStampPicker()" title="add a symbol"><svg class="csi" viewBox="0 0 16 16"><path d="M8 3.5 V12.5 M3.5 8 H12.5"/></svg></button>
           <button class="tog ico" id="paintbtn" onclick="startPaint()" title="paint the ground — pick a surface, drag like a felt-tip; it always stays under the ink"><svg class="csi" viewBox="0 0 16 16"><path d="M2.5 13.5 C2.6 11.2 4.6 11.6 5.6 9.6 M5.6 9.6 L11.6 2.8 C12.6 1.8 14.2 3.3 13.2 4.4 L6.9 10.7 Z"/></svg></button>
         </div>
-        <div class="csrow" id="paintrow" style="display:none">
+        <div id="paintrow" style="display:none">
+          <button class="tog" id="groundstyle" title="colour or ink — the whole book swaps at once, print included">🎨 colour</button>
           <span class="seg" id="paintsurfs" title="what to paint"></span>
-          <span class="seg" id="paintsize" title="brush size">
-            <button data-s="2">S</button><button data-s="3">M</button><button data-s="4">L</button>
+          <span class="seg" id="paintsize" title="brush thickness — same steps as the lines">
+            <button data-s="1">1</button><button data-s="2">2</button><button data-s="3">3</button><button data-s="4">4</button><button data-s="5">5</button>
           </span>
         </div>
         <div id="eprops">
@@ -1376,6 +1382,7 @@
   <div class="signcard">
     <div class="signhd" id="signdrag">
       <b id="signtitle">Road signs</b><span class="grow"></span>
+      <button class="rs-hbtn" id="symstyle" title="how pack symbols are drawn everywhere, print included — solid silhouette or line drawing">✒ solid</button>
       <button class="rs-hbtn" id="signnone">✕ none</button>
       <button class="rs-hbtn rs-x" id="signclose" title="close">✕</button>
     </div>
@@ -1405,8 +1412,8 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=6aug1"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
-<script src="packs.js?v=6aug1"></script>        <!-- the symbol packs (animals, buildings, desert…) — same rule -->
+<script src="tulip_core.js?v=7aug1"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="packs.js?v=7aug1"></script>        <!-- the symbol packs (animals, buildings, desert…) — same rule -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
@@ -3923,6 +3930,7 @@ function symbolNode(name, px){
 let pickTarget=null;
 function buildPicker(cat,current){
   const body=$("signbody"); if(!body)return; body.innerHTML="";
+  window.__lastPicker={cat,current};                  // so the ✒ style switch can redraw the open window
   const ss=$("signsearch"); if(ss) ss.value="";       // the window always opens showing everything
   for(const grp of cat){
     const h=document.createElement("h4"); h.textContent=grp.g; body.append(h);
@@ -4369,13 +4377,19 @@ function drawPaintPreview(ctx){
     if(s.ground) BOOKSTYLE.ground=s.ground; if(s.sym) BOOKSTYLE.sym=s.sym; }catch(e){}
   const g=$("groundstyle"), sy=$("symstyle");
   const syncStyleBtns=()=>{
-    if(g) g.textContent="🎨 ground: "+(BOOKSTYLE.ground==="ink"?"ink":"colour");
-    if(sy) sy.textContent="✒ symbols: "+(BOOKSTYLE.sym==="line"?"line":"solid");
+    if(g) g.textContent="🎨 "+(BOOKSTYLE.ground==="ink"?"ink":"colour");
+    if(sy) sy.textContent="✒ "+(BOOKSTYLE.sym==="line"?"line":"solid");
   };
   const refresh=()=>{
     try{ localStorage.setItem("tm_bookstyle",JSON.stringify(BOOKSTYLE)); }catch(e){}
     syncStyleBtns(); paintChips(); repaint();
     try{ renderList(); }catch(e){} try{ rbStripDraw(); }catch(e){}
+    const sm=$("signmodal");                          // symbol window open? redraw its tiles in the new style
+    if(sm&&sm.style.display==="flex"&&window.__lastPicker){
+      const ss=$("signsearch"), q=ss?ss.value:"";
+      buildPicker(window.__lastPicker.cat,window.__lastPicker.current);
+      if(ss&&q){ ss.value=q; filterPicker(); }
+    }
   };
   if(g) g.onclick=()=>{ BOOKSTYLE.ground=BOOKSTYLE.ground==="ink"?"colour":"ink"; refresh(); };
   if(sy) sy.onclick=()=>{ BOOKSTYLE.sym=BOOKSTYLE.sym==="line"?"solid":"line"; refresh(); };
