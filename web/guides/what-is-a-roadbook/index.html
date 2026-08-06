@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is a roadbook? The navigator's book, explained</title>
+<meta name="description" content="A roadbook is the navigator's book: one row per instruction — a tulip diagram, two distances and a few words — read top to bottom from start to finish. What's in it, who uses it, and how to make one free.">
+<link rel="canonical" href="https://tulipmaps.com/guides/what-is-a-roadbook/">
+<meta name="theme-color" content="#143D2E">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Tulip Maps">
+<meta property="og:title" content="What is a roadbook?">
+<meta property="og:description" content="One row per instruction — a tulip, the distances, a few words. What's in a roadbook, who uses it, and how to make one.">
+<meta property="og:url" content="https://tulipmaps.com/guides/what-is-a-roadbook/">
+<meta property="og:image" content="https://tulipmaps.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tulipmaps.com/og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='30 40 60 100'%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(-22 60 132)' fill='%23F4B0A0'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(22 60 132)' fill='%23BC3B2C'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' fill='%23E1694F'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Article","headline":"What is a roadbook?","about":"Rally and touring roadbooks: what they contain and how they are used","author":{"@type":"Organization","name":"Tulip Maps"},"publisher":{"@type":"Organization","name":"Virtual Marshal"},"mainEntityOfPage":"https://tulipmaps.com/guides/what-is-a-roadbook/","description":"A plain-English explanation of the roadbook: the navigator's book of tulip diagrams, distances and instructions."}
+</script>
+<style>
+  :root{--green:#143D2E;--paper:#FBF7EE;--paper-2:#F3ECDD;--ink:#20302A;--ink-soft:#5E6E64;
+    --coral:#E1694F;--coral-dark:#BC3B2C;--coral-tint:#FBEAE5;--sage:#8EB792;--stem:#5C8A52;
+    --line:rgba(20,61,46,.12);--radius:18px;
+    --disp:'Fraunces',Georgia,'Times New Roman',serif;
+    --sans:'Barlow',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:18px;line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:0 24px}
+  h1,h2,h3{font-family:var(--disp);font-optical-sizing:auto;font-weight:500;line-height:1.12;letter-spacing:-.011em;margin:1.7em 0 .4em}
+  h1{font-size:clamp(2.1rem,5vw,2.9rem);margin-top:.4em}
+  h2{font-size:1.55rem}
+  a{color:var(--coral-dark)}
+  p{margin:.9em 0}
+  ul{padding-left:1.2em}
+  li{margin:.4em 0}
+  .btn{display:inline-flex;align-items:center;gap:.5em;font-family:var(--sans);font-weight:600;text-decoration:none;border-radius:999px;padding:.7em 1.25em;background:var(--coral);color:var(--green)}
+  nav{border-bottom:1px solid var(--line);background:rgba(251,247,238,.9);position:sticky;top:0;z-index:20;backdrop-filter:blur(8px)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px;max-width:1080px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:600;font-size:1.18rem;text-decoration:none;color:var(--ink);letter-spacing:-.02em}
+  .brand svg{width:23px;height:28px}
+  .brand b{font-weight:600;color:var(--coral-dark)}
+  .navcta{font-size:.92rem;padding:.5em 1em}
+  .eyebrow{font-weight:600;text-transform:uppercase;letter-spacing:.16em;font-size:.72rem;color:#1F9D57;margin-top:2.6rem}
+  .lede{font-size:1.22rem;line-height:1.55;color:var(--ink-soft)}
+  figure{margin:2em 0;text-align:center}
+  figure .row{display:flex;align-items:center;gap:14px;background:#fff;border:1.5px solid var(--ink);border-radius:10px;padding:14px 18px;max-width:430px;margin:0 auto;text-align:left}
+  figure .row svg{width:38px;height:56px;flex:none}
+  figure .row .d{font-family:var(--disp);font-weight:500;font-size:1.25rem}
+  figure .row .t{font-size:.85rem;color:var(--ink-soft);line-height:1.4}
+  figcaption{font-size:.9rem;color:var(--ink-soft);margin-top:.7em}
+  .callout{background:#fff;border:1px solid var(--line);border-left:4px solid var(--coral);border-radius:12px;padding:18px 22px;margin:1.6em 0}
+  .cta-band{background:var(--green);color:#F3EEE1;border-radius:20px;padding:34px;text-align:center;margin:3em 0}
+  .cta-band h2{margin:0 0 .2em;color:#fff}
+  .cta-band p{color:#CFDDD1;margin:.3em auto 1.3em;max-width:46ch}
+  .also{margin:2.5em 0 3em;padding:20px 24px;background:var(--paper-2);border-radius:var(--radius);font-size:.98rem}
+  .also b{display:block;margin-bottom:.4em}
+  footer{border-top:1px solid var(--line);padding:32px 0;color:var(--ink-soft);font-size:.9rem;margin-top:2em}
+  footer a{color:var(--ink-soft);text-decoration:none;margin-right:16px}
+  footer a:hover{color:var(--coral-dark)}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="brand" href="/"><svg viewBox="0 0 120 220" aria-hidden="true"><path d="M60 128V196" stroke="#5C8A52" stroke-width="11" stroke-linecap="round" fill="none"/><circle cx="60" cy="200" r="7.5" fill="#5C8A52"/><path d="M60 166C75 164 88 155 95 141" stroke="#5C8A52" stroke-width="11" stroke-linecap="round" fill="none"/><path d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)" fill="#F4B0A0"/><path d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)" fill="#BC3B2C"/><path d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" fill="#E1694F"/></svg>Tulip <b>Maps</b></a>
+  <a class="btn navcta" href="/app/">Open the studio →</a>
+</div></nav>
+
+<main class="wrap">
+  <div class="eyebrow">Guide</div>
+  <h1>What is a roadbook?</h1>
+  <p class="lede">It's the navigator's book: the route written down as a list of little instructions, read top to bottom from start to finish. No map required — the book <em>is</em> the route.</p>
+
+  <p>Hand a stranger a map and they'll find <em>a</em> way. Hand them a roadbook and they'll drive <em>your</em> way — the exact roads, the exact turns, in the exact order. That's the whole idea. A roadbook (some events say "road book", the French say <em>roadbook</em> too) is a small booklet, usually ring-bound so it lies flat, that describes a route as <strong>one row per instruction</strong>.</p>
+
+  <h2>What's in a row</h2>
+  <figure>
+    <div class="row" aria-hidden="true">
+      <svg viewBox="0 0 120 220"><g fill="none" stroke="#20302A" stroke-width="14" stroke-linecap="round"><path d="M60 200V95"/><path d="M60 120C60 75 90 65 100 55"/></g><circle cx="60" cy="200" r="13" fill="#20302A"/><path d="M88 40 L112 52 L94 70 Z" fill="#E1694F"/></svg>
+      <div><div class="d">2.15 &nbsp;·&nbsp; TL at xroad</div><div class="t">the tulip, the distance since the last instruction, and the words</div></div>
+    </div>
+    <figcaption>One row = one instruction. A book is just this, repeated until the finish.</figcaption>
+  </figure>
+  <p>Almost every roadbook row carries the same three things:</p>
+  <ul>
+    <li><strong>A <a href="/guides/what-is-a-tulip-diagram/">tulip diagram</a></strong> — the little picture of the junction: a ball for the road you arrive on, an arrow for the road you leave by.</li>
+    <li><strong>Distances</strong> — usually two: the running total, and the gap since the last instruction. The navigator zeroes the trip meter at each row and counts down to the next.</li>
+    <li><strong>A few words</strong> — "TL at xroad", "SP Melton", "care — gravel". Short enough to say out loud in a second.</li>
+  </ul>
+  <p>Books often add more — a cover with the total distance, a map page, a height profile, timing boxes — but rows are the heart of it.</p>
+
+  <h2>Who uses roadbooks</h2>
+  <p>Anyone who needs a whole field of strangers to drive precisely the same roads:</p>
+  <ul>
+    <li><strong>Road and regularity rallies</strong> — the classic use. The organiser sets the route; crews follow it to the second.</li>
+    <li><strong>Rally raids and desert events</strong> — motorbike rollers ("rally rolls") are a roadbook wound onto a scrolling holder on the handlebars.</li>
+    <li><strong>Grand tours and driving holidays</strong> — a roadbook turns a good route into something guests can follow without a co-driver glued to a phone.</li>
+    <li><strong>Clubs and treasure hunts</strong> — a friendly evening run works exactly the same way, just gentler.</li>
+  </ul>
+
+  <div class="callout"><strong>Why not just use a map or sat-nav?</strong> A map shows every road and lets you choose; sat-nav picks its own route and recalculates the moment you stray. A roadbook does neither — it fixes <em>the organiser's</em> route, junction by junction, and can be read at a glance in a moving car. That's why events still print them.</div>
+
+  <h2>Where the roadbook came from</h2>
+  <p>Organised road events have handed crews written route instructions for about as long as motoring clubs have existed, and the modern form — tulips plus distances in a column — spread through post-war European rallying, helped along by the Dutch Tulip Rally that gave the diagrams their name. The format has barely needed to change since: it was right the first time.</p>
+
+  <h2>How one gets made</h2>
+  <p>The organiser fixes the exact route, chooses the junctions that need an instruction, draws a tulip for each, measures the distances off the route line, adds the words and signs, checks the lot, and prints. That whole craft has its own guide: <a href="/guides/how-to-make-a-rally-roadbook/">how to make a rally roadbook</a>.</p>
+
+  <div class="cta-band">
+    <h2>Make one now, free</h2>
+    <p>Tulip Maps is a modern roadbook creator: draw or record the route in your browser, and it draws the tulips, measures the distances and prints the PDF pages.</p>
+    <a class="btn" href="/app/">Open Tulip Maps →</a>
+  </div>
+
+  <div class="also"><b>Related guides</b>
+    <a href="/guides/what-is-a-tulip-diagram/">What is a tulip diagram?</a> · <a href="/guides/how-to-make-a-rally-roadbook/">How to make a rally roadbook</a> · <a href="/guides/planning-a-rally-route/">Planning a rally route</a>
+  </div>
+</main>
+
+<footer><div class="wrap">
+  <a href="/">Home</a><a href="/guides/">Guides</a><a href="/app/">Open the studio</a><a href="https://thevirtualmarshal.com">Virtual Marshal</a>
+  <div style="margin-top:10px">© 2026 Tulip Maps, by Virtual Marshal</div>
+</div></footer>
+</body>
+</html>

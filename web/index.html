@@ -3,23 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tulip Maps — draw &amp; record routes, make a roadbook</title>
-<meta name="description" content="A free map studio for drawing and recording routes — then turning them into a clear roadbook of junction diagrams anyone can follow. Plan on the map or import a recorded drive, tidy every turn, check it against the track, export GPX, .vmr or a printable roadbook. No sign-up. By Virtual Marshal, for rallies, tours and any road trip worth writing down.">
+<title>Tulip Maps — a modern roadbook creator</title>
+<meta name="description" content="Create beautiful roadbooks with Tulip Maps, a modern roadbook creator in your browser. Draw or record the route, tidy every turn with the track editor and adjustable waypoints, draw the tulips, design the book and print PDF roadbook pages. Free, no sign-up. By Virtual Marshal, for rallies, tours and any road trip worth writing down.">
 <link rel="canonical" href="https://tulipmaps.com/">
 <meta name="theme-color" content="#143D2E">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Tulip Maps">
-<meta property="og:title" content="Tulip Maps — draw the road, get a roadbook">
-<meta property="og:description" content="Free, browser-based map studio. Draw or record a route, tidy every turn, and share a clear roadbook anyone can follow. No sign-up.">
+<meta property="og:title" content="Tulip Maps — create beautiful roadbooks">
+<meta property="og:description" content="A modern roadbook creator in your browser. Draw or record the route, tidy every turn, design the book, print the PDF. Free, no sign-up.">
 <meta property="og:url" content="https://tulipmaps.com/">
 <meta property="og:image" content="https://tulipmaps.com/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Tulip Maps — draw the road, get a roadbook">
+<meta property="og:image:alt" content="Tulip Maps — create beautiful roadbooks">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://tulipmaps.com/og.png">
-<meta name="twitter:title" content="Tulip Maps — draw the road, get a roadbook">
-<meta name="twitter:description" content="Free, browser-based map studio. Draw or record a route, tidy every turn, share a clear roadbook. No sign-up.">
+<meta name="twitter:title" content="Tulip Maps — create beautiful roadbooks">
+<meta name="twitter:description" content="A modern roadbook creator in your browser. Draw or record the route, design the book, print the PDF. Free, no sign-up.">
 <!-- favicon: the BLOOM-ONLY mark (the stem vanishes at 16px, so the tulip head reads better) -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='30 40 60 100'%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(-22 60 132)' fill='%23F4B0A0'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(22 60 132)' fill='%23BC3B2C'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' fill='%23E1694F'/%3E%3C/svg%3E">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -36,9 +36,9 @@
   "applicationCategory": "DesignApplication",
   "operatingSystem": "Web browser",
   "url": "https://tulipmaps.com/",
-  "description": "Free, browser-based map studio to draw and record routes and turn them into a clear roadbook — junction diagrams, waypoints and signs — check them against the GPS track, and export them as GPX, .vmr or a printable roadbook.",
+  "description": "A modern roadbook creator: draw or record a route, tidy it with the track editor and adjustable waypoints, draw the tulip diagrams, design the roadbook and print PDF roadbook pages. Free, in the browser, no sign-up.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
-  "featureList": "Draw routes on the map, record routes on your phone, waypoints and notes, junction (tulip) diagrams, check against GPS track, road signs, reusable library, GPX and .vmr export, printable roadbook",
+  "featureList": "Tulip editor, track editor, adjustable waypoints, roadbook designer, PDF roadbook pages, record routes on your phone, road signs, check against GPS track, GPX and .vmr export",
   "publisher": { "@type": "Organization", "name": "Virtual Marshal", "url": "https://thevirtualmarshal.com" }
 }
 </script>
@@ -173,14 +173,19 @@
   .phone .stat b{display:block;font-family:var(--disp);font-weight:500;font-size:1.25rem;color:var(--ink);line-height:1}
   .phone .stat span{font-family:var(--sans);font-size:.62rem;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-soft)}
 
-  /* why tulip — the quiet charm note */
-  .charm{display:grid;grid-template-columns:120px 1fr;gap:34px;align-items:center;max-width:840px}
-  .charm .art{display:flex;justify-content:center}
-  .charm .art svg{width:96px;height:auto}
-  .charm h2{font-size:clamp(1.5rem,2.6vw,1.9rem)}
-  .charm p{color:var(--ink-soft);margin-top:.7em;font-size:1.04rem;line-height:1.6}
-  .charm p b{color:var(--ink);font-weight:600}
-  .charm .more{margin-top:1em;font-size:.96rem}
+  /* the two words, explained — what is a tulip / what is a roadbook */
+  .qa{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px}
+  .qa .q{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:28px 28px 24px;position:relative}
+  .qa .art{float:right;margin:0 0 10px 16px}
+  .qa .art svg{width:64px;height:auto}
+  .qa h3{font-family:var(--disp);font-weight:500;font-size:1.5rem;margin:0 0 .45em;letter-spacing:-.011em}
+  .qa p{color:var(--ink-soft);font-size:1rem;line-height:1.6}
+  .qa p b{color:var(--ink);font-weight:600}
+  .qa .more{margin-top:1em;font-size:.95rem}
+  .qa .rbrow{display:flex;align-items:center;gap:10px;border:1.5px solid var(--ink);border-radius:8px;padding:8px 12px;margin:4px 0 14px;background:var(--paper)}
+  .qa .rbrow svg{width:30px;height:38px;flex:none}
+  .qa .rbrow .d{font-family:var(--disp);font-weight:500;font-size:1.05rem}
+  .qa .rbrow .t{font-size:.8rem;color:var(--ink-soft);line-height:1.35}
 
   /* final cta */
   .final{text-align:center}
@@ -211,6 +216,7 @@
     .hero-art{order:-1;max-width:340px;margin:0 auto;width:100%}
     .app .phone-wrap{order:-1}
     .steps,.grid{grid-template-columns:1fr 1fr}
+    .qa{grid-template-columns:1fr}
     .hero{padding:44px 0 24px}
     section{padding:52px 0}
   }
@@ -250,9 +256,9 @@
 
 <header class="hero"><div class="wrap">
   <div>
-    <div class="eyebrow">Plan · record · roadbook</div>
-    <h1>Draw the road.<br>Get a <em class="u">roadbook</em>.</h1>
-    <p class="lede">A free map studio for planning or recording a route — then turning it into a clear roadbook anyone can follow.</p>
+    <div class="eyebrow">A modern roadbook creator</div>
+    <h1>Create <em class="u">beautiful</em> roadbooks.</h1>
+    <p class="lede">Draw or record your route, tidy every turn, and Tulip Maps turns it into a clear roadbook anyone can follow.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="/app/">Open Tulip Maps — free</a>
       <a class="btn btn-ghost" href="#how">See how it works</a>
@@ -277,8 +283,8 @@
 <section id="what"><div class="wrap">
   <div class="shead">
     <div class="eyebrow">What it is</div>
-    <h2>A studio for routes — and the roadbooks they become.</h2>
-    <p class="sub">Draw a route on the map or bring in one you recorded, drag every point exactly where it belongs, add the notes and signs that matter, and turn the whole thing into a clear roadbook — the kind rally crews, tour organisers and road-trippers actually navigate by. Made by <a class="lnk" href="https://thevirtualmarshal.com">Virtual Marshal</a>, and used on real events.</p>
+    <h2>Tulip Maps is a modern roadbook creator.</h2>
+    <p class="sub">Draw a route on the map or bring in one you recorded, drag every point exactly where it belongs, add the notes and signs that matter, and turn the whole thing into a beautiful roadbook — the kind rally crews, tour organisers and road-trippers actually navigate by. Made by <a class="lnk" href="https://thevirtualmarshal.com">Virtual Marshal</a>, and used on real events.</p>
   </div>
 </div></section>
 
@@ -296,20 +302,17 @@
 
 <section id="features"><div class="wrap">
   <div class="shead">
-    <div class="eyebrow">What's inside</div>
+    <div class="eyebrow">Features</div>
     <h2>Everything a good roadbook needs.</h2>
-    <p class="sub">A proper map studio under the hood — but calm enough to use at the kitchen table.</p>
+    <p class="sub">Five tools, one calm studio — from the first point on the map to the printed page.</p>
   </div>
   <div class="grid">
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19c4-1 4-11 8-12s4 8 8 6"/><circle cx="4" cy="19" r="1.6" fill="currentColor" stroke="none"/><circle cx="20" cy="13" r="1.6" fill="currentColor" stroke="none"/></svg><h3>Draw on the map</h3><p>Trace your route and it snaps to the roads, or lay it down point by point. The map does the hard part.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5l4 4L8 20l-4.5.5L4 16z"/><path d="M12.5 7.5l4 4"/></svg><h3>Edit every point</h3><p>Drag any part of the line to move it. Nothing snaps shut on you — nudge it until the route is exactly right.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><h3>Waypoints &amp; notes</h3><p>Drop timing controls, notes and instructions along the way, number them, and pull in place names automatically.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.4"/><path d="M11 18h2"/><path d="M10 6h4"/></svg><h3>Record on your phone</h3><p>Drive, ride or walk the route and record the exact line — with photos and voice notes at the tricky bits.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"/><path d="M12 13C12 7 8 5 7 4"/><path d="M12 13C12 7 16 5 17 4"/></svg><h3>Junction diagrams</h3><p>Every turn becomes a clear little picture — a line for the road in, a bloom for the way out. Read at a glance.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/></svg><h3>Road signs &amp; symbols</h3><p>The official give-way, stop and warning signs, plus the markers a roadbook needs — dropped straight on a junction.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><h3>Check it against the track</h3><p>Compares every diagram to the turn read from the GPS, and flags a wrong-way one before the whole field follows it.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><h3>A reusable library</h3><p>Save the diagrams you draw and reuse them across events. Search by keyword — "hairpin", "fork", "roundabout" — and drop one in.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><h3>Export anywhere</h3><p>A printable roadbook, a GPX that opens everywhere, or a .vmr that carries your waypoints straight into a Virtual Marshal event.</p></div>
+    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"/><path d="M12 13C12 7 8 5 7 4"/><path d="M12 13C12 7 16 5 17 4"/></svg><h3>Tulip editor</h3><p>Draw every junction as a clear little diagram — quick guided mode or free drawing, with roundabouts, bridges, side roads and the official signs.</p></div>
+    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19c4-1 4-11 8-12s4 8 8 6"/><circle cx="4" cy="19" r="1.6" fill="currentColor" stroke="none"/><circle cx="20" cy="13" r="1.6" fill="currentColor" stroke="none"/></svg><h3>Track editor</h3><p>Trace the route and it follows the roads, or import a drive you recorded. Drag any point, cut a section, reroute — nothing locks.</p></div>
+    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><h3>Adjustable waypoints</h3><p>Drop a waypoint anywhere and slide it along the route until it sits exactly on the junction — numbers and distances keep themselves right.</p></div>
+    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><h3>Design the roadbook</h3><p>Pick the columns and what nests inside what, the theme, the font, the colours. Save the design and reuse it for every event.</p></div>
+    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><h3>Create PDF roadbook pages</h3><p>Print-ready pages with a cover, map page and height profile — plus GPX and .vmr export for anything with a screen.</p></div>
+    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><h3>Checked against the track</h3><p>Every diagram is compared to the turn read from the GPS line, so a wrong-way tulip is flagged before the whole field follows it.</p></div>
   </div>
 </div></section>
 
@@ -350,28 +353,40 @@
 </div></section>
 
 <section id="why"><div class="wrap">
-  <div class="charm">
-    <div class="art" aria-hidden="true">
-      <svg class="tulip" viewBox="0 0 120 220">
-        <path class="st" d="M60 128V196" stroke-width="11" stroke-linecap="round" fill="none"/>
-        <circle class="sd" cx="60" cy="200" r="7.5"/>
-        <path class="st" d="M60 166C75 164 88 155 95 141" stroke-width="11" stroke-linecap="round" fill="none"/>
-        <path class="p1" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)"/>
-        <path class="p3" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)"/>
-        <path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/>
-      </svg>
+  <div class="shead">
+    <div class="eyebrow">Two words, quickly</div>
+    <h2>What's a tulip? What's a roadbook?</h2>
+  </div>
+  <div class="qa">
+    <div class="q">
+      <div class="art" aria-hidden="true">
+        <svg class="tulip" viewBox="0 0 120 220">
+          <path class="st" d="M60 128V196" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <circle class="sd" cx="60" cy="200" r="7.5"/>
+          <path class="st" d="M60 166C75 164 88 155 95 141" stroke-width="11" stroke-linecap="round" fill="none"/>
+          <path class="p1" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)"/>
+          <path class="p3" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)"/>
+          <path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/>
+        </svg>
+      </div>
+      <h3>What is a tulip?</h3>
+      <p>The little junction picture in a roadbook: a <b>ball</b> for the road you arrive on, an <b>arrow</b> for the road you leave by. Drawn with a stem and a bloom, it looks like a flower — rally folk have called them tulips since the Tulip Rally made them famous.</p>
+      <p class="more"><a class="lnk" href="/guides/what-is-a-tulip-diagram/">Read: what is a tulip diagram? →</a></p>
     </div>
-    <div>
-      <div class="eyebrow">Why "Tulip"?</div>
-      <h2>Because a good junction looks like a flower.</h2>
-      <p>Those little turn pictures navigators read at a glance have a name — a <b>stem</b> for the road you're on, a <b>bloom</b> for the way out. Rally folk have always just called them tulips. That's the whole idea here: routes made as clear as a single flower.</p>
-      <p class="more"><a class="lnk" href="/guides/what-is-a-tulip-diagram/">Read the guide: what is a tulip diagram? →</a></p>
+    <div class="q">
+      <div class="rbrow" aria-hidden="true">
+        <svg viewBox="0 0 120 220"><g fill="none" stroke="#20302A" stroke-width="14" stroke-linecap="round"><path d="M60 200V95"/><path d="M60 120C60 75 90 65 100 55"/></g><circle cx="60" cy="200" r="13" fill="#20302A"/><path d="M88 40 L112 52 L94 70 Z" fill="#E1694F"/></svg>
+        <div><div class="d">2.15 · TL at xroad</div><div class="t">one row of a roadbook — tulip, distance, instruction</div></div>
+      </div>
+      <h3>What is a roadbook?</h3>
+      <p>The navigator's book: <b>one row per instruction</b> — a tulip, the distance, a few words — read top to bottom from start to finish. It's how rallies, raids and grand tours navigate without a map, and it's the thing Tulip Maps exists to create.</p>
+      <p class="more"><a class="lnk" href="/guides/what-is-a-roadbook/">Read: what is a roadbook? →</a></p>
     </div>
   </div>
 </div></section>
 
 <section class="band final"><div class="wrap">
-  <h2>Draw your first roadbook now.</h2>
+  <h2>Create your first roadbook now.</h2>
   <p class="sub">Free, in your browser, no sign-up. About a minute to your first junction.</p>
   <div class="cta-row"><a class="btn btn-primary" href="/app/">Open Tulip Maps →</a></div>
 </div></section>
@@ -391,7 +406,7 @@
     </button>
   </div>
   <p class="fhint" id="installhint" hidden></p>
-  <div class="fnote">© 2026 Tulip Maps, by Virtual Marshal · draw the road, get a roadbook.</div>
+  <div class="fnote">© 2026 Tulip Maps, by Virtual Marshal · a modern roadbook creator.</div>
 </div></footer>
 
 <script>
