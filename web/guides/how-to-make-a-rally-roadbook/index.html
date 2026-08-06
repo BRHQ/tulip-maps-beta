@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to make a rally roadbook — from route to printed book</title>
+<meta name="description" content="The whole job in plain steps: get the route exact, choose the junctions, draw the tulips, measure the distances, add the words and signs, check it against the track, and print a book crews can trust.">
+<link rel="canonical" href="https://tulipmaps.com/guides/how-to-make-a-rally-roadbook/">
+<meta name="theme-color" content="#143D2E">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Tulip Maps">
+<meta property="og:title" content="How to make a rally roadbook">
+<meta property="og:description" content="Get the route exact, choose the junctions, draw the tulips, measure the distances, add the words, check it, print it. The whole job, plainly.">
+<meta property="og:url" content="https://tulipmaps.com/guides/how-to-make-a-rally-roadbook/">
+<meta property="og:image" content="https://tulipmaps.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://tulipmaps.com/og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='30 40 60 100'%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(-22 60 132)' fill='%23F4B0A0'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' transform='rotate(22 60 132)' fill='%23BC3B2C'/%3E%3Cpath d='M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z' fill='%23E1694F'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Article","headline":"How to make a rally roadbook","about":"Making a rally roadbook: route, tulip diagrams, distances, checking and printing","author":{"@type":"Organization","name":"Tulip Maps"},"publisher":{"@type":"Organization","name":"Virtual Marshal"},"mainEntityOfPage":"https://tulipmaps.com/guides/how-to-make-a-rally-roadbook/","description":"A plain-English, step-by-step guide to making a rally roadbook, from the route itself to the printed book."}
+</script>
+<style>
+  :root{--green:#143D2E;--paper:#FBF7EE;--paper-2:#F3ECDD;--ink:#20302A;--ink-soft:#5E6E64;
+    --coral:#E1694F;--coral-dark:#BC3B2C;--coral-tint:#FBEAE5;--sage:#8EB792;--stem:#5C8A52;
+    --line:rgba(20,61,46,.12);--radius:18px;
+    --disp:'Fraunces',Georgia,'Times New Roman',serif;
+    --sans:'Barlow',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:18px;line-height:1.7;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:0 24px}
+  h1,h2,h3{font-family:var(--disp);font-optical-sizing:auto;font-weight:500;line-height:1.12;letter-spacing:-.011em;margin:1.7em 0 .4em}
+  h1{font-size:clamp(2.1rem,5vw,2.9rem);margin-top:.4em}
+  h2{font-size:1.55rem}
+  a{color:var(--coral-dark)}
+  p{margin:.9em 0}
+  ul{padding-left:1.2em}
+  li{margin:.4em 0}
+  .btn{display:inline-flex;align-items:center;gap:.5em;font-family:var(--sans);font-weight:600;text-decoration:none;border-radius:999px;padding:.7em 1.25em;background:var(--coral);color:var(--green)}
+  nav{border-bottom:1px solid var(--line);background:rgba(251,247,238,.9);position:sticky;top:0;z-index:20;backdrop-filter:blur(8px)}
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px;max-width:1080px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:600;font-size:1.18rem;text-decoration:none;color:var(--ink);letter-spacing:-.02em}
+  .brand svg{width:23px;height:28px}
+  .brand b{font-weight:600;color:var(--coral-dark)}
+  .navcta{font-size:.92rem;padding:.5em 1em}
+  .eyebrow{font-weight:600;text-transform:uppercase;letter-spacing:.16em;font-size:.72rem;color:#1F9D57;margin-top:2.6rem}
+  .lede{font-size:1.22rem;line-height:1.55;color:var(--ink-soft)}
+  figure{margin:2em 0;text-align:center}
+  figure svg{width:200px;height:auto;background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px}
+  figcaption{font-size:.9rem;color:var(--ink-soft);margin-top:.7em}
+  .callout{background:#fff;border:1px solid var(--line);border-left:4px solid var(--coral);border-radius:12px;padding:18px 22px;margin:1.6em 0}
+  .cta-band{background:var(--green);color:#F3EEE1;border-radius:20px;padding:34px;text-align:center;margin:3em 0}
+  .cta-band h2{margin:0 0 .2em;color:#fff}
+  .cta-band p{color:#CFDDD1;margin:.3em auto 1.3em;max-width:46ch}
+  .also{margin:2.5em 0 3em;padding:20px 24px;background:var(--paper-2);border-radius:var(--radius);font-size:.98rem}
+  .also b{display:block;margin-bottom:.4em}
+  footer{border-top:1px solid var(--line);padding:32px 0;color:var(--ink-soft);font-size:.9rem;margin-top:2em}
+  footer a{color:var(--ink-soft);text-decoration:none;margin-right:16px}
+  footer a:hover{color:var(--coral-dark)}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="brand" href="/"><svg viewBox="0 0 120 220" aria-hidden="true"><path d="M60 128V196" stroke="#5C8A52" stroke-width="11" stroke-linecap="round" fill="none"/><circle cx="60" cy="200" r="7.5" fill="#5C8A52"/><path d="M60 166C75 164 88 155 95 141" stroke="#5C8A52" stroke-width="11" stroke-linecap="round" fill="none"/><path d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)" fill="#F4B0A0"/><path d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)" fill="#BC3B2C"/><path d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" fill="#E1694F"/></svg>Tulip <b>Maps</b></a>
+  <a class="btn navcta" href="/app/">Open the studio →</a>
+</div></nav>
+
+<main class="wrap">
+  <div class="eyebrow">Guide</div>
+  <h1>How to make a rally roadbook</h1>
+  <p class="lede">A roadbook is the one document a whole field of crews will trust for a day — sometimes a week. Here's the whole job, in order, in plain English.</p>
+
+  <p>Every roadbook, from a club evening run to a week-long tour, is the same thing underneath: <strong>one row per instruction</strong>. Each row carries a little junction drawing — the <a href="/guides/what-is-a-tulip-diagram/">tulip</a> — plus two distances and a few words. Read top to bottom, the rows carry a crew from the start to the finish without a map. Making one well is mostly a matter of doing seven jobs in the right order.</p>
+
+  <h2>1. Get the route exact first</h2>
+  <p>The book inherits every mistake the route has, so the line comes first and the drawing second. Either <strong>plan it on the map</strong> — tracing roads until the shape is right — or <strong>drive it and record it</strong>, which is better still, because the recording is the truth of what's actually there. Don't start drawing tulips until the line is the line: every edit to the route afterwards means re-checking distances and diagrams downstream of the change.</p>
+
+  <h2>2. Choose the instructions</h2>
+  <p>Not every junction goes in the book. What goes in is <strong>every place a stranger could go wrong</strong> — plus the places you need them to do something: section starts and finishes, controls, cautions, "straight over" confirmations on long empty stretches so nobody's left wondering. A useful test: imagine a careful crew who've never seen these roads. Anywhere they'd hesitate, that's a row.</p>
+
+  <div class="callout"><strong>The golden rule:</strong> the roadbook describes the road <em>as the crew meets it</em> — never as the map draws it. If the lane looks like a fork on the ground but the map calls it a crossroads, the book shows the fork.</div>
+
+  <h2>3. Draw the tulips</h2>
+  <p>One diagram per row: the <strong>ball</strong> is the road you arrive on, the <strong>arrow</strong> is the road you leave by, and the other lines are what you'll see through the windscreen — enough to be sure you're at the right junction, and nothing more. Keep them simple; a tulip with every farm track drawn in is harder to read at speed than one with three clean lines. (New to the notation? Start with <a href="/guides/what-is-a-tulip-diagram/">what is a tulip diagram?</a>)</p>
+
+  <h2>4. Measure the distances</h2>
+  <p>Each row usually carries two numbers: the <strong>total</strong> distance from the start of the section, and the <strong>intermediate</strong> — the gap since the last instruction. Crews drive on the intermediate: they zero the trip at each instruction and count down to the next. That's why the numbers must come off the actual route line, not off a ruler or a guess — a roadbook that's 200&nbsp;metres optimistic at every junction has a whole field second-guessing it by lunchtime.</p>
+
+  <h2>5. Add the words and the signs</h2>
+  <p>Few words, useful words. Signpost confirmations ("SP&nbsp;Melton"), the thing that makes the junction unmistakable ("at the phone box"), and honest warnings ("care — gravel", "narrow bridge"). Where what the crew will actually see is a road sign — a give way, a stop — put the sign itself in the row. The words are there for the navigator to read aloud in half a second, so write them the way they'll be spoken.</p>
+
+  <h2>6. Check it — properly</h2>
+  <p>The classic roadbook error is a junction drawn from the wrong approach — the diagram is true of the junction but mirror-imaged for the direction you meet it. The best check is mechanical: <strong>compare every tulip against the recorded GPS track</strong> and make sure the turn the diagram shows is the turn the line takes. Then the gold standard: give the book to someone who wasn't involved and have them drive it cold. Everywhere they hesitate, the book needs a row or a word — the fix is never "they should have known".</p>
+
+  <h2>7. Print it like it'll be used</h2>
+  <p>A roadbook lives on a navigator's lap, in a plastic wallet, sometimes in the rain, often photocopied. So: <strong>black line-work on white</strong> that survives a photocopier, a size that suits the car (A5 is the classic), page numbers, and a cover that says what event it is, the date, and the total distance. If the book might be reprinted by someone else, assume the worst printer in the county and design for that.</p>
+
+  <div class="cta-band">
+    <h2>Make one now, free</h2>
+    <p>Tulip Maps does this whole list in your browser: draw or import the route, drop the waypoints, and it draws the tulips, measures both distances, checks diagrams against the track, and prints the book.</p>
+    <a class="btn" href="/app/">Open Tulip Maps →</a>
+  </div>
+
+  <div class="also"><b>Related guides</b>
+    <a href="/guides/what-is-a-tulip-diagram/">What is a tulip diagram?</a> · <a href="/guides/planning-a-rally-route/">Planning a rally route</a>
+  </div>
+</main>
+
+<footer><div class="wrap">
+  <a href="/">Home</a><a href="/guides/">Guides</a><a href="/app/">Open the studio</a><a href="https://thevirtualmarshal.com">Virtual Marshal</a>
+  <div style="margin-top:10px">© 2026 Tulip Maps, by Virtual Marshal</div>
+</div></footer>
+</body>
+</html>
