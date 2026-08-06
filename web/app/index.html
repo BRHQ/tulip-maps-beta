@@ -508,6 +508,10 @@
   .wpfield { margin-top:6px; }
   .wprowflex { display:flex; gap:6px; align-items:center; }
   .wprowflex .wpfield { flex:1; width:auto; }   /* stacked inputs now carry their own heading as placeholder */
+  /* symbols chosen for the DIRECTIONS box — little chips under the field; tap one to take it out */
+  #dirsyms { display:none; flex-wrap:wrap; gap:4px; align-items:center; }
+  .dirchip { background:#f4f6f4; border:1px solid var(--hair); border-radius:7px; padding:3px; cursor:pointer; line-height:0; }
+  .dirchip:hover { border-color:#b41e1e; background:#fbeeec; }
   #tulipcard { height:auto; overflow:visible; }
   #wplist { max-height:300px; overflow-y:auto; }   /* WP list never grows unbounded */
   /* ── THE WELCOME BOX ──
@@ -929,7 +933,11 @@
         <input type="text" id="wpname" class="wpnamebox" placeholder="name">
         <button class="navbtn" id="wpgps" title="put this waypoint's GPS position into the name">🌐</button>
       </div>
-      <input type="text" id="dirtext" class="writebox wpfield" placeholder="Directions">
+      <div class="wprowflex">
+        <input type="text" id="dirtext" class="writebox wpfield" placeholder="Directions">
+        <button class="navbtn" id="dirsym" title="add symbols to the DIRECTIONS box — cautions, fuel, signs"><svg width="15" height="15" viewBox="0 0 16 16" style="display:block"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 4.6 V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="11.4" r="1.1" fill="currentColor"/></svg></button>
+      </div>
+      <div id="dirsyms"></div>
       <div class="wprowflex">
         <input type="text" id="infotext" class="writebox wpfield" placeholder="Town">
         <button class="navbtn" id="wpauto" title="fill Town + Street from the map (nearest place & road)">⌖</button>
@@ -1391,7 +1399,7 @@ const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
    users get reset to the new default once (then their own tweaks persist again). Without this,
    anyone who used the studio before keeps their old saved layout and never sees new defaults. */
-const STUDIO_BUILD="Tulip Maps · build 3 Aug · 2";   // shown at the foot of the Menu — bump on every deploy
+const STUDIO_BUILD="Tulip Maps · build 6 Aug · 1";   // shown at the foot of the Menu — bump on every deploy
 (function(){ const LAYOUTV="2026-07-21";
   try{ if(localStorage.getItem("vmstudio_layoutv")!==LAYOUTV){
     localStorage.removeItem("vmstudio_view"); localStorage.removeItem("vmstudio_panels");
@@ -2889,6 +2897,7 @@ function selectWp(i){
   $("dirtext").value=row?(row.direction||""):(w.cmt||"");
   $("infotext").value=row?(row.info||""):"";
   $("streettext").value=row?(row.street||""):"";
+  syncDirSyms();
   updateWpStats(w);
   if(!w.deleted&&pts.length) selectVertex(nearestVertex({lat:w.lat,lng:w.lon}));
   updateSV();
@@ -2950,6 +2959,7 @@ function liveWrite(){
 }
 $("wpname").oninput=()=>liveWrite();
 $("dirtext").oninput=()=>liveWrite();
+$("dirsym").onclick=openDirSymPicker;
 $("infotext").oninput=()=>liveWrite();
 $("streettext").oninput=()=>liveWrite();
 $("wpauto").onclick=autoName;
@@ -3842,6 +3852,30 @@ function cornerCat(){ if(_cornerCat)return _cornerCat;
 function drawByName(ctx,name,x,y,sc){
   try{ if(name.indexOf("rs_")===0) drawSign(ctx,name.slice(3),x,y,sc); else drawStamp(ctx,name,x,y,sc); }catch(e){}
 }
+/* Symbols IN the DIRECTIONS box (not on the tulip): row.dsyms is a "+"-joined
+   list of stamp names — "warn+rs_554" — saved with the route like any other
+   notes column. They print at the front of the box, cautions-first style. */
+function dsymList(r){ return String((r&&r.dsyms)||"").split("+").filter(Boolean).slice(0,6); }
+function dsymRow(){ const w=wps[selWp]; return w?rowFor(w):null; }
+function dsymWrite(row,list){
+  row.dsyms=list.join("+");
+  if(!header.includes("dsyms")) header.push("dsyms");
+  row._edited=true;
+  syncDirSyms(); rbLiveUpdate(); scheduleList();
+}
+function syncDirSyms(){
+  const box=$("dirsyms"); if(!box) return;
+  const row=dsymRow(), list=row?dsymList(row):[];
+  box.innerHTML="";
+  box.style.display=list.length?"flex":"none";
+  for(const nm of list){
+    const b=document.createElement("button");
+    b.className="dirchip"; b.title="take this symbol out of the DIRECTIONS box";
+    b.append(symbolNode(nm,24));
+    b.onclick=()=>dsymWrite(row,dsymList(row).filter(n=>n!==nm));
+    box.append(b);
+  }
+}
 /* thumbnails: official gov signs are real <img> (crisp, no canvas load race);
    the three vector regulatory signs + tulip markers stay canvas-drawn. */
 const VEC_UI=new Set(["giveway","stops","noentry","parking"]);
@@ -3872,7 +3906,8 @@ function buildPicker(cat,current){
     const g=document.createElement("div"); g.className="signgrid"; body.append(g);
     for(const it of grp.items){
       const name=it[0], label=it[1];
-      const opt=document.createElement("div"); opt.className="signopt"+(name===current?" on":""); opt.dataset.name=name;
+      const on = current instanceof Set ? current.has(name) : name===current;
+      const opt=document.createElement("div"); opt.className="signopt"+(on?" on":""); opt.dataset.name=name;
       const s=document.createElement("span"); s.textContent=label;
       opt.append(symbolNode(name,52), s);
       opt.onclick=()=>choosePick(name);
@@ -3883,6 +3918,16 @@ function buildPicker(cat,current){
 function choosePick(name){
   if(!pickTarget)return;
   if(pickTarget.mode==="stamp"){ closeSignPicker(); tulipSnap(); addStampNow(name); return; }   // detailed: drop it in, then drag it
+  if(pickTarget.mode==="dir"){                       // DIRECTIONS box: tap adds, tap again removes — box stays open
+    const row=dsymRow(); if(!row) return;
+    let list=dsymList(row);
+    if(list.includes(name)) list=list.filter(n=>n!==name);
+    else if(list.length>=6){ toast("Six symbols is plenty for one box — take one out first.",3500); return; }
+    else list.push(name);
+    dsymWrite(row,list);
+    buildPicker(cornerCat(), new Set(list));
+    return;
+  }
   if(!cur)return;
   if(pickTarget.mode==="rsign") cur.rsign = name.indexOf("rs_")===0 ? name.slice(3) : name;
   else if(pickTarget.mode==="corner"){ cur.corners=cur.corners||{}; cur.corners[pickTarget.corner]=name; }
@@ -3893,6 +3938,14 @@ function openSignPicker(){
   pickTarget={mode:"rsign"};
   $("signtitle").textContent="Road signs";
   buildPicker(signCat(), cur&&cur.rsign?("rs_"+cur.rsign):"");
+  $("signmodal").style.display="flex";
+}
+function openDirSymPicker(){
+  const row=dsymRow();
+  if(!row){ toast("No notes row for this waypoint — symbols can't be added here.",4000); return; }
+  pickTarget={mode:"dir"};
+  $("signtitle").textContent="DIRECTIONS symbols — tap to add or remove";
+  buildPicker(cornerCat(), new Set(dsymList(row)));
   $("signmodal").style.display="flex";
 }
 const CORNER_NAME={tl:"top-left",tr:"top-right",bl:"bottom-left",br:"bottom-right"};
@@ -3954,7 +4007,7 @@ document.addEventListener("pointerup",()=>{
 });
 /* sign images load async — redraw the tulip when one arrives, and preload the
    whole set up-front so the picker and roadbook are ready by the time they open. */
-if(typeof setSignLoadHook==="function"){ setSignLoadHook(()=>{ try{ repaint(); }catch(e){} }); preloadSigns(); }
+if(typeof setSignLoadHook==="function"){ setSignLoadHook(()=>{ try{ repaint(); }catch(e){} try{ rbLiveUpdate(); }catch(e){} }); preloadSigns(); }
 /* side roads / roundabout / symbols live behind the ＋Add panel; active ones
    show as removable chips so nothing is hidden from view. */
 function openExtras(show){
@@ -4106,6 +4159,10 @@ function syncEndBtn(){
 $("t_end").onclick=()=>{ if(!cur)return; cur.end=((cur.end||0)+1)%3; mark(); syncQuick(); repaint(); };
 $("signclose").onclick=closeSignPicker;
 $("signnone").onclick=()=>{
+  if(pickTarget&&pickTarget.mode==="dir"){
+    const row=dsymRow(); if(row) dsymWrite(row,[]);
+    closeSignPicker(); return;
+  }
   if(cur&&pickTarget){
     if(pickTarget.mode==="rsign") cur.rsign="";
     else if(pickTarget.mode==="corner"&&cur.corners) cur.corners[pickTarget.corner]="";
@@ -6117,14 +6174,26 @@ function rbLayout(o){
   const ROW_H=(H-HEAD-M-PELEV)/NR;
   const cvs=document.createElement("canvas"); cvs.width=564; cvs.height=480;
   const cctx=cvs.getContext("2d");
+  const scvs=document.createElement("canvas"); scvs.width=144; scvs.height=144;   // one symbol at a time, crisp
+  const sctx=scvs.getContext("2d");
   return {o,a5,W,H,NR,S,M,classic,raid,dark,ST,F,BANDC,SUBC,INK,GREY,LINE,BANDTXT,BADGEC,
-          AL,alignX,alignOpt,BAND,HEAD,cols,XS,caps,PELEV,ROW_H,cvs,cctx};
+          AL,alignX,alignOpt,BAND,HEAD,cols,XS,caps,PELEV,ROW_H,cvs,cctx,scvs,sctx};
 }
 /* The tulip picture is drawn on a scratch canvas. On paper it has to become a
    PNG; on screen the canvas can be used as it is, which saves the slow encode. */
 function rbPutCanvas(doc,cv,x,y,w,h){
   if(doc.__canvas) doc.drawCanvas(cv,x,y,w,h);
   else doc.addImage(cv.toDataURL("image/png"),"PNG",x,y,w,h);
+}
+/* One DIRECTIONS-box symbol, drawn s×s points at (x,y). Every stamp and gov
+   sign fits a 48-unit box around its centre, so the scratch canvas maps 48
+   units across and the symbol lands edge-to-edge. */
+function rbDrawSym(doc,L,name,x,y,s){
+  const cv=L.scvs, c=L.sctx; if(!cv||!c) return;
+  c.setTransform(1,0,0,1,0,0); c.clearRect(0,0,cv.width,cv.height);
+  const k=cv.width/48; c.setTransform(k,0,0,k,0,0);
+  drawByName(c,name,24,24,1);
+  rbPutCanvas(doc,cv,x,y,s,s);
 }
 /* A STAND-IN FOR jsPDF THAT PAINTS ONTO A CANVAS.
    It answers to the handful of jsPDF calls the roadbook uses, in the same
@@ -6246,10 +6315,26 @@ function rbDrawRow(doc,L,r,top,i,total){
               doc.text(String(r.wp),cx+13*S,cy+12*S,{align:"center"}); }
           }
           else if(c.k==="direction"){
+            /* chosen symbols lead the box, the way cautions lead a rally book:
+               one sits centred, two stack, more make short columns of two.
+               Their size follows the row height, so dense pages shrink them. */
+            const syms=dsymList(r);
+            let symW=0;
+            if(syms.length){
+              const gap=3*S, s=Math.min(24*S, ROW_H*0.42);
+              const nCols=Math.ceil(syms.length/2);
+              symW=nCols*(s+gap)+3*S;
+              syms.forEach((nm,si)=>{
+                const ci=Math.floor(si/2), inCol=Math.min(2,syms.length-ci*2);
+                const sx=X+8*S+ci*(s+gap);
+                const sy=inCol===1 ? mid-s/2 : (si%2===0 ? mid-s-gap/2 : mid+gap/2);
+                rbDrawSym(doc,L,nm,sx,sy,s);
+              });
+            }
             if(r.direction){ doc.setTextColor(...INK); doc.setFont(F,"bold"); FS(13.5);
-              const lines=doc.splitTextToSize(r.direction,CW-18*S);
+              const lines=doc.splitTextToSize(r.direction,CW-18*S-symW);
               const startY=mid+4*S-(lines.length-1)*7.5*S;
-              lines.forEach((ln,j)=>doc.text(ln,X+10*S,startY+j*15*S)); }
+              lines.forEach((ln,j)=>doc.text(ln,X+10*S+symW,startY+j*15*S)); }
             if(r.flag){ doc.setFont(F,"italic"); FS(7.5); doc.setTextColor(...GREY);
               doc.text("["+r.flag+"]",X+10*S,top+ROW_H-5*S); }
           }
@@ -6460,14 +6545,19 @@ function rbDrawMotoRow(doc,ML,r,top,i,total){
           const th=Math.min(notesBeside?CH-14:CH-34,86); tw2=th*188/160;
           rbPutCanvas(doc,cvs,tulRight?RW-M-tw2-2:M+2,top+4,tw2,th);
         }
-        if(on("direction")&&r.direction){ doc.setTextColor(...INK); doc.setFont(F,"bold"); doc.setFontSize(8.5);
+        const msyms=dsymList(r).slice(0,3);      // the roll is a narrow strip — three leading symbols at most
+        if(on("direction")&&(r.direction||msyms.length)){ doc.setTextColor(...INK); doc.setFont(F,"bold"); doc.setFontSize(8.5);
+          const sy=11, indent=msyms.length?msyms.length*(sy+2)+3:0;
           if(notesBeside){
             const nx=tulRight?M+50:M+tw2+8;
-            const lines=doc.splitTextToSize(r.direction,RW-2*M-tw2-56).slice(0,4);
-            lines.forEach((ln,j)=>doc.text(ln,nx,top+16+j*10));
+            msyms.forEach((nm,si)=>rbDrawSym(doc,ML,nm,nx+si*(sy+2),top+16-sy+2.5,sy));
+            const lines=doc.splitTextToSize(r.direction||"",RW-2*M-tw2-56-indent).slice(0,4);
+            lines.forEach((ln,j)=>doc.text(ln,nx+(j===0?indent:0),top+16+j*10));
           } else {
-            const lines=doc.splitTextToSize(r.direction,RW-2*M-58).slice(0,2);
-            lines.forEach((ln,j)=>doc.text(ln,tulRight?M+52:M+2,top+CH-22+j*10));
+            const nx=tulRight?M+52:M+2;
+            msyms.forEach((nm,si)=>rbDrawSym(doc,ML,nm,nx+si*(sy+2),top+CH-22-sy+2.5,sy));
+            const lines=doc.splitTextToSize(r.direction||"",RW-2*M-58-indent).slice(0,2);
+            lines.forEach((ln,j)=>doc.text(ln,nx+(j===0?indent:0),top+CH-22+j*10));
           } }
 }
 function rbMotoLayout(o){
@@ -6478,10 +6568,12 @@ function rbMotoLayout(o){
   const INK=[19,19,21], GREY=[115,118,124];
   const cvs=document.createElement("canvas"); cvs.width=564; cvs.height=480;
   const cctx=cvs.getContext("2d");
+  const scvs=document.createElement("canvas"); scvs.width=144; scvs.height=144;
+  const sctx=scvs.getContext("2d");
   const on=k=>(o.cols||RB_DEF.cols).some(c=>c.k===k&&c.on);
   const tulRight=(o.motoTulip||"right")!=="left";
   const notesBeside=(o.motoNotes||"under")==="beside";
-  return {o,ST,F,RW,RH,M,CH,perPage,INK,GREY,cvs,cctx,on,tulRight,notesBeside};
+  return {o,ST,F,RW,RH,M,CH,perPage,INK,GREY,cvs,cctx,scvs,sctx,on,tulRight,notesBeside};
 }
 function buildMotoRoll(o,previewOnly,onlyPage){
   const { jsPDF } = window.jspdf;
