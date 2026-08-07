@@ -1298,19 +1298,155 @@ const PACKS=[
 const PACK_INDEX={}, PACK_KW={};
 for(const p of PACKS) for(const s of p.items){ PACK_INDEX["pk_"+s.id]=s; PACK_KW["pk_"+s.id]=(s.label+" "+(s.kw||"")).toLowerCase(); }
 
+/* ---- PAINTED colour (Chris's pick, 7 Aug — "painted defo") ----------------
+   The third position on the ✒ switch. One shared paint-box; every symbol
+   lists the colour of each solid-style piece IN ORDER (ops), with an
+   optional colour for the white details (cut / per-index cutops).
+   A symbol with no entry just draws solid ink, so nothing can break. */
+const PB={ brick:"#b0604a", brickD:"#8a4434", red:"#a94e3c", carR:"#b4432f", slate:"#5f6b76",
+  stone:"#c9bb9e", stoneD:"#b3a284", cream:"#efe6d0", paper:"#e8e2d2", sand:"#d9c9a8",
+  wood:"#8a6f52", woodL:"#a3835c", green:"#2f5d3f", leaf:"#4a7a40", leafD:"#3a6b48",
+  shrub:"#567f3e", blue:"#4a6f9a", navy:"#3f6d9e", teal:"#3e8e83", glass:"#7fa3c0",
+  metal:"#8f97a3", iron:"#3d3d42", tyre:"#2f2f33", grey:"#9aa0a6", tarmac:"#63676c",
+  amber:"#d9a24a", straw:"#d9b45e", cross:"#c0392b", stoneG:"#8f8a80", earth:"#6f6152",
+  tan:"#c49a6c", bay:"#8a5a3c", fawn:"#9a6b45", pigP:"#d69b8c", foxR:"#c0653a",
+  wool:"#e9e3d3", dkfur:"#5a544c", brn:"#7a5240", hide:"#c9a68a", mud:"#4a3b2e" };
+const PACK_COL={
+  /* desert & terrain */
+  dune:{ops:["#dcc28e"]}, rocks:{ops:[PB.stoneG,"#6f6a60",PB.stoneG]}, boulder:{ops:[PB.stoneG]},
+  cliff:{ops:[PB.stoneD]}, cactus:{ops:[PB.shrub,PB.shrub,PB.shrub]},
+  palm:{ops:[PB.wood,PB.leaf,PB.leaf,PB.leaf,PB.leaf,PB.leaf,PB.leaf,PB.wood,PB.wood]},
+  well:{ops:[PB.slate,PB.wood,PB.wood,PB.stoneG,PB.iron,PB.wood]},
+  ruin:{ops:[PB.stoneD]}, mast:{ops:[PB.tarmac,PB.tarmac,PB.tarmac,PB.tarmac]},
+  hut:{ops:[PB.wood,PB.slate]},
+  /* animals */
+  sheep:{ops:[PB.dkfur,PB.dkfur,PB.dkfur,PB.dkfur,PB.wool,PB.wool,PB.wool,PB.wool,PB.dkfur]},
+  camel:{ops:[PB.tan,PB.tan,PB.tan,PB.tan,PB.tan,PB.tan,PB.tan,PB.tan,PB.tan,PB.tan,PB.tan]},
+  cow:{ops:[PB.brn,PB.brn,PB.brn,PB.brn,PB.brn,PB.brn,PB.hide,PB.wool,PB.brn,PB.brn,PB.brn]},
+  horse:{ops:[PB.bay,PB.bay,PB.bay,PB.bay,PB.bay,PB.bay,PB.bay,PB.bay,PB.mud,PB.mud,PB.mud]},
+  deer:{ops:[PB.fawn,PB.fawn,PB.fawn,PB.fawn,PB.fawn,PB.fawn,PB.fawn,PB.earth,PB.wool]},
+  goat:{ops:["#cfc7b5","#cfc7b5","#cfc7b5","#cfc7b5","#cfc7b5","#cfc7b5","#cfc7b5","#6f6a60","#6f6a60","#cfc7b5"]},
+  pig:{ops:[PB.pigP,PB.pigP,PB.pigP,PB.pigP,PB.pigP,PB.pigP,PB.pigP,PB.pigP]},
+  dog:{ops:[PB.dkfur,PB.dkfur,PB.dkfur,PB.dkfur,PB.dkfur,PB.dkfur,PB.dkfur,PB.dkfur,PB.dkfur,PB.dkfur]},
+  fox:{ops:[PB.mud,PB.mud,PB.mud,PB.mud,PB.foxR,PB.foxR,PB.foxR,PB.foxR,PB.foxR,PB.foxR]},
+  hare:{ops:["#a3835c","#a3835c","#a3835c","#a3835c","#a3835c","#a3835c",PB.wool]},
+  boar:{ops:[PB.mud,PB.mud,PB.mud,PB.mud,"#5e5148","#3d352e","#5e5148","#3d352e","#5e5148"]},
+  donkey:{ops:[PB.stoneG,PB.stoneG,PB.stoneG,PB.stoneG,PB.stoneG,PB.stoneG,PB.stoneG,PB.stoneG,PB.stoneG,PB.dkfur,PB.dkfur]},
+  chicken:{ops:["#c9803c","#8a5a30","#8a5a30","#c9803c",PB.cross,PB.amber,PB.cross,PB.amber,PB.amber]},
+  duck:{ops:["#b9ab90","#8a7a5c",PB.green,"#b9ab90",PB.amber,"#c9803c","#c9803c"]},
+  raptor:{ops:[PB.earth]},
+  kangaroo:{ops:["#b98a5e","#b98a5e","#b98a5e","#b98a5e","#b98a5e","#b98a5e","#b98a5e","#b98a5e","#b98a5e"]},
+  moose:{ops:["#5e4a3a","#5e4a3a","#5e4a3a","#5e4a3a","#5e4a3a","#5e4a3a","#4a3b2e","#5e4a3a","#c9b089","#5e4a3a"]},
+  bear:{ops:["#6b4a3a","#6b4a3a","#6b4a3a","#6b4a3a","#6b4a3a","#6b4a3a","#6b4a3a","#6b4a3a",PB.hide]},
+  snake:{ops:[PB.shrub,PB.shrub,PB.shrub,PB.cross]},
+  tortoise:{ops:["#6f6a4a","#8a7f5c","#a3a06a","#a3a06a","#a3a06a","#a3a06a","#a3a06a"]},
+  hedgehog:{ops:[PB.wood,PB.mud,PB.hide,PB.mud,PB.mud]},
+  llama:{ops:["#e3d7bd","#e3d7bd","#e3d7bd","#e3d7bd","#e3d7bd","#e3d7bd","#e3d7bd","#e3d7bd","#e3d7bd","#e3d7bd"]},
+  elephant:{ops:["#8f8a8a","#8f8a8a","#8f8a8a","#8f8a8a","#8f8a8a","#8f8a8a","#8f8a8a","#8f8a8a","#8f8a8a"]},
+  /* vehicles */
+  car4x4:{ops:["#5c7050","#5c7050",PB.tyre,PB.tyre]},
+  tractor:{ops:[PB.tyre,PB.tyre,"#3e6b3a","#3e6b3a","#3e6b3a"]},
+  car:{ops:[PB.blue,PB.tyre,PB.tyre]},
+  sportscar:{ops:[PB.carR,PB.tyre,PB.tyre]},
+  rallycar:{ops:[PB.navy,PB.amber,PB.amber,PB.tyre,PB.tyre]},
+  racecar:{ops:[PB.carR,PB.carR,PB.amber,PB.iron,PB.iron,PB.iron,PB.tyre,PB.tyre]},
+  policecar:{ops:[PB.paper,PB.navy,PB.tyre,PB.tyre],cutops:["#9fb6c4","#9fb6c4",PB.navy,"#fff","#fff"]},
+  ambulance:{ops:[PB.paper,PB.amber,PB.tyre,PB.tyre],cutops:["#9fb6c4",PB.cross,PB.cross,"#fff","#fff"]},
+  fireengine:{ops:[PB.carR,PB.metal,PB.metal,PB.metal,PB.tyre,PB.tyre]},
+  van:{ops:[PB.metal,PB.tyre,PB.tyre]},
+  campervan:{ops:[PB.teal,PB.tyre,PB.tyre]},
+  caravan:{ops:["#e3d7bd",PB.iron,PB.tyre]},
+  pickup:{ops:[PB.blue,"#3a5a80",PB.tyre,PB.tyre]},
+  lorry:{ops:[PB.carR,"#e3d7bd",PB.tyre,PB.tyre,PB.tyre]},
+  artic:{ops:["#3e6b3a","#e3d7bd",PB.tyre,PB.tyre,PB.tyre,PB.tyre]},
+  dumper:{ops:[PB.amber,PB.amber,PB.tyre,PB.tyre,PB.tyre]},
+  bus:{ops:[PB.carR,PB.tyre,PB.tyre]},
+  motorbike:{ops:[PB.tyre,PB.tyre,PB.tarmac,PB.carR,PB.tarmac,PB.tarmac,PB.tarmac,PB.tarmac]},
+  bicycle:{ops:[PB.iron,PB.iron,"#3e6b3a",PB.iron,"#3e6b3a","#3e6b3a"]},
+  quad:{ops:[PB.tyre,PB.tyre,PB.carR,PB.tyre,PB.tarmac,PB.tarmac,PB.tarmac]},
+  digger:{ops:[PB.mud,PB.amber,PB.amber,PB.amber,PB.amber,PB.metal,PB.amber]},
+  bulldozer:{ops:[PB.mud,PB.amber,PB.amber,PB.amber,PB.metal,PB.mud]},
+  forklift:{ops:[PB.amber,PB.iron,PB.tyre,PB.tyre,PB.iron,PB.iron,PB.iron]},
+  /* buildings — as picked from the board */
+  house:{ops:[PB.sand,PB.red,PB.brickD]},
+  bungalow:{ops:[PB.sand,PB.slate,PB.brickD]},
+  block:{ops:[PB.stone,PB.grey]},
+  pub:{ops:[PB.brick,PB.slate,PB.brickD,PB.iron,PB.iron,PB.green]},
+  cafe:{ops:[PB.sand,PB.red,PB.red]},
+  diner:{ops:[PB.glass,PB.tarmac,PB.red,PB.tarmac]},
+  cafshack:{ops:[PB.wood,PB.slate,PB.tarmac,PB.amber,PB.iron]},
+  foodtruck:{ops:[PB.amber,PB.iron,PB.iron]},
+  hotel:{ops:[PB.stone,PB.iron,PB.red,PB.green,PB.iron]},
+  school:{ops:[PB.brick,PB.brickD]},
+  hospital:{ops:[PB.paper,PB.grey],cut:PB.cross},
+  police:{ops:[PB.blue]},
+  fire:{ops:[PB.red]},
+  carpark:{ops:[PB.metal]},
+  townhall:{ops:[PB.stone,PB.stoneD]},
+  church:{ops:[PB.stoneD,PB.slate,PB.iron,PB.stoneD,PB.slate]},
+  mosque:{ops:[PB.cream,PB.teal,PB.iron,PB.amber,PB.cream,PB.teal,PB.iron]},
+  temple:{ops:[PB.stoneD,PB.stone,PB.stone,PB.stone,PB.stone,PB.stone,PB.stone,PB.stone]},
+  castle:{ops:["#8f8a80"]},
+  factory:{ops:[PB.brick,PB.slate,PB.slate,PB.slate,PB.brickD]},
+  skyscraper:{ops:[PB.glass,PB.grey,PB.grey,PB.iron]},
+  towerblock:{ops:["#b9b3a6",PB.grey]},
+  fuel:{ops:[PB.red,PB.tarmac,PB.tarmac,PB.sand,PB.blue]},
+  oast:{ops:[PB.brick,PB.slate,PB.cream,PB.brick,PB.slate]},
+  windmill:{ops:[PB.stone,PB.slate,PB.iron,PB.iron,PB.iron,PB.iron,PB.iron]},
+  turbine:{ops:[PB.metal,PB.metal,PB.metal,PB.metal,PB.metal,PB.metal]},
+  watertower:{ops:[PB.grey,PB.metal,PB.tarmac,PB.tarmac,PB.tarmac,PB.tarmac]},
+  lighthouse:{ops:["#b4553e",PB.iron,PB.amber,"#b4553e",PB.amber]},
+  hangar:{ops:[PB.metal]},
+  shed:{ops:[PB.wood,PB.slate]},
+  silo:{ops:[PB.metal,PB.metal,PB.iron]},
+  /* trees */
+  oak:{ops:[PB.wood,PB.leaf,PB.leaf,PB.leaf,PB.leaf,PB.leaf]},
+  pine:{ops:[PB.leafD,PB.leafD,PB.leafD,PB.wood]},
+  poplar:{ops:[PB.leaf,PB.wood]},
+  bush:{ops:[PB.shrub,PB.shrub,PB.shrub,PB.shrub]},
+  deadtree:{ops:[PB.earth,PB.earth,PB.earth,PB.earth,PB.earth]},
+  orchard:{ops:[PB.leaf,PB.leaf,PB.leaf,PB.wood,PB.wood,PB.wood,"#8a7f5c"]},
+  wood:{ops:[PB.leaf,PB.leafD,PB.leaf,PB.leafD,PB.leaf,PB.wood,PB.wood]},
+  hilltree:{ops:["#a5c07c",PB.leaf,PB.leaf,PB.leaf,PB.wood]},
+  willow:{ops:["#6b9a55",PB.leaf,PB.wood]},
+  /* fences & gates */
+  gate5:{ops:[PB.wood,PB.wood,PB.wood,PB.wood,PB.wood,PB.wood,PB.wood]},
+  cattlegrid:{ops:[PB.metal]},
+  stile:{ops:[PB.wood,PB.wood,PB.wood,PB.woodL,PB.woodL,PB.woodL]},
+  wall:{ops:["#9a9384","#847e70","#847e70","#847e70","#847e70","#847e70","#847e70","#847e70","#847e70"]},
+  hedge:{ops:[PB.shrub]},
+  fencerun:{ops:[PB.wood,PB.wood,PB.wood,PB.wood,PB.wood]},
+  barrier:{ops:[PB.iron,PB.iron,PB.iron,PB.cross,PB.iron]},
+  wicket:{ops:[PB.wood,PB.wood,PB.woodL,PB.woodL,PB.woodL,PB.woodL,PB.woodL,PB.wood,PB.wood]},
+  wirefence:{ops:[PB.wood,PB.wood,PB.wood,PB.tarmac,PB.tarmac]},
+  /* farm */
+  barn:{ops:[PB.red,PB.slate]},
+  haybale:{ops:[PB.straw]},
+  windpump:{ops:[PB.metal,PB.metal,PB.metal,PB.metal,PB.metal,PB.amber]},
+  trough:{ops:[PB.stoneG,PB.wood,PB.wood],cut:"#5f9dc0"},
+  beehive:{ops:[PB.straw,PB.wood]},
+  churns:{ops:[PB.wood,PB.wood,PB.wood,PB.metal,PB.metal,PB.metal,PB.metal,PB.metal,PB.metal]}
+};
+
 function drawPackSymbol(ctx,name,x,y,sc){
   const sym=PACK_INDEX[name]; if(!sym) return;
-  const style=(typeof BOOKSTYLE!=="undefined"&&BOOKSTYLE.sym)||"solid";
+  let style=(typeof BOOKSTYLE!=="undefined"&&BOOKSTYLE.sym)||"solid";
+  const spec=style==="colour"?PACK_COL[sym.id]:null;
+  if(style==="colour"&&!spec) style="solid";          // no colours yet → plain ink, never broken
   const s=(sc||1)*(44/48);
   ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.translate(-24,-24);
   ctx.lineCap="round"; ctx.lineJoin="round";
   ctx.fillStyle=INKC; ctx.strokeStyle=INKC;
   const ops=(style==="line"&&sym.line&&sym.line.length)?sym.line:sym.fill;
-  for(const o of ops){ const p=new Path2D(o.d);
-    if(o.w){ ctx.lineWidth=o.w; ctx.stroke(p); } else ctx.fill(p); }
-  if(style!=="line"&&sym.cuts) for(const o of sym.cuts){ const p=new Path2D(o.d);
-    if(o.w){ ctx.strokeStyle="#fff"; ctx.lineWidth=o.w; ctx.stroke(p); ctx.strokeStyle=INKC; }
-    else { ctx.fillStyle="#fff"; ctx.fill(p); ctx.fillStyle=INKC; } }
+  const lastCol=spec&&spec.ops.length?spec.ops[spec.ops.length-1]:INKC;
+  ops.forEach((o,i)=>{ const p=new Path2D(o.d);
+    if(spec){ const col=spec.ops[i]||lastCol; ctx.fillStyle=col; ctx.strokeStyle=col; }
+    if(o.w){ ctx.lineWidth=o.w; ctx.stroke(p); } else ctx.fill(p); });
+  if(style!=="line"&&sym.cuts) sym.cuts.forEach((o,i)=>{
+    const col=spec?((spec.cutops&&spec.cutops[i])||spec.cut||"#fff"):"#fff";
+    const p=new Path2D(o.d);
+    if(o.w){ ctx.strokeStyle=col; ctx.lineWidth=o.w; ctx.stroke(p); }
+    else { ctx.fillStyle=col; ctx.fill(p); } });
   ctx.restore();
 }
 function PACK_CAT(){ return PACKS.map(p=>({g:p.g, items:p.items.map(s=>["pk_"+s.id, s.label])})); }

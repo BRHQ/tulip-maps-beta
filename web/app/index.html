@@ -1409,8 +1409,8 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=7aug4"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
-<script src="packs.js?v=7aug4"></script>        <!-- the symbol packs (animals, buildings, desert…) — same rule -->
+<script src="tulip_core.js?v=7aug6"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="packs.js?v=7aug6"></script>        <!-- the symbol packs (animals, buildings, desert…) — same rule -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
@@ -4369,7 +4369,7 @@ function drawPaintPreview(ctx){
   const g=$("groundstyle"), sy=$("symstyle");
   const syncStyleBtns=()=>{
     if(g) g.textContent="🎨 "+(BOOKSTYLE.ground==="ink"?"ink":"colour");
-    if(sy) sy.textContent="✒ "+(BOOKSTYLE.sym==="line"?"line":"solid");
+    if(sy) sy.textContent=BOOKSTYLE.sym==="colour"?"🎨 painted":"✒ "+(BOOKSTYLE.sym==="line"?"line":"solid");
   };
   const refresh=()=>{
     try{ localStorage.setItem("tm_bookstyle",JSON.stringify(BOOKSTYLE)); }catch(e){}
@@ -4383,7 +4383,7 @@ function drawPaintPreview(ctx){
     }
   };
   if(g) g.onclick=()=>{ BOOKSTYLE.ground=BOOKSTYLE.ground==="ink"?"colour":"ink"; refresh(); };
-  if(sy) sy.onclick=()=>{ BOOKSTYLE.sym=BOOKSTYLE.sym==="line"?"solid":"line"; refresh(); };
+  if(sy) sy.onclick=()=>{ BOOKSTYLE.sym=BOOKSTYLE.sym==="solid"?"line":BOOKSTYLE.sym==="line"?"colour":"solid"; refresh(); };   // solid → line → painted → …
   syncStyleBtns(); paintChips();
 })();
 /* search inside the symbol window — label + hidden keywords, every word must match */
