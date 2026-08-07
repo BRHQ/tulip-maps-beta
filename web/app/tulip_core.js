@@ -408,14 +408,29 @@ function govImg(code){
   im.src=SIGN_BASE+encodeURIComponent(code)+".jpg";
   SIGN_CACHE[code]=im; return im;
 }
+/* greyscale copy of a processed sign — the official artwork stays coloured only
+   in the PAINTED symbol style; in solid/line the whole book is ink, so the
+   signs drop to grey to match (Chris, 7 Aug: simpler than redrawing 70 signs) */
+function greyCanvas(src){
+  const cv=document.createElement("canvas"); cv.width=src.width; cv.height=src.height;
+  const c=cv.getContext("2d"); c.drawImage(src,0,0);
+  try{ const id=c.getImageData(0,0,cv.width,cv.height), d=id.data;
+    for(let i=0;i<d.length;i+=4){ const g=d[i]*.299+d[i+1]*.587+d[i+2]*.114; d[i]=d[i+1]=d[i+2]=g; }
+    c.putImageData(id,0,0); }catch(e){ return null; }
+  return cv;
+}
+function signsPainted(){ return typeof BOOKSTYLE==="undefined"||BOOKSTYLE.sym==="colour"; }
 function preloadSigns(){ try{ for(const g of ROAD_SIGNS) for(const it of g.items) if(!VEC_SIGNS[it[0]]) govImg(it[0]); }catch(e){} }
 // a transparent PNG data URL of the sign (white block cut out) for <img> thumbnails
 // in the picker; null until the source JPEG has loaded + been processed.
 const SIGN_URL={};
 function govSignURL(code){
-  if(SIGN_URL[code]) return SIGN_URL[code];
+  const key=code+(signsPainted()?"":"|g");
+  if(SIGN_URL[key]) return SIGN_URL[key];
   const im=govImg(code);
-  if(im.__proc){ try{ return (SIGN_URL[code]=im.__proc.toDataURL("image/png")); }catch(e){} }
+  let src=im.__proc;
+  if(src&&!signsPainted()){ if(!im.__procG) im.__procG=greyCanvas(src); src=im.__procG||src; }
+  if(src){ try{ return (SIGN_URL[key]=src.toDataURL("image/png")); }catch(e){} }
   return null;
 }
 function drawGovSign(ctx,code,x,y,sc){
@@ -423,7 +438,9 @@ function drawGovSign(ctx,code,x,y,sc){
   if(im.__ok && im.naturalWidth){
     const s=box/Math.max(im.naturalWidth,im.naturalHeight);
     const w=im.naturalWidth*s, h=im.naturalHeight*s;
-    ctx.drawImage(im.__proc||im, x-w/2, y-h/2, w, h);     // __proc = same sign with the white block removed
+    let src=im.__proc||im;                                // __proc = same sign with the white block removed
+    if(!signsPainted()&&im.__proc){ if(!im.__procG) im.__procG=greyCanvas(im.__proc); if(im.__procG) src=im.__procG; }
+    ctx.drawImage(src, x-w/2, y-h/2, w, h);
   } else if(!im.__err){                                   // faint placeholder until it loads
     ctx.save(); ctx.strokeStyle="#c9cec6"; ctx.setLineDash([3,3]); ctx.lineWidth=1.2;
     ctx.strokeRect(x-box/2, y-box/2, box, box); ctx.restore();
@@ -433,19 +450,20 @@ function rsAhead(ctx,x,y,ang,sz,sc){                 // arrowhead, tip at (x,y),
   for(const d of [148,-148]){ const b=(ang+d)*Math.PI/180;
     ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+sz*sc*Math.cos(b), y+sz*sc*Math.sin(b)); ctx.stroke(); }
 }
-function rsTri(ctx,x,y,sc){                           // white warning-triangle frame, point up
+function rsTri(ctx,x,y,sc,col){                       // white warning-triangle frame, point up
   ctx.beginPath();
   ctx.moveTo(x, y-19*sc); ctx.lineTo(x+21*sc, y+16*sc); ctx.lineTo(x-21*sc, y+16*sc); ctx.closePath();
   ctx.fillStyle="#fff"; ctx.fill();
-  ctx.strokeStyle=RS_RED; ctx.lineWidth=3.4*sc; ctx.stroke();
+  ctx.strokeStyle=col||RS_RED; ctx.lineWidth=3.4*sc; ctx.stroke();
   ctx.strokeStyle=RS_INK; ctx.fillStyle=RS_INK; ctx.lineWidth=2.6*sc;
 }
 function drawSign(ctx,code,x,y,sc){
   if(!VEC_SIGNS[code]){ drawGovSign(ctx,code,x,y,sc); return; }   // official gov image
+  const cR=signsPainted()?RS_RED:"#5f5f5f", cB=signsPainted()?RS_BLUE:"#5f5f5f";  // ink book → grey signs
   ctx.save();
   ctx.lineJoin="round"; ctx.lineCap="round"; ctx.strokeStyle=RS_INK; ctx.fillStyle=RS_INK;
   const W=code!=="stops"&&code!=="giveway"&&code!=="noentry"&&code!=="parking";  // warning-triangle family
-  if(W) rsTri(ctx,x,y,sc);
+  if(W) rsTri(ctx,x,y,sc,cR);
   if(code==="bend"||code==="bendl"){ const m=code==="bend"?1:-1; ctx.lineWidth=3*sc;
     ctx.beginPath(); ctx.moveTo(x-3*m*sc,y+13*sc); ctx.lineTo(x-3*m*sc,y+2*sc);
     ctx.quadraticCurveTo(x-3*m*sc,y-6*sc, x+6*m*sc,y-6*sc); ctx.stroke();
@@ -523,16 +541,16 @@ function drawSign(ctx,code,x,y,sc){
     ctx.beginPath(); ctx.moveTo(x+5*sc,y-7*sc); ctx.lineTo(x+5*sc,y+12*sc); ctx.stroke(); rsAhead(ctx,x+5*sc,y+12*sc,90,6,sc); }
   else if(code==="giveway"){ ctx.beginPath();
     ctx.moveTo(x-20*sc,y-13*sc); ctx.lineTo(x+20*sc,y-13*sc); ctx.lineTo(x,y+18*sc); ctx.closePath();
-    ctx.fillStyle="#fff"; ctx.fill(); ctx.strokeStyle=RS_RED; ctx.lineWidth=4.2*sc; ctx.stroke(); }
+    ctx.fillStyle="#fff"; ctx.fill(); ctx.strokeStyle=cR; ctx.lineWidth=4.2*sc; ctx.stroke(); }
   else if(code==="stops"){ const R=18*sc; ctx.beginPath();
     for(let i=0;i<8;i++){ const a=(Math.PI/8)+(i*Math.PI/4), px=x+R*Math.cos(a), py=y+R*Math.sin(a);
       i?ctx.lineTo(px,py):ctx.moveTo(px,py); } ctx.closePath();
-    ctx.fillStyle=RS_RED; ctx.fill();
+    ctx.fillStyle=cR; ctx.fill();
     ctx.fillStyle="#fff"; ctx.font=`700 ${8.5*sc}px Helvetica`; ctx.textAlign="center"; ctx.textBaseline="middle";
     ctx.fillText("STOP",x,y+0.5*sc); }
-  else if(code==="noentry"){ ctx.fillStyle=RS_RED; ctx.beginPath(); ctx.arc(x,y,17*sc,0,7); ctx.fill();
+  else if(code==="noentry"){ ctx.fillStyle=cR; ctx.beginPath(); ctx.arc(x,y,17*sc,0,7); ctx.fill();
     ctx.fillStyle="#fff"; ctx.fillRect(x-10*sc,y-3*sc,20*sc,6*sc); }
-  else if(code==="parking"){ const s=16*sc, r=4*sc; ctx.fillStyle=RS_BLUE;
+  else if(code==="parking"){ const s=16*sc, r=4*sc; ctx.fillStyle=cB;
     ctx.beginPath();
     ctx.moveTo(x-s+r,y-s); ctx.arcTo(x+s,y-s,x+s,y+s,r); ctx.arcTo(x+s,y+s,x-s,y+s,r);
     ctx.arcTo(x-s,y+s,x-s,y-s,r); ctx.arcTo(x-s,y-s,x+s,y-s,r); ctx.closePath(); ctx.fill();

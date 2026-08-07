@@ -659,7 +659,15 @@
     width:560px; max-width:94vw; }
   #signmodal .signcard { background:var(--card,#fff); border:1px solid var(--hair); border-radius:14px;
     box-shadow:0 12px 30px rgba(20,61,46,.25); max-height:92vh; display:flex; flex-direction:column; overflow:hidden;
-    resize:both; min-width:300px; min-height:220px; }   /* drag the bottom-right corner to make the window any size */
+    position:relative; min-width:300px; min-height:220px; }
+  /* our own resize grip — the CSS resize corner didn't survive the flex layout (Chris, 7 Aug) */
+  #signgrip { position:absolute; right:3px; bottom:3px; width:17px; height:17px; cursor:nwse-resize;
+    border-right:3px solid #b9b3a2; border-bottom:3px solid #b9b3a2; border-radius:0 0 8px 0; touch-action:none; }
+  #signgrip:hover { border-color:var(--green); }
+  /* folder chips — one per pack, plus Road signs and Markers */
+  #signchips { display:flex; gap:5px; overflow-x:auto; overscroll-behavior-x:contain; touch-action:pan-x;
+    padding:6px 14px 4px; scrollbar-width:thin; }
+  #signchips button { flex:none; }
   #signmodal .signhd { display:flex; align-items:center; gap:6px; padding:2px 9px; min-height:24px;
     background:#f6f8f5; border-bottom:1px solid var(--hair); border-radius:14px 14px 0 0; cursor:grab; touch-action:none; }
   #signmodal .signhd:active { cursor:grabbing; }
@@ -1005,7 +1013,8 @@
           <button class="tog ico" id="paintbtn" onclick="startPaint()" title="paint the ground — pick a surface, drag like a felt-tip; it always stays under the ink"><svg class="csi" viewBox="0 0 16 16"><path d="M2.5 13.5 C2.6 11.2 4.6 11.6 5.6 9.6 M5.6 9.6 L11.6 2.8 C12.6 1.8 14.2 3.3 13.2 4.4 L6.9 10.7 Z"/></svg></button>
         </div>
         <div id="paintrow" style="display:none">
-          <button class="tog" id="groundstyle" title="colour or ink — the whole book swaps at once, print included">🎨 colour</button>
+          <button class="tog ico" id="groundstyle" style="padding:3px 4px" title="colour or ink — the whole book swaps at once, print included"></button>
+          <span style="flex:none;width:1px;align-self:stretch;background:var(--hair)"></span>
           <span class="seg" id="paintsurfs" title="what to paint"></span>
         </div>
         <div id="eprops">
@@ -1384,7 +1393,9 @@
       <button class="rs-hbtn rs-x" id="signclose" title="close">✕</button>
     </div>
     <div style="padding:7px 14px 2px"><input type="text" id="signsearch" placeholder="search — gate, camel, hospital…" style="width:100%"></div>
+    <div id="signchips"></div>
     <div class="signbody" id="signbody"></div>
+    <div id="signgrip" title="drag to resize"></div>
   </div>
 </div>
 <div id="toast"></div>
@@ -1409,8 +1420,8 @@
 <script src="vendor/pmtiles.js"></script>
 <script src="vendor/leaflet-rotate-src.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="tulip_core.js?v=7aug7"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
-<script src="packs.js?v=7aug7"></script>        <!-- the symbol packs (animals, buildings, desert…) — same rule -->
+<script src="tulip_core.js?v=7aug8"></script>   <!-- bump the v when tulip_core changes, so browsers never mix old core with new page -->
+<script src="packs.js?v=7aug8"></script>        <!-- the symbol packs (animals, buildings, desert…) — same rule -->
 <script>
 const $=id=>document.getElementById(id);
 /* Layout schema version — bump this whenever the DEFAULT box layout changes, and returning
@@ -3871,10 +3882,32 @@ let _signCat=null,_cornerCat=null;
 function signCat(){ if(_signCat)return _signCat;
   _signCat=ROAD_SIGNS.map(g=>({g:g.g,items:g.items.map(it=>["rs_"+it[0],it[1]])})); return _signCat; }
 function cornerCat(){ if(_cornerCat)return _cornerCat;
-  _cornerCat=signCat().concat([
+  _cornerCat=[
     {g:"Tulip markers",items:[["pump","Fuel"],["lc","Level crossing"],["br","Bridge"],["warn","Caution"],["warnr","Danger"]]}
-  ], (typeof PACK_CAT==="function"?PACK_CAT():[]));   // the symbol packs ride along — corners and stamps alike
+  ].concat((typeof PACK_CAT==="function"?PACK_CAT():[]), signCat());   // markers + packs first, road signs after
   return _cornerCat; }
+/* folder chips: every pack gets a short chip; the ten road-sign groups share one */
+function pickerChipFor(g){
+  if(g==="Tulip markers") return "Markers";
+  const M={"Desert & terrain":"Desert","Animals":"Animals","Vehicles":"Vehicles","Buildings":"Buildings",
+    "Trees":"Trees","Fences & gates":"Fences","Farm":"Farm","People & rally":"People",
+    "Road furniture":"Furniture","Water & coast":"Water","Mountain & upland":"Mountain","Camping & leisure":"Camping"};
+  return M[g]||"Road signs";
+}
+let pickerChip="All";
+function buildPickerChips(cat){
+  const box=$("signchips"); if(!box) return; box.innerHTML="";
+  const chips=[]; for(const grp of cat){ const c=pickerChipFor(grp.g); if(!chips.includes(c)) chips.push(c); }
+  box.style.display = chips.length>1 ? "" : "none";
+  if(chips.length<=1) return;
+  if(!chips.includes(pickerChip)&&pickerChip!=="All") pickerChip="All";
+  for(const c of ["All",...chips]){
+    const b=document.createElement("button"); b.className="libchip"+(c===pickerChip?" on":""); b.textContent=c;
+    b.onclick=()=>{ pickerChip=c; const ss=$("signsearch"); if(ss) ss.value="";
+      box.querySelectorAll(".libchip").forEach(x=>x.classList.toggle("on",x===b)); filterPicker(); };
+    box.append(b);
+  }
+}
 function drawByName(ctx,name,x,y,sc){
   try{ if(name.indexOf("rs_")===0) drawSign(ctx,name.slice(3),x,y,sc); else drawStamp(ctx,name,x,y,sc); }catch(e){}
 }
@@ -3928,10 +3961,11 @@ let pickTarget=null;
 function buildPicker(cat,current){
   const body=$("signbody"); if(!body)return; body.innerHTML="";
   window.__lastPicker={cat,current};                  // so the ✒ style switch can redraw the open window
-  const ss=$("signsearch"); if(ss) ss.value="";       // the window always opens showing everything
+  const ss=$("signsearch"); if(ss) ss.value="";
+  buildPickerChips(cat);                              // folder chips (remembers the last folder you were in)
   for(const grp of cat){
     const h=document.createElement("h4"); h.textContent=grp.g; body.append(h);
-    const g=document.createElement("div"); g.className="signgrid"; body.append(g);
+    const g=document.createElement("div"); g.className="signgrid"; g.dataset.grp=grp.g; body.append(g);
     for(const it of grp.items){
       const name=it[0], label=it[1];
       const on = current instanceof Set ? current.has(name) : name===current;
@@ -3943,7 +3977,23 @@ function buildPicker(cat,current){
       g.append(opt);
     }
   }
+  filterPicker();                                     // apply the remembered folder straight away
 }
+/* the window's resize grip — drag the bottom-right corner */
+(function(){
+  const grip=$("signgrip"), modal=$("signmodal");
+  const card=modal?modal.querySelector(".signcard"):null;
+  if(!grip||!card) return;
+  let rs=null;
+  grip.addEventListener("pointerdown",e=>{ e.preventDefault(); e.stopPropagation();
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+    const r=card.getBoundingClientRect(); rs={x:e.clientX,y:e.clientY,w:r.width,h:r.height}; });
+  grip.addEventListener("pointermove",e=>{ if(!rs) return;
+    const w=Math.max(300,Math.min(window.innerWidth-24,rs.w+e.clientX-rs.x));
+    const h=Math.max(220,Math.min(window.innerHeight-30,rs.h+e.clientY-rs.y));
+    modal.style.width=w+"px"; card.style.height=h+"px"; card.style.maxHeight="none"; });
+  grip.addEventListener("pointerup",()=>{ rs=null; });
+})();
 function choosePick(name){
   if(!pickTarget)return;
   if(pickTarget.mode==="stamp"){ closeSignPicker(); tulipSnap(); addStampNow(name); return; }   // detailed: drop it in, then drag it
@@ -4339,9 +4389,11 @@ function paintChips(){                               // the little surface squar
     c2.fillStyle="#fff"; c2.fillRect(0,0,26,20);     // ink tiles are see-through — give the chip a floor
     c2.fillStyle=groundPattern(c2,surf,BOOKSTYLE.ground); c2.fillRect(0,0,26,20);
     b.append(cv);
-    b.onclick=()=>{ paintSurf=surf;
-      if(els&&esel>=0&&els[esel]&&els[esel].k==='a'){ tulipSnap(); els[esel].surf=surf; mark(); repaint(); }
-      syncPaintUI(); };
+    b.onclick=()=>{
+      /* brush armed → the chip just picks what the NEXT stroke paints.
+         Brush off + a stroke deliberately selected → recolour THAT stroke. */
+      if(!paintMode&&els&&esel>=0&&els[esel]&&els[esel].k==='a'){ tulipSnap(); els[esel].surf=surf; mark(); repaint(); }
+      paintSurf=surf; syncPaintUI(); };
     box.append(b);
   }
 }
@@ -4355,7 +4407,8 @@ function finishPaintStroke(){
     for(let i=flat.length-4;i>=2;i-=4) flat.splice(i,2); }
   if(flat.length===2) flat.push(flat[0]+1,flat[1]);  // a tap = a dab
   els.push({k:'a',surf:paintSurf,w:paintWi,p:flat});
-  paintPts=null; esel=els.length-1; mark(); syncProps(); repaint();
+  paintPts=null; esel=-1;                            // nothing left selected — no accidental edits (Chris, 7 Aug)
+  mark(); syncProps(); repaint();
 }
 function drawPaintPreview(ctx){
   if(!paintPts||!paintPts.length) return;
@@ -4368,7 +4421,15 @@ function drawPaintPreview(ctx){
     if(s.ground) BOOKSTYLE.ground=s.ground; if(s.sym) BOOKSTYLE.sym=s.sym; }catch(e){}
   const g=$("groundstyle"), sy=$("symstyle");
   const syncStyleBtns=()=>{
-    if(g) g.textContent="🎨 "+(BOOKSTYLE.ground==="ink"?"ink":"colour");
+    if(g){                                            // a chip-sized swatch previewing the current ground look
+      let cv=g.querySelector("canvas");
+      if(!cv){ cv=document.createElement("canvas"); cv.width=26; cv.height=20;
+        cv.style.display="block"; cv.style.borderRadius="3px"; g.textContent=""; g.append(cv); }
+      const c2=cv.getContext("2d");
+      c2.fillStyle="#fff"; c2.fillRect(0,0,26,20);
+      c2.fillStyle=groundPattern(c2,"grass",BOOKSTYLE.ground); c2.fillRect(0,0,26,20);
+      g.title="ground look: "+(BOOKSTYLE.ground==="ink"?"ink (black & white)":"colour")+" — click to swap, print included";
+    }
     if(sy) sy.textContent=BOOKSTYLE.sym==="colour"?"🎨 painted":"✒ "+(BOOKSTYLE.sym==="line"?"line":"solid");
   };
   const refresh=()=>{
@@ -4386,14 +4447,17 @@ function drawPaintPreview(ctx){
   if(sy) sy.onclick=()=>{ BOOKSTYLE.sym=BOOKSTYLE.sym==="solid"?"line":BOOKSTYLE.sym==="line"?"colour":"solid"; refresh(); };   // solid → line → painted → …
   syncStyleBtns(); paintChips();
 })();
-/* search inside the symbol window — label + hidden keywords, every word must match */
+/* search inside the symbol window — label + hidden keywords, every word must
+   match. No search text → the folder chips decide what shows instead. */
 function filterPicker(){
   const el=$("signsearch"); if(!el) return;
   const terms=(el.value||"").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const chipsOn=$("signchips")&&$("signchips").style.display!=="none";
   for(const grid of document.querySelectorAll("#signbody .signgrid")){
+    const inChip=!chipsOn||pickerChip==="All"||pickerChipFor(grid.dataset.grp||"")===pickerChip;
     let hit=false;
     grid.querySelectorAll(".signopt").forEach(o=>{
-      const ok=!terms.length||terms.every(t=>(o.dataset.kw||"").includes(t));
+      const ok=terms.length ? terms.every(t=>(o.dataset.kw||"").includes(t)) : inChip;
       o.style.display=ok?"":"none"; if(ok) hit=true;
     });
     grid.style.display=hit?"":"none";
