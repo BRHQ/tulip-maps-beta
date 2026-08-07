@@ -104,8 +104,22 @@
   .navsignin:hover{color:var(--ad)}
 
   /* hero */
-  .hero{padding:78px 0 46px}
-  .hero .wrap{display:grid;grid-template-columns:1.08fr .92fr;gap:52px;align-items:center}
+  .hero{padding:78px 0 60px;overflow:hidden}
+  .hero .wrap{display:grid;grid-template-columns:1.02fr 1.28fr;gap:44px;align-items:center;max-width:1240px}
+  /* the product shot: the real studio, bleeding off the right edge, with the
+     printed page it produces tucked into the corner. map -> book, in one picture. */
+  .shot{position:relative;margin-right:-90px}
+  .shot .glow{position:absolute;inset:8% -6% -12% 6%;background:radial-gradient(60% 60% at 50% 50%,var(--al),transparent 70%);
+    filter:blur(52px);opacity:.5;z-index:0}
+  .shot .win{position:relative;z-index:1;border-radius:14px;overflow:hidden;border:1px solid rgba(20,61,46,.16);
+    box-shadow:0 44px 80px -38px rgba(20,37,28,.62), 0 6px 18px -10px rgba(20,37,28,.25);background:#fff}
+  .shot .win img{width:100%;height:auto;display:block}
+  .shot .page{position:absolute;z-index:2;right:-26px;bottom:-34px;width:26.5%;min-width:132px;border-radius:8px;overflow:hidden;
+    border:1px solid rgba(20,61,46,.18);background:#fff;box-shadow:0 26px 50px -20px rgba(20,37,28,.6);transform:rotate(2.4deg)}
+  .shot .page img{width:100%;height:auto;display:block}
+  .shot .tag{position:absolute;z-index:3;left:14px;bottom:-15px;background:var(--green);color:var(--cream);
+    font-size:.74rem;font-weight:600;letter-spacing:.02em;border-radius:999px;padding:6px 13px;
+    box-shadow:0 10px 22px -12px rgba(20,37,28,.7)}
   .eyebrow{font-family:var(--sans);font-weight:600;text-transform:uppercase;letter-spacing:.16em;font-size:.72rem;color:var(--marshal)}
   h1{font-size:clamp(2.7rem,5.6vw,4.3rem);margin:.26em 0 .4em;text-wrap:balance}
   h1 em.u{color:var(--ad)}
@@ -139,7 +153,30 @@
   .step h3{font-size:1.24rem;margin:.5em 0 .34em;color:#fff;font-weight:500}
   .step p{margin:0;color:#CFDDD1;font-size:.98rem;line-height:1.55}
 
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+  /* ---- the feature demo stage: hover (or tap) a card and watch that bit of
+         the real tool work. Frames are genuine captures, not mock-ups. ---- */
+  .fstage{margin-top:40px;background:var(--paper-2);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px;display:grid;grid-template-rows:1fr auto;gap:10px}
+  .fmedia{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    height:min(46vw,392px)}
+  /* every frame sits in the same place, one on top of the other — only the
+     active one is opaque, so switching frames never moves the layout */
+  .fmedia img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    max-width:calc(100% - 16px);max-height:calc(100% - 16px);width:auto;height:auto;display:block;
+    opacity:0;transition:opacity .22s ease}
+  .fmedia img.show{opacity:1}
+  .fmedia .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:.9rem}
+  .fcap{margin:0;padding:0 4px 2px;font-size:.95rem;color:var(--ink-soft);text-align:center;min-height:1.5em}
+  .fcap b{color:var(--ink);font-weight:600}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--ad);background:var(--atint);border-radius:999px;padding:3px 10px;margin-right:8px}
+  .live i{width:6px;height:6px;border-radius:50%;background:var(--am);display:block}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+  .card.fcard{cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}
+  .card.fcard.on{border-color:var(--am);box-shadow:0 18px 34px -26px rgba(20,37,28,.5)}
+  .card.fcard.on .ic{color:var(--am)}
+  .cmedia{display:none}
   .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:24px;position:relative;transition:transform .14s, box-shadow .16s, border-color .16s}
   .card:hover{transform:translateY(-2px);box-shadow:0 18px 34px -24px rgba(20,37,28,.45);border-color:color-mix(in srgb,var(--am) 30%,var(--line))}
   .card .ic{width:32px;height:32px;color:var(--ad);margin-bottom:14px}
@@ -147,8 +184,29 @@
   .card p{margin:0;color:var(--ink-soft);font-size:.95rem;line-height:1.55}
   .card .soon{position:absolute;top:18px;right:18px;font-size:.66rem;font-family:var(--sans);font-weight:700;color:var(--ad);background:var(--atint);padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.07em}
 
-  /* the app / on-the-road */
-  .app{display:grid;grid-template-columns:1fr .82fr;gap:56px;align-items:center}
+  /* ---- the phone app: its own dark band so it reads as a second product,
+         four things it does, and the two store buttons ---- */
+  .appband{background:var(--green);color:var(--cream)}
+  .appband .eyebrow{color:var(--sage)}
+  .appband h2{color:#fff}
+  .appband .sub{color:#CFDDD1}
+  .apphead{max-width:62ch}
+  .appgrid{display:grid;grid-template-columns:1.15fr .85fr;gap:54px;align-items:center;margin-top:40px}
+  .appfour{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0;padding:0;list-style:none}
+  .appfour li{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:20px 20px 18px}
+  .appfour svg{width:26px;height:26px;color:var(--al);display:block;margin-bottom:10px}
+  .appfour b{display:block;color:#fff;font-weight:600;font-size:1.04rem;margin-bottom:.24em;letter-spacing:-.005em}
+  .appfour span{color:#CFDDD1;font-size:.92rem;line-height:1.5;display:block}
+  .stores{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px;align-items:center}
+  .store{display:inline-flex;align-items:center;gap:11px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.28);
+    border-radius:12px;padding:9px 17px 9px 15px;text-decoration:none;transition:transform .12s ease,border-color .15s;position:relative}
+  .store:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.6)}
+  .store svg{width:23px;height:23px;flex:none;fill:#fff}
+  .store .l{display:block;line-height:1.15}
+  .store .l small{display:block;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;opacity:.75}
+  .store .l strong{display:block;font-size:1.02rem;font-weight:600;letter-spacing:-.01em}
+  .storenote{width:100%;margin:2px 0 0;font-size:.86rem;color:#A9BFAE}
+  .storenote b{color:var(--al);font-weight:600}
   .app .copy p{color:var(--ink-soft);margin-top:1em;font-size:1.06rem;line-height:1.6}
   .app .copy p b{color:var(--ink);font-weight:600}
   .applist{list-style:none;padding:0;margin:1.5em 0 0;display:grid;gap:11px}
@@ -176,13 +234,13 @@
   /* the two words, explained — what is a tulip / what is a roadbook */
   .qa{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px}
   .qa .q{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:28px 28px 24px;position:relative}
-  .qa .art{float:right;margin:0 0 10px 16px}
+  .qa .art{float:right;margin:2px 0 10px 18px}
   .qa .art svg{width:64px;height:auto}
   .qa h3{font-family:var(--disp);font-weight:500;font-size:1.5rem;margin:0 0 .45em;letter-spacing:-.011em}
   .qa p{color:var(--ink-soft);font-size:1rem;line-height:1.6}
   .qa p b{color:var(--ink);font-weight:600}
   .qa .more{margin-top:1em;font-size:.95rem}
-  .qa .rbrow{display:flex;align-items:center;gap:10px;border:1.5px solid var(--ink);border-radius:8px;padding:8px 12px;margin:4px 0 14px;background:var(--paper)}
+  .qa .rbrow{display:flex;align-items:center;gap:10px;border:1.5px solid var(--ink);border-radius:8px;padding:8px 12px;margin:16px 0 4px;background:var(--paper)}
   .qa .rbrow svg{width:30px;height:38px;flex:none}
   .qa .rbrow .d{font-family:var(--disp);font-weight:500;font-size:1.05rem}
   .qa .rbrow .t{font-size:.8rem;color:var(--ink-soft);line-height:1.35}
@@ -211,17 +269,33 @@
   .fhint{width:100%;margin:.1em 0 0;font-size:.88rem;color:var(--ink-soft);line-height:1.6}
   .fhint b{color:var(--ink);font-weight:600}
 
+  @media(max-width:960px){
+    .hero .wrap{grid-template-columns:1fr;gap:34px}
+    .shot{margin-right:0}
+    .shot .page{width:23%;right:-8px;bottom:-20px}
+  }
   @media(max-width:860px){
-    .hero .wrap,.app{grid-template-columns:1fr;gap:40px}
-    .hero-art{order:-1;max-width:340px;margin:0 auto;width:100%}
-    .app .phone-wrap{order:-1}
+    .appgrid{grid-template-columns:1fr;gap:36px}
+    .appgrid .phone-wrap{order:-1}
     .steps,.grid{grid-template-columns:1fr 1fr}
     .qa{grid-template-columns:1fr}
     .hero{padding:44px 0 24px}
     section{padding:52px 0}
+    /* on a phone the stage sits above a tapped card — keep it, just shorter */
+    .fmedia{height:min(58vw,320px)}
+  }
+  /* a phone hasn't room for the colour tulips as well as the buttons —
+     the nav keeps sign-in and the way into the studio, which is the job */
+  @media(max-width:620px){
+    .swatches{display:none}
+    nav .wrap{gap:10px}
+    .navcta{padding:.52em .9em;font-size:.88rem;white-space:nowrap}
+    .navsignin{font-size:.88rem;white-space:nowrap;padding:.5em .2em}
+    .brand{font-size:1.12rem}
   }
   @media(max-width:540px){
     .steps,.grid{grid-template-columns:1fr}
+    .appfour{grid-template-columns:1fr}
     .charm{grid-template-columns:1fr;text-align:center;gap:18px}
     .charm .art svg{width:74px}
     .swatches{gap:1px}
@@ -265,18 +339,12 @@
     </div>
     <div class="microcopy"><b>No sign-up.</b> Nothing to install. Works in the browser · export GPX, .vmr or a printable roadbook.</div>
   </div>
-  <div class="hero-art" aria-hidden="true">
-    <div class="grid-bg"></div>
-    <div class="glow"></div>
-    <!-- the route becomes the tulip: the stem is the road in, a side road branches, the bloom is the turn -->
-    <svg class="big tulip" viewBox="0 0 120 220">
-      <path class="st" d="M60 128V196" stroke-width="11" stroke-linecap="round" fill="none"/>
-      <path class="st" d="M60 166C75 164 88 155 95 141" stroke-width="11" stroke-linecap="round" fill="none"/>
-      <path class="p1" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(-22 60 132)"/>
-      <path class="p3" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z" transform="rotate(22 60 132)"/>
-      <path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/>
-    </svg>
-    <div class="startdot"></div>
+  <div class="shot">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="win"><img src="/img/studio-hero.jpg" width="1800" height="1125"
+      alt="The Tulip Maps studio: a rally route drawn on the map, with the junction diagram being edited beside it" fetchpriority="high"></div>
+    <div class="page" aria-hidden="true"><img src="/img/demo/roadbook-page.png" width="900" height="1273" alt=""></div>
+    <span class="tag">The route, and the roadbook it becomes</span>
   </div>
 </div></header>
 
@@ -306,30 +374,57 @@
     <h2>Everything a good roadbook needs.</h2>
     <p class="sub">Five tools, one calm studio — from the first point on the map to the printed page.</p>
   </div>
-  <div class="grid">
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"/><path d="M12 13C12 7 8 5 7 4"/><path d="M12 13C12 7 16 5 17 4"/></svg><h3>Tulip editor</h3><p>Draw every junction as a clear little diagram — quick guided mode or free drawing, with roundabouts, bridges, side roads and the official signs.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19c4-1 4-11 8-12s4 8 8 6"/><circle cx="4" cy="19" r="1.6" fill="currentColor" stroke="none"/><circle cx="20" cy="13" r="1.6" fill="currentColor" stroke="none"/></svg><h3>Track editor</h3><p>Trace the route and it follows the roads, or import a drive you recorded. Drag any point, cut a section, reroute — nothing locks.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><h3>Adjustable waypoints</h3><p>Drop a waypoint anywhere and slide it along the route until it sits exactly on the junction — numbers and distances keep themselves right.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><h3>Design the roadbook</h3><p>Pick the columns and what nests inside what, the theme, the font, the colours. Save the design and reuse it for every event.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><h3>Create PDF roadbook pages</h3><p>Print-ready pages with a cover, map page and height profile — plus GPX and .vmr export for anything with a screen.</p></div>
-    <div class="card"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><h3>Checked against the track</h3><p>Every diagram is compared to the turn read from the GPS line, so a wrong-way tulip is flagged before the whole field follows it.</p></div>
+  <div class="fstage" id="fstage" aria-live="polite">
+    <div class="fmedia" id="fmedia"><span class="ph" id="fph">Hover a feature to watch it work</span></div>
+    <p class="fcap" id="fcap"></p>
+  </div>
+  <div class="grid" id="fgrid">
+    <button type="button" class="card fcard on" data-demo="tulip"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V11"/><path d="M12 13C12 7 8 5 7 4"/><path d="M12 13C12 7 16 5 17 4"/></svg><h3>Tulip editor</h3><p>Draw every junction as a clear little diagram — quick guided mode or free drawing, with roundabouts, bridges, side roads and the official signs.</p><div class="cmedia"></div></button>
+    <button type="button" class="card fcard" data-demo="track"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19c4-1 4-11 8-12s4 8 8 6"/><circle cx="4" cy="19" r="1.6" fill="currentColor" stroke="none"/><circle cx="20" cy="13" r="1.6" fill="currentColor" stroke="none"/></svg><h3>Track editor</h3><p>Trace the route and it follows the roads, or import a drive you recorded. Drag any point, cut a section, reroute — nothing locks.</p><div class="cmedia"></div></button>
+    <button type="button" class="card fcard" data-demo="wps"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><h3>Adjustable waypoints</h3><p>Drop a waypoint anywhere and slide it along the route until it sits exactly on the junction — numbers and distances keep themselves right.</p><div class="cmedia"></div></button>
+    <button type="button" class="card fcard" data-demo="design"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><h3>Design the roadbook</h3><p>Pick the columns and what nests inside what, the theme, the font, the colours. Save the design and reuse it for every event.</p><div class="cmedia"></div></button>
+    <button type="button" class="card fcard" data-demo="pdf"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg><h3>Create PDF roadbook pages</h3><p>Print-ready pages with a cover, map page and height profile — plus GPX and .vmr export for anything with a screen.</p><div class="cmedia"></div></button>
+    <button type="button" class="card fcard" data-demo="check"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><h3>Checked against the track</h3><p>Every diagram is compared to the turn read from the GPS line, so a wrong-way tulip is flagged before the whole field follows it.</p><div class="cmedia"></div></button>
   </div>
 </div></section>
 
-<section id="app"><div class="wrap">
-  <div class="app">
-    <div class="copy">
-      <span class="chip"><span class="dot"></span> On the road · phone app</span>
-      <div class="eyebrow">Out recceing</div>
-      <h2>Record the route as you drive it.</h2>
-      <p>The Tulip Maps phone app rides along with you. Hit record and it lays down the exact line you took — <b>even miles from any signal</b> — while you drop photos and voice notes at the bits worth remembering.</p>
-      <p>Back at the laptop, open the recording in the studio and draw the roadbook straight onto the road you actually drove. No guessing from a paper map.</p>
-      <ul class="applist">
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg> Records your exact line by GPS, start to finish</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg> Photos and voice notes pinned to the map</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10"/></svg> Works fully offline — keeps going where the signal doesn't</li>
+<section id="app" class="appband"><div class="wrap">
+  <div class="apphead">
+    <div class="eyebrow">The phone app</div>
+    <h2>Drive the route. The app writes it down.</h2>
+    <p class="sub">Tulip Maps on your phone is the other half of the job: it records the road as you drive it, so the roadbook you draw at home sits on the line you actually took — not on a guess from a paper map.</p>
+  </div>
+  <div class="appgrid">
+    <div>
+      <ul class="appfour">
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="3.4" fill="currentColor" stroke="none"/></svg>
+          <b>Record your track</b><span>Hit record and it lays down the exact line you drove, start to finish, at full GPS rate.</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6.5" width="18" height="13.5" rx="2.4"/><circle cx="12" cy="13.2" r="3.4"/><path d="M8.4 6.5 9.8 4h4.4l1.4 2.5"/></svg>
+          <b>Add waypoints and photos</b><span>One press drops a waypoint where you are — with a photo and a voice note for the tricky bits.</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19c3.5-.8 4-10 8-11.4s4.2 7 8 5.6"/><circle cx="4" cy="19" r="1.7" fill="currentColor" stroke="none"/><path d="m17.2 10.4 3.2 2.4-2.4 3"/></svg>
+          <b>Follow a route</b><span>Load a planned route or a finished roadbook and drive it, with the line and the waypoints on screen.</span>
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v10.5"/><path d="m8 10.5 4 4 4-4"/><path d="M4.5 15.5v3a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-3"/></svg>
+          <b>Download maps</b><span>Take whole countries with you. Once a map pack is on the phone it needs no signal at all.</span>
+        </li>
       </ul>
-      <p class="microcopy" style="margin-top:1.4em"><b>On Android, in testing now.</b> The app is out recording real routes today — the Play Store release follows once testing's done.</p>
+      <div class="stores">
+        <a class="store" href="#app" aria-label="Tulip Maps on the App Store — coming soon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.1 12.6c0-2 1.6-3 1.7-3-.9-1.4-2.4-1.5-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.3 2-1.4 2.4-.4 6 1 8 .7 1 1.5 2 2.5 2s1.3-.6 2.5-.6 1.5.6 2.6.6 1.7-.9 2.4-1.8c.8-1 1.1-2 1.1-2.1 0 0-2-.8-2-3.5zM14.3 6.3c.5-.7.9-1.6.8-2.6-.8 0-1.8.5-2.4 1.2-.5.6-1 1.6-.8 2.5.9.1 1.8-.4 2.4-1.1z"/></svg>
+          <span class="l"><small>Coming soon on the</small><strong>App Store</strong></span>
+        </a>
+        <a class="store" href="#app" aria-label="Tulip Maps on Google Play — coming soon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.3 2.6c-.3.3-.5.8-.5 1.4v16c0 .6.2 1.1.5 1.4l.1.1 9-9v-.2l-9-9-.1.1z" opacity=".85"/><path d="m16.4 15.6-3-3v-.2l3-3 .1.1 3.6 2c1 .6 1 1.5 0 2.1l-3.7 2z"/><path d="m16.5 15.5-3.1-3.1-9.1 9.1c.3.4.9.4 1.5.1l10.7-6.1"/><path d="M16.5 8.5 5.8 2.4c-.6-.4-1.2-.3-1.5.1l9.1 9.1 3.1-3.1z"/></svg>
+          <span class="l"><small>Coming soon on</small><strong>Google Play</strong></span>
+        </a>
+        <p class="storenote"><b>In testing now on Android</b> — out recording real routes today. The store listings open when testing's done; the app is free, and everything you record is yours to export.</p>
+      </div>
     </div>
     <div class="phone-wrap">
       <div class="phone" aria-hidden="true">
@@ -359,6 +454,7 @@
   </div>
   <div class="qa">
     <div class="q">
+      <h3>What is a tulip?</h3>
       <div class="art" aria-hidden="true">
         <svg class="tulip" viewBox="0 0 120 220">
           <path class="st" d="M60 128V196" stroke-width="11" stroke-linecap="round" fill="none"/>
@@ -369,17 +465,16 @@
           <path class="p2" d="M60 46C77 52 86 74 82 102C79 122 70 134 60 134C50 134 41 122 38 102C34 74 43 52 60 46Z"/>
         </svg>
       </div>
-      <h3>What is a tulip?</h3>
       <p>The little junction picture in a roadbook: a <b>ball</b> for the road you arrive on, an <b>arrow</b> for the road you leave by. Drawn with a stem and a bloom, it looks like a flower — rally folk have called them tulips since the Tulip Rally made them famous.</p>
       <p class="more"><a class="lnk" href="/guides/what-is-a-tulip-diagram/">Read: what is a tulip diagram? →</a></p>
     </div>
     <div class="q">
+      <h3>What is a roadbook?</h3>
+      <p>The navigator's book: <b>one row per instruction</b> — a tulip, the distance, a few words — read top to bottom from start to finish. It's how rallies, raids and grand tours navigate without a map, and it's the thing Tulip Maps exists to create.</p>
       <div class="rbrow" aria-hidden="true">
         <svg viewBox="0 0 120 220"><g fill="none" stroke="#20302A" stroke-width="14" stroke-linecap="round"><path d="M60 200V95"/><path d="M60 120C60 75 90 65 100 55"/></g><circle cx="60" cy="200" r="13" fill="#20302A"/><path d="M88 40 L112 52 L94 70 Z" fill="#E1694F"/></svg>
         <div><div class="d">2.15 · TL at xroad</div><div class="t">one row of a roadbook — tulip, distance, instruction</div></div>
       </div>
-      <h3>What is a roadbook?</h3>
-      <p>The navigator's book: <b>one row per instruction</b> — a tulip, the distance, a few words — read top to bottom from start to finish. It's how rallies, raids and grand tours navigate without a map, and it's the thing Tulip Maps exists to create.</p>
       <p class="more"><a class="lnk" href="/guides/what-is-a-roadbook/">Read: what is a roadbook? →</a></p>
     </div>
   </div>
@@ -417,6 +512,71 @@
       if(save){ try{ localStorage.setItem(KEY,t); }catch(e){} } }
     try{ var saved=localStorage.getItem(KEY); if(saved) set(saved,false); }catch(e){}
     document.querySelectorAll(".sw").forEach(function(el){ el.addEventListener("click",function(){ set(el.dataset.t,true); }); });
+  })();
+
+  /* ---- Feature demos. Every frame is a real capture of the real studio, so
+     what you hover is what you get. Frames load only when a feature is first
+     asked for; a multi-frame demo plays as a loop unless the visitor has asked
+     for reduced motion. ---- */
+  (function(){
+    var DEMOS={
+      tulip:{cap:"<b>Quick mode.</b> Bend the route, add the side roads — the tulip redraws as you go.",
+             frames:["/img/demo/tulip-0.jpg","/img/demo/tulip-1.jpg","/img/demo/tulip-2.jpg","/img/demo/tulip-3.jpg","/img/demo/tulip-4.jpg","/img/demo/tulip-5.jpg"]},
+      track:{cap:"<b>The route on the map.</b> Every point can be dragged, cut or re-routed.",
+             frames:["/img/demo/track.jpg"]},
+      wps:{cap:"<b>Waypoints.</b> Numbered, named, and slid along the line until they sit on the junction.",
+             frames:["/img/demo/wps.jpg"]},
+      design:{cap:"<b>The roadbook maker.</b> Columns, theme, fonts and colours — saved and reused.",
+             frames:["/img/demo/design.jpg"]},
+      pdf:{cap:"<b>A real printed page</b>, straight out of the tool — tulips, distances, instructions.",
+             frames:["/img/demo/roadbook-page.png"]},
+      check:{cap:"<b>The check.</b> Every diagram compared with the turn the GPS line actually makes.",
+             frames:["/img/demo/check.jpg"]}
+    };
+    var media=document.getElementById("fmedia"), cap=document.getElementById("fcap"),
+        ph=document.getElementById("fph"), grid=document.getElementById("fgrid");
+    if(!media||!grid) return;
+    var still=matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var imgs={}, timer=null, active=null;
+
+    function ensure(key){
+      if(imgs[key]) return imgs[key];
+      var d=DEMOS[key]; if(!d) return null;
+      imgs[key]=d.frames.map(function(src){
+        var im=new Image(); im.src=src; im.alt=""; im.decoding="async";
+        media.appendChild(im); return im;
+      });
+      return imgs[key];
+    }
+    function showFrame(list,i){
+      list.forEach(function(im,n){ im.classList.toggle("show", n===i); });
+    }
+    function play(key){
+      if(active===key) return;
+      active=key;
+      clearInterval(timer);
+      Object.keys(imgs).forEach(function(k){ imgs[k].forEach(function(im){ im.classList.remove("show"); }); });
+      var list=ensure(key); if(!list) return;
+      if(ph) ph.style.display="none";
+      cap.innerHTML=(list.length>1?'<span class="live"><i></i>live demo</span>':'')+DEMOS[key].cap;
+      var i=0; showFrame(list,0);
+      if(list.length>1 && !still){
+        timer=setInterval(function(){ i=(i+1)%list.length; showFrame(list,i); }, 620);
+      }
+      [].forEach.call(grid.querySelectorAll(".fcard"),function(b){ b.classList.toggle("on", b.dataset.demo===key); });
+    }
+    [].forEach.call(grid.querySelectorAll(".fcard"),function(b){
+      var key=b.dataset.demo;
+      b.addEventListener("mouseenter",function(){ play(key); });
+      b.addEventListener("focus",function(){ play(key); });
+      b.addEventListener("click",function(){ play(key);
+        if(matchMedia("(max-width:860px)").matches) document.getElementById("fstage").scrollIntoView({block:"center"}); });
+    });
+    /* start on the tulip editor once it is worth loading */
+    if("IntersectionObserver" in window){
+      var io=new IntersectionObserver(function(en){ if(en[0].isIntersecting){ play("tulip"); io.disconnect(); } },{rootMargin:"120px"});
+      io.observe(document.getElementById("fstage"));
+    } else { play("tulip"); }
   })();
 
   /* Install the app. Chrome and Edge hand us a prompt we can fire; Safari has
