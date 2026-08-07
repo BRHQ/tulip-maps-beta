@@ -207,6 +207,16 @@
   .store .l strong{display:block;font-size:1.02rem;font-weight:600;letter-spacing:-.01em}
   .storenote{width:100%;margin:2px 0 0;font-size:.86rem;color:#A9BFAE}
   .storenote b{color:var(--al);font-weight:600}
+  /* three real screenshots off the phone, fanned. The middle one leads. */
+  .fan{display:flex;align-items:center;justify-content:center;gap:0;padding:6px 0}
+  .fan figure{margin:0;position:relative;border-radius:26px;background:#0F3125;padding:7px;
+    box-shadow:0 30px 54px -26px rgba(0,0,0,.72), inset 0 0 0 1px rgba(255,255,255,.09)}
+  .fan img{display:block;width:100%;height:auto;border-radius:20px}
+  .fan .side{width:35%;opacity:.92}
+  .fan .side.l{transform:rotate(-6deg) translateX(16%);z-index:1}
+  .fan .side.r{transform:rotate(6deg) translateX(-16%);z-index:1}
+  .fan .lead{width:46%;z-index:2;box-shadow:0 40px 64px -24px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.12)}
+  .fancap{margin:14px 0 0;text-align:center;font-size:.82rem;color:#A9BFAE}
   .app .copy p{color:var(--ink-soft);margin-top:1em;font-size:1.06rem;line-height:1.6}
   .app .copy p b{color:var(--ink);font-weight:600}
   .applist{list-style:none;padding:0;margin:1.5em 0 0;display:grid;gap:11px}
@@ -292,6 +302,11 @@
     .navcta{padding:.52em .9em;font-size:.88rem;white-space:nowrap}
     .navsignin{font-size:.88rem;white-space:nowrap;padding:.5em .2em}
     .brand{font-size:1.12rem}
+  }
+  @media(max-width:560px){
+    /* three phones at this width are three thumbnails — show the one that matters */
+    .fan .side{display:none}
+    .fan .lead{width:64%}
   }
   @media(max-width:540px){
     .steps,.grid{grid-template-columns:1fr}
@@ -426,23 +441,16 @@
         <p class="storenote"><b>In testing now on Android</b> — out recording real routes today. The store listings open when testing's done; the app is free, and everything you record is yours to export.</p>
       </div>
     </div>
-    <div class="phone-wrap">
-      <div class="phone" aria-hidden="true">
-        <div class="screen">
-          <span class="notch"></span>
-          <svg viewBox="0 0 250 512" preserveAspectRatio="xMidYMid slice">
-            <rect width="250" height="512" fill="#E7E3D6"/>
-            <g stroke="#D4CFBE" stroke-width="1"><path d="M0 90H250M0 180H250M0 270H250M0 360H250M0 450H250M60 0V512M130 0V512M195 0V512"/></g>
-            <path d="M40 470 C60 400 40 330 90 300 S180 250 150 180 130 110 190 70" fill="none" stroke="#E1694F" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="40" cy="470" r="7" fill="#143D2E"/>
-            <circle cx="90" cy="300" r="6" fill="#fff" stroke="#143D2E" stroke-width="3"/>
-            <circle cx="150" cy="180" r="6" fill="#fff" stroke="#143D2E" stroke-width="3"/>
-            <circle cx="190" cy="70" r="8" fill="#E1694F" stroke="#fff" stroke-width="3"/>
-          </svg>
-          <div class="rec"><span class="b"></span> REC · 12.4 km</div>
-          <div class="stat"><div><b>12.4</b><span>km</span></div><div><b>00:41</b><span>elapsed</span></div><div><b>7</b><span>notes</span></div></div>
-        </div>
+    <div>
+      <div class="fan">
+        <figure class="side l"><img src="/img/app/route.jpg" width="450" height="1000" loading="lazy"
+          alt="A route open in the app, with its numbered instructions listed underneath the map"></figure>
+        <figure class="lead"><img src="/img/app/record.jpg" width="450" height="1000" loading="lazy"
+          alt="The app recording a track: speed, clock and distance across the top, the route on the map, and the waypoint button"></figure>
+        <figure class="side r"><img src="/img/app/maps.jpg" width="450" height="1000" loading="lazy"
+          alt="The offline maps screen, listing countries to download"></figure>
       </div>
+      <p class="fancap">Real screens, straight off the phone.</p>
     </div>
   </div>
 </div></section>
